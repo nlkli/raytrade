@@ -64,8 +64,7 @@ func (c *Chart) DrawCandles(candles []cdl.Candle) {
 	const width float32 = 5.
 	const gap float32 = 1.
 
-	maxV, minV := cdl.MaxMinPrice(candles)
-	c.maxV, c.minV = float32(maxV), float32(minV)
+	minP, maxP := cdl.MinMaxPrice(candles)
 
 	winSize := rl.NewVector2(float32(rl.GetScreenWidth()), float32(rl.GetScreenHeight()))
 
@@ -78,10 +77,10 @@ func (c *Chart) DrawCandles(candles []cdl.Candle) {
 			return
 		}
 
-		yO := PriceToY(float32(candle.O), c.maxV, c.minV, 0, winSize.Y)
-		yC := PriceToY(float32(candle.C), c.maxV, c.minV, 0, winSize.Y)
-		yH := PriceToY(float32(candle.H), c.maxV, c.minV, 0, winSize.Y)
-		yL := PriceToY(float32(candle.L), c.maxV, c.minV, 0, winSize.Y)
+		yO := PriceToY(float32(candle.O), float32(maxP), float32(minP), 0, winSize.Y)
+		yC := PriceToY(float32(candle.C), float32(maxP), float32(minP), 0, winSize.Y)
+		yH := PriceToY(float32(candle.H), float32(maxP), float32(minP), 0, winSize.Y)
+		yL := PriceToY(float32(candle.L), float32(maxP), float32(minP), 0, winSize.Y)
 
 		var color rl.Color
 		if candle.C >= candle.O {

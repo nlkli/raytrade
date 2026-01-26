@@ -37,7 +37,7 @@ func (c *Chart) DrawCandles(candles []cdl.Candle) {
 	const width float32 = 5.
 	const gap float32 = 1.
 
-	maxV, minV := cdl.MaxMinPrice(candles)
+	maxV, minV := cdl.MinMaxPrice(candles)
 	c.maxV, c.minV = float32(maxV), float32(minV)
 
 	winSize := rl.NewVector2(float32(rl.GetScreenWidth()), float32(rl.GetScreenHeight()))
