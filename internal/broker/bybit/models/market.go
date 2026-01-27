@@ -1,6 +1,6 @@
 package models
 
-type Kline struct {
+type KlineResult struct {
 	Category string      `json:"category"`
 	Symbol   string      `json:"symbol"`
 	List     [][7]string `json:"list"`

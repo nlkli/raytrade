@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"nlkli/raytrade/internal/broker/bybit"
 	"nlkli/raytrade/internal/broker/bybit/models"
+	"nlkli/raytrade/internal/ws"
 	"testing"
-
-	"github.com/gorilla/websocket"
 )
 
 func TestBybitGetKline(t *testing.T) {
@@ -20,10 +19,7 @@ func TestBybitGetKline(t *testing.T) {
 }
 
 func TestWsConnect(t *testing.T) {
-	conn, _, err := websocket.DefaultDialer.Dial("wss://stream.bybit.com/v5/public/linear", nil)
-	if err != nil {
-		t.Error(err)
-	}
+	conn := ws.NewConn(context.Background(), "wss://stream.bybit.com/v5/public/linear")
 	defer conn.Close()
 
 	msg := `{
@@ -33,22 +29,12 @@ func TestWsConnect(t *testing.T) {
 			"kline.1.BTCUSDT"
 		]
 	}`
-
-	err = conn.WriteMessage(websocket.TextMessage, []byte(msg))
-	if err != nil {
-		t.Error(err)
-	}
-
-	n := 0
+	conn.Send([]byte(msg))
 	for {
-		_, data, err := conn.ReadMessage()
+		b, err := conn.Recv()
 		if err != nil {
 			t.Error(err)
 		}
-		fmt.Println(string(data))
-		if n > 6 {
-			break
-		}
-		n++
+		fmt.Println(string(b))
 	}
 }
