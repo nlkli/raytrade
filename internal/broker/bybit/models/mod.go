@@ -3,7 +3,7 @@ package models
 type Category string
 
 const (
-	CategoryNone    Category = ""
+	CategoryDefault Category = ""
 	CategorySpot    Category = "spot"
 	CategoryLinear  Category = "linear"
 	CategoryInverse Category = "inverse"

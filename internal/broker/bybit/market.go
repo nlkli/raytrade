@@ -9,9 +9,9 @@ import (
 )
 
 // https://bybit-exchange.github.io/docs/v5/market/kline
-func (c *Client) GetKline(category models.Category, symbol string, interval models.Interval, start, end, limit *int) (*models.Kline, error) {
+func (c *Client) GetKline(category models.Category, symbol string, interval models.Interval, start, end, limit *int) (*models.KlineResult, error) {
 	query := make(url.Values)
-	if category != models.CategoryNone {
+	if category != models.CategoryDefault {
 		query.Set("category", string(category))
 	}
 	query.Set("symbol", symbol)
@@ -31,7 +31,7 @@ func (c *Client) GetKline(category models.Category, symbol string, interval mode
 	if err != nil {
 		return nil, err
 	}
-	var kline models.Kline
+	var kline models.KlineResult
 	err = c.callAPI(req, queryString, &kline)
 	if err != nil {
 		return nil, err

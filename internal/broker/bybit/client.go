@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"nlkli/raytrade/internal/broker/bybit/models"
 	"os"
 	"strconv"
 	"time"
@@ -19,6 +20,7 @@ import (
 
 const (
 	MAINNET             = "https://api.bybit.com"
+	STREAM_MAINNET      = "wss://stream.bybit.com"
 	DEFAULT_RECV_WINDOW = 5000
 )
 
@@ -95,14 +97,21 @@ type apiResponse struct {
 	Time       int64           `json:"time"`
 }
 
+func (c *Client) signature(s string) (string, error) {
+	hmac256 := hmac.New(sha256.New, []byte(c.apiSecret))
+	if _, err := hmac256.Write([]byte(s)); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hmac256.Sum(nil)), nil
+}
+
 func (c *Client) callAPI(req *http.Request, queryString string, result any) error {
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1e6, 10)
 	signatureString := fmt.Sprintf("%s%s%d%s", timestamp, c.apiKey, c.recvWindow, queryString)
-	hmac256 := hmac.New(sha256.New, []byte(c.apiSecret))
-	if _, err := hmac256.Write([]byte(signatureString)); err != nil {
-		return fmt.Errorf("error when creating the request signature: %w", err)
+	signature, err := c.signature(signatureString)
+	if err != nil {
+		return err
 	}
-	signature := hex.EncodeToString(hmac256.Sum(nil))
 	req.Header = map[string][]string{
 		"X-BAPI-API-KEY":     {c.apiKey},
 		"X-BAPI-TIMESTAMP":   {timestamp},
@@ -135,3 +144,13 @@ func (c *Client) callAPI(req *http.Request, queryString string, result any) erro
 	}
 	return nil
 }
+
+func (c *Client) CreatePublicStream(category models.Category) *Stream {
+	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
+	return NewStream(c.ctx, url, nil)
+}
+
+// func (c *Client) createPrivateStream(category models.Category) {
+// 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
+// 	ws.NewConn(c.ctx, url, nil)
+// }

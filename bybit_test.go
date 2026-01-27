@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"nlkli/raytrade/internal/broker/bybit"
 	"nlkli/raytrade/internal/broker/bybit/models"
-	"nlkli/raytrade/internal/ws"
 	"testing"
 )
 
@@ -19,22 +19,17 @@ func TestBybitGetKline(t *testing.T) {
 }
 
 func TestWsConnect(t *testing.T) {
-	conn := ws.NewConn(context.Background(), "wss://stream.bybit.com/v5/public/linear")
-	defer conn.Close()
-
-	msg := `{
-		"req_id": "test",
-		"op": "subscribe",
-		"args": [
-			"kline.1.BTCUSDT"
-		]
-	}`
-	conn.Send([]byte(msg))
-	for {
-		b, err := conn.Recv()
-		if err != nil {
-			t.Error(err)
-		}
-		fmt.Println(string(b))
+	client := bybit.NewClientFromEnv(context.Background())
+	stream := client.CreatePublicStream(models.CategoryLinear)
+	topics := []string{"kline.5.BTCUSDT", "kline.5.ADAUSDT", "kline.1.FARTCOINUSDT"}
+	ch, err := stream.Subscribe(topics, 8)
+	fmt.Println("OK")
+	if err != nil {
+		t.Error(err)
+	}
+	for data := range ch {
+		var klineData models.StreamKlineData
+		json.Unmarshal(data.Data, &klineData)
+		fmt.Printf("%+v\n", klineData)
 	}
 }
