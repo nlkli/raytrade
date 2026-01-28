@@ -13,14 +13,11 @@ type Conn struct {
 	tx chan []byte
 	rx chan []byte
 
-	// state   map[string][]byte
-	// stateMu sync.Mutex
+	onOpen func(*Conn) error
+	wg     sync.WaitGroup
 
 	ctx    context.Context
 	cancel context.CancelFunc
-	wg     sync.WaitGroup
-
-	onOpen func(*Conn) error
 }
 
 func NewConn(ctx context.Context, url string, onOpen func(*Conn) error) *Conn {
@@ -30,9 +27,9 @@ func NewConn(ctx context.Context, url string, onOpen func(*Conn) error) *Conn {
 		tx: make(chan []byte, 128),
 		rx: make(chan []byte, 256),
 		// state:  make(map[string][]byte),
+		onOpen: onOpen,
 		ctx:    ctx,
 		cancel: cancel,
-		onOpen: onOpen,
 	}
 
 	c.wg.Add(1)
@@ -52,23 +49,6 @@ func (c *Conn) Send(msg []byte) error {
 		return c.ctx.Err()
 	}
 }
-
-// func (c *Conn) SendPersistent(key string, msg []byte) error {
-// 	if len(msg) == 0 {
-// 		return errors.New("empty message")
-// 	}
-// 	c.stateMu.Lock()
-// 	c.state[key] = msg
-// 	c.stateMu.Unlock()
-//
-// 	return c.Send(msg)
-// }
-//
-// func (c *Conn) ClearPersistent(key string) {
-// 	c.stateMu.Lock()
-// 	delete(c.state, key)
-// 	c.stateMu.Unlock()
-// }
 
 func (c *Conn) Recv() ([]byte, error) {
 	select {
@@ -118,12 +98,6 @@ func (c *Conn) run(url string) {
 				continue
 			}
 		}
-
-		// if err := c.replayState(conn); err != nil {
-		// 	conn.Close()
-		// 	time.Sleep(retryDelay)
-		// 	continue
-		// }
 
 		done := make(chan struct{})
 
@@ -183,16 +157,3 @@ func (c *Conn) run(url string) {
 		conn.Close()
 	}
 }
-
-// func (c *Conn) replayState(conn *websocket.Conn) error {
-// 	c.stateMu.Lock()
-// 	defer c.stateMu.Unlock()
-// 
-// 	for _, msg := range c.state {
-// 		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-// 		if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }

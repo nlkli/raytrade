@@ -22,12 +22,11 @@ func TestWsConnect(t *testing.T) {
 	client := bybit.NewClientFromEnv(context.Background())
 	stream := client.CreatePublicStream(models.CategoryLinear)
 	topics := []string{"kline.5.BTCUSDT", "kline.5.ADAUSDT", "kline.1.FARTCOINUSDT"}
-	ch, err := stream.Subscribe(topics, 8)
-	fmt.Println("OK")
+	s, err := stream.Subscribe(topics, 8)
 	if err != nil {
 		t.Error(err)
 	}
-	for data := range ch {
+	for data := range s.C() {
 		var klineData models.StreamKlineData
 		json.Unmarshal(data.Data, &klineData)
 		fmt.Printf("%+v\n", klineData)
