@@ -5,9 +5,9 @@ import "encoding/json"
 type StreamOperation = string
 
 const (
-	StreamOperationAuth        StreamOperation = "auth"
-	StreamOperationSubscribe   StreamOperation = "subscribe"
-	StreamOperationUnsubscribe StreamOperation = "unsubscribe"
+	StreamOpAuth        StreamOperation = "auth"
+	StreamOpSubscribe   StreamOperation = "subscribe"
+	StreamOpUnsubscribe StreamOperation = "unsubscribe"
 )
 
 type StreamOperationRequest struct {

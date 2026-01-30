@@ -14,10 +14,10 @@ type Conn struct {
 	rx chan []byte
 
 	onOpen func(*Conn) error
-	wg     sync.WaitGroup
 
 	ctx    context.Context
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
 func NewConn(ctx context.Context, url string, onOpen func(*Conn) error) *Conn {
@@ -26,8 +26,9 @@ func NewConn(ctx context.Context, url string, onOpen func(*Conn) error) *Conn {
 	c := &Conn{
 		tx: make(chan []byte, 128),
 		rx: make(chan []byte, 256),
-		// state:  make(map[string][]byte),
+
 		onOpen: onOpen,
+
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -42,6 +43,7 @@ func (c *Conn) Send(msg []byte) error {
 	if len(msg) == 0 {
 		return errors.New("empty message")
 	}
+
 	select {
 	case c.tx <- msg:
 		return nil
@@ -52,10 +54,7 @@ func (c *Conn) Send(msg []byte) error {
 
 func (c *Conn) Recv() ([]byte, error) {
 	select {
-	case msg, ok := <-c.rx:
-		if !ok {
-			return nil, errors.New("connection closed")
-		}
+	case msg := <-c.rx:
 		return msg, nil
 	case <-c.ctx.Done():
 		return nil, c.ctx.Err()
@@ -65,8 +64,6 @@ func (c *Conn) Recv() ([]byte, error) {
 func (c *Conn) Close() {
 	c.cancel()
 	c.wg.Wait()
-	close(c.tx)
-	close(c.rx)
 }
 
 func (c *Conn) run(url string) {
@@ -99,10 +96,10 @@ func (c *Conn) run(url string) {
 			}
 		}
 
-		done := make(chan struct{})
+		readDone := make(chan struct{})
 
 		go func() {
-			defer close(done)
+			defer close(readDone)
 
 			conn.SetReadDeadline(time.Now().Add(pingInterval * 2))
 			conn.SetPongHandler(func(string) error {
@@ -126,34 +123,41 @@ func (c *Conn) run(url string) {
 
 		ticker := time.NewTicker(pingInterval)
 
-	loop:
 		for {
 			select {
 			case msg := <-c.tx:
 				conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 				if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-					break loop
+					goto reconnect
 				}
 
 			case <-ticker.C:
 				conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					break loop
+					goto reconnect
 				}
 
-			case <-done:
-				break loop
+			case <-readDone:
+				goto reconnect
 
 			case <-c.ctx.Done():
-				break loop
+				goto shutdown
 			}
 		}
 
+	reconnect:
+		ticker.Stop()
+		conn.Close()
+		time.Sleep(retryDelay)
+		continue
+
+	shutdown:
 		ticker.Stop()
 		_ = conn.WriteMessage(
 			websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
 		)
 		conn.Close()
+		return
 	}
 }
