@@ -1,16 +1,21 @@
 package app
 
 import (
-	"fmt"
 	"math"
 	"nlkli/raytrade/internal/cdl"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+const (
+	RH float32 = 16
+	FS float32 = 14
+	WPD float32 = 2
+)
+
 type Chart struct {
 	scale, shift rl.Vector2
-	maxV, minV float32
+	maxV, minV   float32
 }
 
 func NewChart() *Chart {
@@ -26,7 +31,7 @@ func (c *Chart) DrawRectangleV(position rl.Vector2, size rl.Vector2, color rl.Co
 }
 
 func PriceToY(price, maxV, minV, rY, rHeight float32) float32 {
-	return rY + (maxV - price) / (maxV - minV) * rHeight
+	return rY + (maxV-price)/(maxV-minV)*rHeight
 }
 
 func (c *Chart) DrawCandles(candles []cdl.Candle) {
@@ -46,83 +51,93 @@ func (c *Chart) DrawCandles(candles []cdl.Candle) {
 	for i := range candles {
 		candle := candles[n-i]
 
-		x := winSize.X - (width + gap) * float32(i + 1)
+		x := winSize.X - (width+gap)*float32(i+1)
 		if x < 0 {
 			return
 		}
 
 		yO := PriceToY(float32(candle.O), c.maxV, c.minV, 0, winSize.Y)
-        yC := PriceToY(float32(candle.C), c.maxV, c.minV, 0, winSize.Y)
-        yH := PriceToY(float32(candle.H), c.maxV, c.minV, 0, winSize.Y)
-        yL := PriceToY(float32(candle.L), c.maxV, c.minV, 0, winSize.Y)
+		yC := PriceToY(float32(candle.C), c.maxV, c.minV, 0, winSize.Y)
+		yH := PriceToY(float32(candle.H), c.maxV, c.minV, 0, winSize.Y)
+		yL := PriceToY(float32(candle.L), c.maxV, c.minV, 0, winSize.Y)
 
-		var color rl.Color 
+		var color rl.Color
 		if candle.C >= candle.O {
 			color = rl.Green
 		} else {
 			color = rl.Red
 		}
 
-		halfW := x + width / 2
+		halfW := x + width/2
 		rl.DrawLineV(rl.NewVector2(halfW, yH), rl.NewVector2(halfW, yL), color)
-        rl.DrawRectangleV(
+		rl.DrawRectangleV(
 			rl.NewVector2(x, min(yO, yC)),
-			rl.NewVector2(width, float32(max(1, math.Abs(float64(yO - yC))))),
-            color,
-        )
+			rl.NewVector2(width, float32(max(1, math.Abs(float64(yO-yC))))),
+			color,
+		)
 
 	}
 }
 
-func Run() error {
-	candles, err := cdl.CandlesFromCsv("BTCUSDT-15m-2025-12.csv")
-	if err != nil {
-		return err
+type Mode int
+
+const (
+	Normal Mode = iota
+	Input
+)
+
+type AppState struct {
+	ws    rl.Vector2
+	mode  Mode
+
+	charP int32
+
+	slPos rl.Vector2
+}
+
+func NewAppState() *AppState {
+	return &AppState{
+		ws:   rl.NewVector2(0, 0),
+		mode: Normal,
 	}
+}
 
-	fmt.Println(candles[0])
+type App struct {
+	s *AppState
+}
 
+func NewApp() *App {
+	return &App{
+		s: NewAppState(),
+	}
+}
+
+func (a *App) DrawStatusLine() {
+	a.s.slPos = rl.NewVector2(0, a.s.ws.Y-(RH*2.5))
+	rl.DrawRectangleV(a.s.slPos, rl.NewVector2(a.s.ws.X, RH), rl.Red)
+}
+
+func (a *App) Render() {
+	sW, sH := rl.GetScreenWidth(), rl.GetScreenHeight()
+	a.s.ws = rl.NewVector2(float32(sW), float32(sH))
+	a.s.charP = rl.GetCharPressed()
+
+	rl.ClearBackground(rl.Black)
+}
+
+func Run() error {
 	rl.SetConfigFlags(rl.FlagWindowResizable)
 	rl.InitWindow(800, 600, "raytrade")
+
 	defer rl.CloseWindow()
 
 	rl.SetTargetFPS(60)
 
-	chart := NewChart()
+	app := NewApp()
 
 	for !rl.WindowShouldClose() {
-		if rl.IsKeyDown(rl.KeyLeft) {
-			chart.shift.X -= .9
-		}
-		if rl.IsKeyDown(rl.KeyRight) {
-			chart.shift.X += .9
-		}
-		if rl.IsKeyDown(rl.KeyUp) {
-			chart.shift.Y -= .9
-		}
-		if rl.IsKeyDown(rl.KeyDown) {
-			chart.shift.Y += .9
-		}
-		if rl.IsKeyDown(rl.KeyEqual) {
-			chart.Scale(.3)
-		}
-		if rl.IsKeyDown(rl.KeyMinus) {
-			chart.Scale(-.3)
-		}
-
 		rl.BeginDrawing()
-
-		rl.ClearBackground(rl.Black)
-
-		// mPos := rl.GetMousePosition()
-
-        r := rl.IsWindowResized()
-		rl.DrawText(fmt.Sprintf("%d %d %+v", rl.GetScreenWidth(), rl.GetScreenHeight(), r), 2, 2, 9, rl.White)
-
-		// chart.DrawRectangleV(rl.NewVector2(10, 10), rl.NewVector2(20, 20), rl.White)
-		// rl.DrawRectangleV(mPos, rl.NewVector2(10, 10), rl.NewColor(255, 255, 0, 255))
-		chart.DrawCandles(candles[len(candles)-666:])
-
+		app.Render()
 		rl.EndDrawing()
 	}
 

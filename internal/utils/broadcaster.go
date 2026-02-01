@@ -80,8 +80,8 @@ func (s *Subscription[T]) Stop() {
 }
 
 type Broadcaster[T any] struct {
-	mu   sync.RWMutex
 	subs map[*Subscription[T]]struct{}
+	mu   sync.RWMutex
 }
 
 func NewBroadcaster[T any]() *Broadcaster[T] {
@@ -96,7 +96,6 @@ func (b *Broadcaster[T]) Subscribe(buffer int, onStop func(*Broadcaster[T])) *Su
 	sub := &Subscription[T]{
 		ch: ch,
 	}
-
 	sub.onStop = func() {
 		b.mu.Lock()
 		delete(b.subs, sub)

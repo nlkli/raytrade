@@ -17,19 +17,22 @@ import (
 
 var globReqID atomic.Uint64
 
-func newStreamOpRequest(
-	op models.StreamOperation,
-	topics []string,
-) (string, []byte, error) {
-	reqID := strconv.FormatUint(globReqID.Add(1), 10)
+func nextReqID() string {
+	return strconv.FormatUint(globReqID.Add(1), 10)
+}
 
-	req := models.StreamOperationRequest{
+func newStreamOpRequest(
+	op models.StreamOp,
+	args []string,
+) (string, []byte, error) {
+	reqID := nextReqID()
+	req := models.StreamOpRequest{
 		ReqID: reqID,
 		Op:    op,
-		Args:  make([]any, len(topics)),
+		Args:  make([]any, len(args)),
 	}
-	for i, t := range topics {
-		req.Args[i] = t
+	for i, a := range args {
+		req.Args[i] = a
 	}
 
 	b, err := json.Marshal(req)
@@ -108,9 +111,9 @@ func (s *Stream) Subscribe(topics []string, buffer int) (*utils.Subscription[*mo
 	if len(topics) == 0 {
 		return nil, fmt.Errorf("empty topics")
 	}
-    if s.ctx.Err() != nil {
-        return nil, fmt.Errorf("stream is closed")
-    }
+	if err := s.ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	s.subBarrier.Lock()
 	defer s.subBarrier.Unlock()
@@ -173,7 +176,6 @@ func (s *Stream) Subscribe(topics []string, buffer int) (*utils.Subscription[*mo
 				s.subBarrier.Lock()
 				defer s.subBarrier.Unlock()
 
-
 				s.mu.Lock()
 				delete(s.topics, t)
 				s.mu.Unlock()
@@ -213,8 +215,8 @@ func (s *Stream) run() {
 					bc.Publish(&data)
 				}
 				s.mu.RUnlock()
+				continue
 			}
-			continue
 		}
 
 		var res models.StreamOperationResult

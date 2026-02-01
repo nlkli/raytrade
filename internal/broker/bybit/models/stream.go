@@ -2,25 +2,18 @@ package models
 
 import "encoding/json"
 
-type StreamOperation = string
+type StreamOp = string
 
 const (
-	StreamOpAuth        StreamOperation = "auth"
-	StreamOpSubscribe   StreamOperation = "subscribe"
-	StreamOpUnsubscribe StreamOperation = "unsubscribe"
+	StreamOpAuth        StreamOp = "auth"
+	StreamOpSubscribe   StreamOp = "subscribe"
+	StreamOpUnsubscribe StreamOp = "unsubscribe"
 )
 
-type StreamOperationRequest struct {
+type StreamOpRequest struct {
 	ReqID string `json:"req_id,omitempty"`
 	Op    string `json:"op"`
 	Args  []any  `json:"args"`
-}
-
-// StreamEnvelopeMessage is a lightweight discriminator for incoming WS messages.
-// It is used to detect message type before full decoding.
-type StreamEnvelopeMessage struct {
-	Topic   string `json:"topic,omitempty"`
-	Success *bool  `json:"success,omitempty"`
 }
 
 // https://bybit-exchange.github.io/docs/v5/ws/connect

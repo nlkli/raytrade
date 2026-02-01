@@ -21,7 +21,6 @@ func TestBybitGetKline(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	client := bybit.NewClientFromEnv(context.Background())
-
 	stream := client.CreatePublicStream(models.CategoryLinear)
 
 	topics := []string{"kline.5.BTCUSDT", "kline.5.ADAUSDT", "kline.1.FARTCOINUSDT"}
@@ -35,8 +34,6 @@ func TestWsConnect(t *testing.T) {
 		<-time.After(5 * time.Second)
 		stream.Close()
 	}()
-
-	fmt.Println("OK")
 
 	for data := range s.C() {
 		var klineData models.StreamKlineData

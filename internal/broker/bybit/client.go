@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"nlkli/raytrade/internal/broker/bybit/models"
+	"nlkli/raytrade/internal/ws"
 	"os"
 	"strconv"
 	"time"
@@ -150,7 +151,27 @@ func (c *Client) CreatePublicStream(category models.Category) *Stream {
 	return NewStream(c.ctx, url, nil)
 }
 
-// func (c *Client) createPrivateStream(category models.Category) {
-// 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
-// 	ws.NewConn(c.ctx, url, nil)
-// }
+func (c *Client) CreatePrivateStream(category models.Category) *Stream {
+	url := fmt.Sprintf("%s/v5/private/%s", STREAM_MAINNET, category)
+	return NewStream(c.ctx, url, func(conn *ws.Conn) error {
+		expires := time.Now().UnixNano()/1e6 + 10000
+		val := fmt.Sprintf("GET/realtime%d", expires)
+		signature, err := c.signature(val)
+		if err != nil {
+			return err
+		}
+		opReq := &models.StreamOpRequest{
+			ReqID: nextReqID(),
+			Op:    models.StreamOpAuth,
+			Args: []any{
+				c.apiKey, expires, signature,
+			},
+		}
+		b, err := json.Marshal(opReq)
+		if err != nil {
+			return err
+		}
+
+		return conn.Send(b)
+	})
+}

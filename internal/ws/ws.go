@@ -2,22 +2,28 @@ package ws
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
+const (
+	pingInterval = 20 * time.Second
+	retryDelay   = time.Second
+	writeTimeout = 5 * time.Second
+)
+
 type Conn struct {
 	tx chan []byte
 	rx chan []byte
 
+	url    string
 	onOpen func(*Conn) error
 
+	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel context.CancelFunc
-	wg     sync.WaitGroup
 }
 
 func NewConn(ctx context.Context, url string, onOpen func(*Conn) error) *Conn {
@@ -27,25 +33,24 @@ func NewConn(ctx context.Context, url string, onOpen func(*Conn) error) *Conn {
 		tx: make(chan []byte, 128),
 		rx: make(chan []byte, 256),
 
+		url:    url,
 		onOpen: onOpen,
 
 		ctx:    ctx,
 		cancel: cancel,
 	}
 
-	c.wg.Add(1)
-	go c.run(url)
+	c.wg.Go(c.run)
 
 	return c
 }
 
-func (c *Conn) Send(msg []byte) error {
-	if len(msg) == 0 {
-		return errors.New("empty message")
+func (c *Conn) Send(b []byte) error {
+	if err := c.ctx.Err(); err != nil {
+		return err
 	}
-
 	select {
-	case c.tx <- msg:
+	case c.tx <- b:
 		return nil
 	case <-c.ctx.Done():
 		return c.ctx.Err()
@@ -54,8 +59,8 @@ func (c *Conn) Send(msg []byte) error {
 
 func (c *Conn) Recv() ([]byte, error) {
 	select {
-	case msg := <-c.rx:
-		return msg, nil
+	case b := <-c.rx:
+		return b, nil
 	case <-c.ctx.Done():
 		return nil, c.ctx.Err()
 	}
@@ -66,41 +71,21 @@ func (c *Conn) Close() {
 	c.wg.Wait()
 }
 
-func (c *Conn) run(url string) {
-	defer c.wg.Done()
+func (c *Conn) Err() error {
+	return c.ctx.Err()
+}
 
-	const (
-		pingInterval = 20 * time.Second
-		retryDelay   = time.Second
-		writeTimeout = 5 * time.Second
-	)
-
+func (c *Conn) run() {
 	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		default:
-		}
-
-		conn, _, err := websocket.DefaultDialer.Dial(url, nil)
+		var done chan struct{}
+		var ticker *time.Ticker
+		conn, _, err := websocket.DefaultDialer.Dial(c.url, nil)
 		if err != nil {
-			time.Sleep(retryDelay)
-			continue
+			goto reconnect
 		}
 
-		if c.onOpen != nil {
-			if err := c.onOpen(c); err != nil {
-				conn.Close()
-				time.Sleep(retryDelay)
-				continue
-			}
-		}
-
-		readDone := make(chan struct{})
-
+		done = make(chan struct{})
 		go func() {
-			defer close(readDone)
-
 			conn.SetReadDeadline(time.Now().Add(pingInterval * 2))
 			conn.SetPongHandler(func(string) error {
 				conn.SetReadDeadline(time.Now().Add(pingInterval * 2))
@@ -108,56 +93,61 @@ func (c *Conn) run(url string) {
 			})
 
 			for {
-				_, msg, err := conn.ReadMessage()
+				_, b, err := conn.ReadMessage()
 				if err != nil {
+					close(done)
 					return
 				}
 
 				select {
-				case c.rx <- msg:
+				case c.rx <- b:
 				case <-c.ctx.Done():
 					return
 				}
 			}
 		}()
 
-		ticker := time.NewTicker(pingInterval)
+		if c.onOpen != nil {
+			if err := c.onOpen(c); err != nil {
+				goto reconnect
+			}
+		}
 
+		ticker = time.NewTicker(pingInterval)
 		for {
 			select {
-			case msg := <-c.tx:
+			case b := <-c.tx:
 				conn.SetWriteDeadline(time.Now().Add(writeTimeout))
-				if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				if err := conn.WriteMessage(websocket.TextMessage, b); err != nil {
 					goto reconnect
 				}
-
 			case <-ticker.C:
 				conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 					goto reconnect
 				}
-
-			case <-readDone:
+			case <-done:
 				goto reconnect
-
 			case <-c.ctx.Done():
-				goto shutdown
+				_ = conn.WriteMessage(
+					websocket.CloseMessage,
+					websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+				)
+				goto reconnect
 			}
 		}
 
 	reconnect:
-		ticker.Stop()
-		conn.Close()
+		if conn != nil {
+			conn.Close()
+		}
+		if ticker != nil {
+			ticker.Stop()
+		}
+		if c.ctx.Err() != nil {
+			return
+		}
 		time.Sleep(retryDelay)
-		continue
 
-	shutdown:
-		ticker.Stop()
-		_ = conn.WriteMessage(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-		)
-		conn.Close()
-		return
 	}
 }
