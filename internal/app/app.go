@@ -1,83 +1,21 @@
 package app
 
 import (
-	"math"
-	"nlkli/raytrade/internal/cdl"
+	"encoding/json"
+	"os"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const (
-	RH float32 = 16
-	FS float32 = 14
+	RH  float32 = 16
+	FS  float32 = 14
 	WPD float32 = 2
+
+	OB_WIDTH  float32 = 200
+	TL_HEIGHT float32 = 20
+	PB_WIDTH  float32 = 60
 )
-
-type Chart struct {
-	scale, shift rl.Vector2
-	maxV, minV   float32
-}
-
-func NewChart() *Chart {
-	return &Chart{}
-}
-
-func (c *Chart) Scale(factor float32) {
-	c.scale = rl.Vector2AddValue(c.scale, factor)
-}
-
-func (c *Chart) DrawRectangleV(position rl.Vector2, size rl.Vector2, color rl.Color) {
-	rl.DrawRectangleV(rl.Vector2Add(position, c.shift), rl.Vector2Add(size, c.scale), color)
-}
-
-func PriceToY(price, maxV, minV, rY, rHeight float32) float32 {
-	return rY + (maxV-price)/(maxV-minV)*rHeight
-}
-
-func (c *Chart) DrawCandles(candles []cdl.Candle) {
-	if len(candles) == 0 {
-		return
-	}
-
-	const width float32 = 5.
-	const gap float32 = 1.
-
-	maxV, minV := cdl.MinMaxPrice(candles)
-	c.maxV, c.minV = float32(maxV), float32(minV)
-
-	winSize := rl.NewVector2(float32(rl.GetScreenWidth()), float32(rl.GetScreenHeight()))
-
-	n := len(candles) - 1
-	for i := range candles {
-		candle := candles[n-i]
-
-		x := winSize.X - (width+gap)*float32(i+1)
-		if x < 0 {
-			return
-		}
-
-		yO := PriceToY(float32(candle.O), c.maxV, c.minV, 0, winSize.Y)
-		yC := PriceToY(float32(candle.C), c.maxV, c.minV, 0, winSize.Y)
-		yH := PriceToY(float32(candle.H), c.maxV, c.minV, 0, winSize.Y)
-		yL := PriceToY(float32(candle.L), c.maxV, c.minV, 0, winSize.Y)
-
-		var color rl.Color
-		if candle.C >= candle.O {
-			color = rl.Green
-		} else {
-			color = rl.Red
-		}
-
-		halfW := x + width/2
-		rl.DrawLineV(rl.NewVector2(halfW, yH), rl.NewVector2(halfW, yL), color)
-		rl.DrawRectangleV(
-			rl.NewVector2(x, min(yO, yC)),
-			rl.NewVector2(width, float32(max(1, math.Abs(float64(yO-yC))))),
-			color,
-		)
-
-	}
-}
 
 type Mode int
 
@@ -86,46 +24,162 @@ const (
 	Input
 )
 
-type AppState struct {
-	ws    rl.Vector2
-	mode  Mode
-
-	charP int32
-
-	slPos rl.Vector2
+type rect struct {
+	p rl.Vector2
+	s rl.Vector2
 }
 
-func NewAppState() *AppState {
-	return &AppState{
-		ws:   rl.NewVector2(0, 0),
-		mode: Normal,
+func newRect(pX, pY, sW, sH float32) *rect {
+	return &rect{
+		p: rl.NewVector2(pX, pY),
+		s: rl.NewVector2(sW, sH),
 	}
 }
 
-type App struct {
-	s *AppState
+func (r *rect) toRectangle() rl.Rectangle {
+	return rl.NewRectangle(r.p.X, r.p.Y, r.s.X, r.s.Y)
 }
 
-func NewApp() *App {
-	return &App{
-		s: NewAppState(),
+func (r *rect) draw(c rl.Color) {
+	rl.DrawRectangleV(r.p, r.s, c)
+}
+
+func (r *rect) drawOutline(lt float32, c rl.Color) {
+	rl.DrawRectangleLinesEx(r.toRectangle(), lt, c)
+}
+
+type imputLine struct {
+	r *rect
+}
+
+func (il *imputLine) draw(c *colors) {
+}
+
+type statusLine struct {
+	r *rect
+}
+
+func (sl *statusLine) draw(c *colors) {
+	sl.r.draw(c.bg[0])
+}
+
+type chart struct {
+	r *rect
+
+	priceBar *priceBar
+	timeLine *timeLine
+}
+
+func (ch *chart) draw(c *colors) {
+	ch.timeLine = &timeLine{
+		r: newRect(ch.r.p.X, ch.r.s.Y-TL_HEIGHT, ch.r.s.X, TL_HEIGHT),
 	}
+	ch.priceBar = &priceBar{
+		r: newRect(ch.r.s.X-PB_WIDTH, ch.r.p.Y, PB_WIDTH, ch.r.s.Y-TL_HEIGHT),
+	}
+	ch.r.draw(c.bg[1])
+	ch.priceBar.draw(c)
+	ch.timeLine.draw(c)
 }
 
-func (a *App) DrawStatusLine() {
-	a.s.slPos = rl.NewVector2(0, a.s.ws.Y-(RH*2.5))
-	rl.DrawRectangleV(a.s.slPos, rl.NewVector2(a.s.ws.X, RH), rl.Red)
+type priceBar struct {
+	r *rect
 }
 
-func (a *App) Render() {
+func (pb *priceBar) draw(c *colors) {
+	pb.r.draw(c.bg[0])
+}
+
+type timeLine struct {
+	r *rect
+}
+
+func (tl *timeLine) draw(c *colors) {
+	tl.r.draw(c.bg[0])
+	tl.r.drawOutline(1, c.base.red)
+}
+
+type orderBook struct {
+	r *rect
+}
+
+func (ob *orderBook) draw(c *colors) {
+	ob.r.draw(c.bg[1])
+}
+
+type state struct {
+	ws   rl.Vector2
+	mode Mode
+
+	il *imputLine
+	sl *statusLine
+	ch *chart
+	ob *orderBook
+}
+
+func (s *state) update() {
 	sW, sH := rl.GetScreenWidth(), rl.GetScreenHeight()
-	a.s.ws = rl.NewVector2(float32(sW), float32(sH))
-	a.s.charP = rl.GetCharPressed()
+	s.ws = rl.NewVector2(float32(sW), float32(sH))
 
-	rl.ClearBackground(rl.Black)
+	s.il = &imputLine{
+		r: newRect(0, s.ws.Y, s.ws.X, RH*2.33),
+	}
+	s.sl = &statusLine{
+		r: newRect(0, s.ws.Y-s.il.r.s.Y, s.ws.X, RH),
+	}
+	s.ch = &chart{
+		r: newRect(0, 0, s.ws.X-OB_WIDTH, s.sl.r.p.Y),
+	}
+	s.ob = &orderBook{
+		r: newRect(s.ch.r.s.X, 0, OB_WIDTH, s.ch.r.s.Y),
+	}
+
 }
 
-func Run() error {
+type app struct {
+	c colors
+	*state
+}
+
+func (a *app) render() {
+	a.update()
+	// a.s.charP = rl.GetCharPressed()
+
+	rl.ClearBackground(a.c.bg[1])
+
+	a.state.il.draw(&a.c)
+	a.state.sl.draw(&a.c)
+	a.state.ch.draw(&a.c)
+	a.state.ob.draw(&a.c)
+}
+
+func Run(configPath string) error {
+	const (
+		WIN_WIDTH  = 800
+		WIN_HEIGHT = 600
+	)
+
+	b, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	var config config
+	if err = json.Unmarshal(b, &config); err != nil {
+		return err
+	}
+
+	colors, err := colorsFromConfig(&config)
+	if err != nil {
+		return err
+	}
+	app := &app{
+		c: colors,
+		state: &state{
+			ws:   rl.NewVector2(float32(WIN_WIDTH), float32(WIN_HEIGHT)),
+			mode: Normal,
+		},
+	}
+
 	rl.SetConfigFlags(rl.FlagWindowResizable)
 	rl.InitWindow(800, 600, "raytrade")
 
@@ -133,11 +187,9 @@ func Run() error {
 
 	rl.SetTargetFPS(60)
 
-	app := NewApp()
-
 	for !rl.WindowShouldClose() {
 		rl.BeginDrawing()
-		app.Render()
+		app.render()
 		rl.EndDrawing()
 	}
 

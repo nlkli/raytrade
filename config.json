@@ -1,0 +1,76 @@
+{
+    "theme": {
+        "name": "Gruvbox Dark Hard",
+        "is_light": false,
+        "colors": {
+            "background": [
+                "#131516",
+                "#1d2021",
+                "#2a2f30",
+                "#383e40",
+                "#51595c"
+            ],
+            "foreground": [
+                "#fae9be",
+                "#ebdbb2",
+                "#b0a486",
+                "#7b725d"
+            ],
+            "selection": {
+                "bg": "#665c54",
+                "fg": "#ebdbb2"
+            },
+            "cursor": {
+                "bg": "#ebdbb2",
+                "fg": "#1d2021"
+            },
+            "base": {
+                "black": "#1d2021",
+                "red": "#cc241d",
+                "green": "#98971a",
+                "yellow": "#d79921",
+                "blue": "#458588",
+                "magenta": "#b16286",
+                "cyan": "#689d6a",
+                "white": "#a89984",
+                "orange": "#d25f1f",
+                "pink": "#ba5f51"
+            },
+            "bright": {
+                "black": "#1d2021",
+                "red": "#cc241d",
+                "green": "#98971a",
+                "yellow": "#d79921",
+                "blue": "#458588",
+                "magenta": "#b16286",
+                "cyan": "#689d6a",
+                "white": "#a89984",
+                "orange": "#d25f1f",
+                "pink": "#ba5f51"
+            },
+            "dim": {
+                "black": "#191b1c",
+                "red": "#ad1f19",
+                "green": "#818016",
+                "yellow": "#b7821c",
+                "blue": "#3b7174",
+                "magenta": "#965372",
+                "cyan": "#58855a",
+                "white": "#8f8270",
+                "orange": "#b2501a",
+                "pink": "#9e5044"
+            },
+            "diff": {
+                "add": "#7f7f1b",
+                "delete": "#a9231e",
+                "change": "#3d7173",
+                "text": "#854e68"
+            },
+            "code_selection": [
+                "#3c3c37",
+                "#4e4d44"
+            ],
+            "comment": "#999078"
+        }
+    }
+}
