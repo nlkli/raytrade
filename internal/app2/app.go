@@ -13,32 +13,35 @@ type App struct {
 	root   *Root
 	worker *Worker
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx context.Context
 }
 
 func (a *App) Frame() {
-	rl.BeginDrawing()
-	rl.ClearBackground(a.state.P.Bg[1])
+	a.state.WHF = rl.IsWindowHidden()
+	a.state.WFF = rl.IsWindowFocused()
+	a.state.WRF = rl.IsWindowResized()
 
-	a.state.WR = rl.IsWindowResized()
-	if a.state.WR {
+	if a.state.WRF {
 		sW, sH := rl.GetScreenWidth(), rl.GetScreenHeight()
 		a.state.W = rl.NewVector2(float32(sW), float32(sH))
 	}
+
 	cp := rl.GetCharPressed()
-	if cp != 0 {
-		a.state.PF = true
-	} else {
-		a.state.PF = false
-	}
+	a.state.CPF = cp != 0
 	a.state.CP = rune(cp)
 
+	rl.BeginDrawing()
 	a.root.Render(a.state)
+	rl.EndDrawing()
 
 	a.state.FN += 1
 
-	rl.EndDrawing()
+	select {
+	case f := <-a.worker.Rx:
+		f(a.state)
+	default:
+		return
+	}
 }
 
 func Run(ctx context.Context, configPath string) error {
@@ -52,13 +55,19 @@ func Run(ctx context.Context, configPath string) error {
 		return err
 	}
 
+	state := InitState(&c)
+	worker := NewWorker(ctx)
+	state.WTX = worker.Tx
+
 	app := &App{
-		state: InitState(&c),
-		root:  InitRoot(),
+		state:  state,
+		root:   InitRoot(),
+		worker: worker,
 	}
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
 	rl.InitWindow(c.InitWindow.Width, c.InitWindow.Height, c.InitWindow.Title)
+	rl.SetExitKey(0)
 
 	defer rl.CloseWindow()
 

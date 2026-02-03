@@ -12,17 +12,25 @@ const (
 type State struct {
 	FN uint64 // Frame number
 
-	WR bool       // Window resized flag
-	W  rl.Vector2 // Window size
+	WRF bool // Window resized flag
+	WHF bool // Window hidden flag
+	WFF bool // Window focused flag
+
+	W rl.Vector2 // Window size
 
 	M Mode
 
 	P *Palette
 
-	CP rune // Char pressed
-	PF bool // Char pressed flag
+	CP  rune // Char pressed
+	CPF bool // Char pressed flag
 
-	CommandLinePrompt string
+	WTX chan<- Task // Worker tx
+
+	CommandLine struct {
+		Prompt string
+		Color  rl.Color
+	}
 }
 
 func InitState(c *Config) *State {
@@ -34,5 +42,5 @@ func InitState(c *Config) *State {
 }
 
 func (s *State) IsWindowResized() bool {
-	return s.FN == 0 || s.WR
+	return s.FN == 0 || s.WRF
 }

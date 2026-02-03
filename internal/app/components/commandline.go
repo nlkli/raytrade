@@ -40,6 +40,5 @@ func (cl *CommandLine) Render(s *state.State) state.Action {
 	if s.M == state.Input && len(cl.input) > 0 {
 		rl.DrawText(cl.input, int32(cl.p.X), int32(cl.p.Y), int32(RH), s.P.Fg[1])
 	}
-	cl.Outline(1, s.P.Base.Red)
 	return action
 }
