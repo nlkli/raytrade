@@ -1,39 +1,46 @@
-package app
+package app2
 
-type config struct {
-	Theme theme `json:"theme"`
+type Config struct {
+	InitWindow InitWindow `json:"init_window"`
+	Theme      Theme      `json:"theme"`
 }
 
-type theme struct {
+type InitWindow struct {
+	Width  int32  `json:"width"`
+	Height int32  `json:"height"`
+	Title  string `json:"title"`
+}
+
+type Theme struct {
 	Name    string      `json:"name"`
 	IsLight bool        `json:"is_light"`
-	Colors  colorScheme `json:"colors"`
+	Colors  ColorScheme `json:"colors"`
 }
 
-type colorScheme struct {
+type ColorScheme struct {
 	Background    [5]string       `json:"background"`
 	Foreground    [4]string       `json:"foreground"`
-	Selection     selectionColors `json:"selection"`
-	Cursor        cursorColors    `json:"cursor"`
-	Base          ansiColors      `json:"base"`
-	Bright        ansiColors      `json:"bright"`
-	Dim           ansiColors      `json:"dim"`
-	Diff          diffColors      `json:"diff"`
+	Selection     SelectionColors `json:"selection"`
+	Cursor        CursorColors    `json:"cursor"`
+	Base          AnsiColors      `json:"base"`
+	Bright        AnsiColors      `json:"bright"`
+	Dim           AnsiColors      `json:"dim"`
+	Diff          DiffColors      `json:"diff"`
 	CodeSelection [2]string       `json:"code_selection"`
 	Comment       string          `json:"comment"`
 }
 
-type selectionColors struct {
+type SelectionColors struct {
 	Bg string `json:"bg"`
 	Fg string `json:"fg"`
 }
 
-type cursorColors struct {
+type CursorColors struct {
 	Bg string `json:"bg"`
 	Fg string `json:"fg"`
 }
 
-type ansiColors struct {
+type AnsiColors struct {
 	Black   string `json:"black"`
 	Red     string `json:"red"`
 	Green   string `json:"green"`
@@ -46,7 +53,7 @@ type ansiColors struct {
 	Pink    string `json:"pink"`
 }
 
-type diffColors struct {
+type DiffColors struct {
 	Add    string `json:"add"`
 	Delete string `json:"delete"`
 	Change string `json:"change"`

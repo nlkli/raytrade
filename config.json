@@ -1,4 +1,9 @@
 {
+    "init_window": {
+        "width": 800,
+        "height": 600,
+        "title": "raytrade"
+    },
     "theme": {
         "name": "Gruvbox Dark Hard",
         "is_light": false,
