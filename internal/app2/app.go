@@ -9,26 +9,26 @@ import (
 )
 
 type App struct {
-	state  *State
-	root   *Root
-	worker *Worker
+	state      *State
+	root       *Root
+	worker     *Worker
+	controller *Controller
 
 	ctx context.Context
 }
 
 func (a *App) Frame() {
+
 	a.state.WHF = rl.IsWindowHidden()
 	a.state.WFF = rl.IsWindowFocused()
-	a.state.WRF = rl.IsWindowResized()
+	a.state.WRF = rl.IsWindowResized() || a.state.FN == 0
 
 	if a.state.WRF {
 		sW, sH := rl.GetScreenWidth(), rl.GetScreenHeight()
-		a.state.W = rl.NewVector2(float32(sW), float32(sH))
+		a.state.WS = rl.NewVector2(float32(sW), float32(sH))
 	}
 
-	cp := rl.GetCharPressed()
-	a.state.CPF = cp != 0
-	a.state.CP = rune(cp)
+	a.state.E = a.controller.Event(a.state.M)
 
 	rl.BeginDrawing()
 	a.root.Render(a.state)
@@ -60,9 +60,10 @@ func Run(ctx context.Context, configPath string) error {
 	state.WTX = worker.Tx
 
 	app := &App{
-		state:  state,
-		root:   InitRoot(),
-		worker: worker,
+		state:      state,
+		root:       InitRoot(),
+		worker:     worker,
+		controller: NewController(),
 	}
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
@@ -71,7 +72,7 @@ func Run(ctx context.Context, configPath string) error {
 
 	defer rl.CloseWindow()
 
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(c.TargetFPS)
 
 	for !rl.WindowShouldClose() {
 		app.Frame()

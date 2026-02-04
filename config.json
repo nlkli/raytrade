@@ -4,6 +4,7 @@
         "height": 600,
         "title": "raytrade"
     },
+    "target_fps": 60,
     "theme": {
         "name": "Gruvbox Dark Hard",
         "is_light": false,

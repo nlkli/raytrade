@@ -2,6 +2,6 @@ package app2
 
 type Task any
 
-type CommandPromptTask struct {
+type CommandPromptT struct {
 	Prompt string
 }

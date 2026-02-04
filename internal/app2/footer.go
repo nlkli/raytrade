@@ -1,7 +1,9 @@
 package app2
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -15,9 +17,9 @@ type Footer struct {
 }
 
 func (f *Footer) Render(s *State) {
-	if s.IsWindowResized() {
-		f.MoveTo(f.parent.p.X, f.parent.s.Y-FOOTER_H+ROOT_PD)
-		f.Resize(f.parent.s.X, FOOTER_H)
+	if s.WRF {
+		f.MoveTo(f.parent.p.X, f.parent.s.Y-FOOTER_H+RPD)
+		f.SetSize(f.parent.s.X, FOOTER_H)
 	}
 	f.sl.Render(s)
 	f.cl.Render(s)
@@ -26,14 +28,34 @@ func (f *Footer) Render(s *State) {
 type StatusLine struct {
 	*Rect
 	parent *Rect
+
+	utS  string
+	utTW int32
 }
 
 func (sl *StatusLine) Render(s *State) {
-	if s.IsWindowResized() {
+	if s.WRF {
 		sl.MoveTo(sl.parent.p.X, sl.parent.p.Y)
 		sl.SetSize(sl.parent.s.X, RH)
 	}
+
 	sl.Fill(s.P.Bg[0])
+
+	if s.FN%uint64(s.TFPS/4) == 0 {
+		sl.utS = time.Since(s.ST).Truncate(time.Second).String()
+		sl.utTW = rl.MeasureText(sl.utS, RH_I32)
+	}
+
+	if len(sl.utS) > 0 {
+		rl.DrawText(sl.utS, int32(sl.s.X)-sl.utTW, int32(sl.p.Y), RH_I32, s.P.Fg[3])
+	}
+
+	if len(s.StatusLine.Symbol) > 0 {
+		rl.DrawText(
+			fmt.Sprintf("%s/%s", s.StatusLine.Symbol, s.StatusLine.Interval),
+			int32(sl.p.X), int32(sl.p.Y), RH_I32, s.P.Fg[3],
+		)
+	}
 }
 
 type CommandLine struct {
@@ -42,10 +64,11 @@ type CommandLine struct {
 }
 
 func (cl *CommandLine) Render(s *State) {
-	if s.IsWindowResized() {
+	if s.WRF {
 		cl.MoveTo(cl.parent.p.X, cl.parent.p.Y+RH)
 		cl.SetSize(cl.parent.s.X, CLH)
 	}
+
 	if s.M == Input {
 		if rl.IsKeyPressed(rl.KeyBackspace) {
 			if len(s.CommandLine.Prompt) > 1 {
@@ -53,18 +76,18 @@ func (cl *CommandLine) Render(s *State) {
 				s.CommandLine.Prompt = string(r[:len(r)-1])
 			}
 		}
-		tw := rl.MeasureText(s.CommandLine.Prompt, int32(RH))
-		rl.DrawRectangle(int32(cl.p.X)+tw+2, int32(cl.p.Y), 8, int32(RH), s.P.Cur.Bg)
-		if s.CPF {
-			s.CommandLine.Prompt += string(s.CP)
-			c := rl.GetCharPressed()
-			for ; c > 0; c = rl.GetCharPressed() {
-				s.CommandLine.Prompt += string(rune(c))
-			}
+
+		tw := rl.MeasureText(s.CommandLine.Prompt, RH_I32)
+		rl.DrawRectangle(int32(cl.p.X)+tw+2, int32(cl.p.Y), 8, RH_I32, s.P.Cur.Bg)
+
+		cp := rl.GetCharPressed()
+		for ; cp > 0; cp = rl.GetCharPressed() {
+			s.CommandLine.Prompt += string(rune(cp))
 		}
+
 		if rl.IsKeyPressed(rl.KeyEnter) {
 			if len(s.CommandLine.Prompt) > 1 {
-				s.WTX <- CommandPromptTask{
+				s.WTX <- CommandPromptT{
 					Prompt: strings.TrimPrefix(s.CommandLine.Prompt, ":"),
 				}
 			} else {
@@ -72,15 +95,18 @@ func (cl *CommandLine) Render(s *State) {
 			}
 			s.M = Normal
 		}
+
 		if rl.IsKeyPressed(rl.KeyEscape) {
 			s.CommandLine.Prompt = ""
 			s.M = Normal
 		}
 	}
+
 	if len(s.CommandLine.Prompt) > 0 {
-		rl.DrawText(s.CommandLine.Prompt, int32(cl.p.X), int32(cl.p.Y), int32(RH), s.CommandLine.Color)
+		rl.DrawText(s.CommandLine.Prompt, int32(cl.p.X), int32(cl.p.Y), RH_I32, s.CommandLine.Color)
 	}
-	if s.M == Normal && s.CP == ':' {
+
+	if s.M == Normal && s.E == InputModeE {
 		s.M = Input
 		s.CommandLine.Prompt = ":"
 		s.CommandLine.Color = s.P.Fg[1]

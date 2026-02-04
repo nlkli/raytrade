@@ -1,6 +1,10 @@
 package app2
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	"time"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
+)
 
 type Mode int
 
@@ -10,23 +14,28 @@ const (
 )
 
 type State struct {
-	FN uint64 // Frame number
+	TFPS int32     // Target FPS
+	ST   time.Time // Start time
+	FN   uint64    // Frame number
 
 	WRF bool // Window resized flag
 	WHF bool // Window hidden flag
 	WFF bool // Window focused flag
 
-	W rl.Vector2 // Window size
+	WS rl.Vector2 // Window size
 
 	M Mode
 
 	P *Palette
 
-	CP  rune // Char pressed
-	CPF bool // Char pressed flag
+	E Event // Controller event
 
 	WTX chan<- Task // Worker tx
 
+	StatusLine struct {
+		Symbol   string
+		Interval string
+	}
 	CommandLine struct {
 		Prompt string
 		Color  rl.Color
@@ -35,12 +44,10 @@ type State struct {
 
 func InitState(c *Config) *State {
 	return &State{
-		W: rl.NewVector2(float32(c.InitWindow.Width), float32(c.InitWindow.Height)),
-		M: Normal,
-		P: PaletteFromConfig(c),
+		TFPS: c.TargetFPS,
+		ST:   time.Now(),
+		WS:   rl.NewVector2(float32(c.InitWindow.Width), float32(c.InitWindow.Height)),
+		M:    Normal,
+		P:    PaletteFromConfig(c),
 	}
-}
-
-func (s *State) IsWindowResized() bool {
-	return s.FN == 0 || s.WRF
 }

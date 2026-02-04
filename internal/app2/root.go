@@ -3,9 +3,13 @@ package app2
 import rl "github.com/gen2brain/raylib-go/raylib"
 
 const (
-	ROOT_PD  float32 = 4
+	RPD      float32 = 4        // Root pading
 	RH       float32 = 16       // Row height
+	RH_I32   int32   = 16       // Row height int32
 	CLH      float32 = RH * 1.2 // Command line height
+	OBW      float32 = 200      // OrderBook section width
+	TLH      float32 = 20       // Time line height
+	PBW      float32 = 40       // Price bar width
 	FOOTER_H float32 = RH + CLH
 )
 
@@ -13,12 +17,42 @@ type Root struct {
 	*Rect
 	parent *Rect
 
-	f *Footer
+	// tl *TabsLine
+	mc *MainContent
+	f  *Footer
 }
 
 func InitRoot() *Root {
 	root := &Root{
 		Rect: &Rect{},
+	}
+	root.mc = &MainContent{
+		Rect:   &Rect{},
+		parent: root.Rect,
+	}
+	root.mc.ch = &Chart{
+		Rect:   &Rect{},
+		parent: root.mc.Rect,
+	}
+	root.mc.ch.c = &Canvas{
+		Rect:   &Rect{},
+		parent: root.mc.ch.Rect,
+	}
+	root.mc.ch.tl = &TimeLine{
+		Rect:   &Rect{},
+		parent: root.mc.ch.Rect,
+	}
+	root.mc.ch.pb = &PriceBar{
+		Rect:   &Rect{},
+		parent: root.mc.ch.Rect,
+	}
+	root.mc.ch.cr = &Crossing{
+		Rect:   &Rect{},
+		parent: root.mc.ch.Rect,
+	}
+	root.mc.ob = &OrderBook{
+		Rect:   &Rect{},
+		parent: root.mc.Rect,
 	}
 	root.f = &Footer{
 		Rect:   &Rect{},
@@ -37,10 +71,37 @@ func InitRoot() *Root {
 }
 
 func (r *Root) Render(s *State) {
-	if s.IsWindowResized() {
-		r.MoveTo(ROOT_PD, ROOT_PD)
-		r.SetSize(s.W.X-ROOT_PD*2, s.W.Y-ROOT_PD*2)
-	}
 	rl.ClearBackground(s.P.Bg[1])
+
+	if s.WRF {
+		r.MoveTo(RPD, RPD)
+		r.SetSize(s.WS.X-RPD*2, s.WS.Y-RPD*2)
+	}
+
+	r.mc.Render(s)
 	r.f.Render(s)
+}
+
+// type TabsLine struct {
+// 	*Rect
+// 	parent *Rect
+// }
+
+type MainContent struct {
+	*Rect
+	parent *Rect
+
+	ch *Chart
+	ob *OrderBook
+}
+
+func (mc *MainContent) Render(s *State) {
+	if s.WRF {
+		mc.MoveTo(mc.parent.p.X, mc.parent.p.Y)
+		mc.SetSize(mc.parent.s.X, mc.parent.s.Y-FOOTER_H)
+	}
+
+	mc.ch.Render(s)
+
+	// mc.Outline(1, s.P.Base.Red)
 }
