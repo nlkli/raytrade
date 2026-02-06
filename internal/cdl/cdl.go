@@ -19,6 +19,12 @@ type Candle struct {
 	Volume float64
 }
 
+type CandleStreamData struct {
+	Candle   Candle
+	Interval Interval
+	Confirm  bool
+}
+
 func (c *Candle) Arg(a CandleArg) float64 {
 	switch a {
 	case Open:
@@ -50,4 +56,3 @@ func MinMaxPrice(candles []Candle) (float64, float64) {
 	}
 	return minP, maxP
 }
-

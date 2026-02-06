@@ -68,3 +68,16 @@ func TestGetCandles(t *testing.T) {
 	}
 	pp(esc)
 }
+
+func TestCandlesStream(t *testing.T) {
+	client := bybit.NewClientFromEnv(context.Background())
+	b := bybit.NewBroker(client)
+	done := make(chan struct{}, 1)
+	ch, err := b.CandlesStream(done, broker.Futures, "BTCUSDT", cdl.M1)
+	if err != nil {
+		t.Error(err)
+	}
+	for c := range ch {
+		fmt.Printf("%+v\n", c)
+	}
+}

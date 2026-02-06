@@ -1,6 +1,7 @@
 package app2
 
 import (
+	"nlkli/raytrade/internal/cdl"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -30,15 +31,19 @@ type State struct {
 
 	E Event // Controller event
 
-	WTX chan<- Task // Worker tx
+	WTX chan<- string // Worker tx
 
 	StatusLine struct {
 		Symbol   string
-		Interval string
+		Interval cdl.Interval
 	}
 	CommandLine struct {
 		Prompt string
 		Color  rl.Color
+	}
+	Chart struct {
+		liveCandleCh chan cdl.CandleStreamData
+		candles      []cdl.Candle
 	}
 }
 

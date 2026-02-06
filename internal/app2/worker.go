@@ -3,29 +3,34 @@ package app2
 import (
 	"context"
 	"fmt"
+	"nlkli/raytrade/internal/broker"
+	"nlkli/raytrade/internal/cdl"
 	"strings"
 	"time"
 )
 
+type Command func(*State) error
+
 type Worker struct {
-	Tx chan Task
-	Rx chan func(*State) error
+	Tx chan string
+	Rx chan Command
+
+	broker broker.Broker
 }
 
-func NewWorker(ctx context.Context) *Worker {
+func NewWorker(ctx context.Context, br broker.Broker) *Worker {
 	w := &Worker{
-		Tx: make(chan Task, 32),
-		Rx: make(chan func(*State) error, 32),
+		Tx: make(chan string, 32),
+		Rx: make(chan Command, 32),
+
+		broker: br,
 	}
 
 	go func() {
 		for {
 			select {
-			case t := <-w.Tx:
-				switch t := t.(type) {
-				case CommandPromptT:
-					w.Rx <- cmd(t.Prompt)
-				}
+			case prompt := <-w.Tx:
+				w.Rx <- cmd(prompt)
 			case <-ctx.Done():
 				return
 			}
@@ -35,7 +40,7 @@ func NewWorker(ctx context.Context) *Worker {
 	return w
 }
 
-func cmd(prompt string) func(*State) error {
+func cmd(prompt string) Command {
 	if len(prompt) == 0 {
 		return func(s *State) error {
 			s.CommandLine.Prompt = "Empty command"
@@ -44,16 +49,56 @@ func cmd(prompt string) func(*State) error {
 		}
 	}
 
-	prompt = strings.TrimSpace(prompt)
+	var commands []Command
 
-	args := strings.Split(prompt, " ")
-	n := len(args)
+	parts := strings.Split(prompt, "|")
 
-	switch args[0] {
+	for _, part := range parts {
 
-	case "reset":
+		part = strings.TrimSpace(part)
 
-		if n == 2 {
+		args := strings.Split(part, " ")
+		n := len(args)
+
+		var command Command
+
+		switch args[0] {
+
+		case "s", "symbol":
+
+			if n == 1 {
+				break
+			}
+
+			symbol := strings.ToUpper(args[1])
+			command = func(s *State) error {
+				s.StatusLine.Symbol = symbol
+				return nil
+			}
+
+		case "i", "interval":
+
+			if n == 1 {
+				break
+			}
+
+			interval, err := cdl.IntervalFromString(args[1])
+
+			if err != nil {
+				return cmdError(err.Error())
+			}
+
+			command = func(s *State) error {
+				s.StatusLine.Interval = interval
+				return nil
+			}
+
+		case "reset", "r":
+
+			if n == 1 {
+				break
+			}
+
 			switch args[1] {
 
 			case "ut":
@@ -65,13 +110,34 @@ func cmd(prompt string) func(*State) error {
 
 			default:
 			}
+
+		default:
 		}
 
-	default:
+		commands = append(commands, command)
+
 	}
 
+	if len(commands) == 1 {
+		return commands[0]
+	}
+	if len(commands) > 1 {
+		return func(s *State) error {
+			for _, c := range commands {
+				if c != nil {
+					c(s)
+				}
+			}
+			return nil
+		}
+	}
+
+	return cmdError(fmt.Sprintf("unknown command: %s", prompt))
+}
+
+func cmdError(text string) func(s *State) error {
 	return func(s *State) error {
-		s.CommandLine.Prompt = fmt.Sprintf("Unknown command: %s", prompt)
+		s.CommandLine.Prompt = text
 		s.CommandLine.Color = s.P.Base.Red
 		return nil
 	}

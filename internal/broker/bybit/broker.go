@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"encoding/json"
 	"fmt"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit/models"
@@ -11,10 +12,92 @@ import (
 
 type Broker struct {
 	c *Client
+
+	publicStream map[broker.Category]*Stream
 }
 
 func NewBroker(c *Client) *Broker {
-	return &Broker{c: c}
+	return &Broker{
+		c:            c,
+		publicStream: make(map[broker.Category]*Stream, 2),
+	}
+}
+
+func (b *Broker) CandleStream(
+	done <-chan struct{},
+	category broker.Category,
+	symbol string,
+	interval cdl.Interval,
+) (<-chan cdl.CandleStreamData, error) {
+	lc := ToLocalCategory(category)
+	li, err := TryToLocalInterval(interval)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := b.publicStream[category]; !ok {
+		b.publicStream[category] = b.c.CreatePublicStream(lc)
+	}
+
+	topic := fmt.Sprintf("kline.%s.%s", li, symbol)
+	sub, err := b.publicStream[category].Subscribe([]string{topic}, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan cdl.CandleStreamData, 1)
+	go func() {
+		defer close(ch)
+		defer sub.Stop()
+
+		for {
+			select {
+			case data := <-sub.C():
+				if data == nil {
+					continue
+				}
+				var streamKlineData models.StreamKlineData
+				json.Unmarshal(data.Data, &streamKlineData)
+				var candle cdl.Candle
+				for _, i := range streamKlineData {
+					candle.Time = i.Start
+					candle.O, err = strconv.ParseFloat(i.Open, 64)
+					if err != nil {
+						continue
+					}
+					candle.H, err = strconv.ParseFloat(i.High, 64)
+					if err != nil {
+						continue
+					}
+					candle.L, err = strconv.ParseFloat(i.Low, 64)
+					if err != nil {
+						continue
+					}
+					candle.C, err = strconv.ParseFloat(i.Close, 64)
+					if err != nil {
+						continue
+					}
+					candle.Volume, err = strconv.ParseFloat(i.Volume, 64)
+					if err != nil {
+						continue
+					}
+					ch <- cdl.CandleStreamData{
+						Candle:   candle,
+						Interval: interval,
+						Confirm:  i.Confirm,
+					}
+
+				}
+			case <-done:
+				return
+			case <-b.c.ctx.Done():
+				return
+			}
+		}
+
+	}()
+
+	return ch, nil
 }
 
 func (b *Broker) GetCandles(

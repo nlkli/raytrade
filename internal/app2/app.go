@@ -3,6 +3,9 @@ package app2
 import (
 	"context"
 	"encoding/json"
+	"nlkli/raytrade/internal/broker"
+	"nlkli/raytrade/internal/broker/bybit"
+	"nlkli/raytrade/internal/cdl"
 	"os"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -38,7 +41,9 @@ func (a *App) Frame() {
 
 	select {
 	case f := <-a.worker.Rx:
-		f(a.state)
+		if f != nil {
+			f(a.state)
+		}
 	default:
 		return
 	}
@@ -55,9 +60,20 @@ func Run(ctx context.Context, configPath string) error {
 		return err
 	}
 
+	client := bybit.NewClientFromEnv(ctx)
+	br := bybit.NewBroker(client)
+
 	state := InitState(&c)
-	worker := NewWorker(ctx)
+	worker := NewWorker(ctx, br)
 	state.WTX = worker.Tx
+
+    go func() {
+        candles, err := br.GetCandles(broker.Futures, "BTCUSDT", cdl.M15, 100, nil, nil)
+        if err != nil {
+            return
+        }
+        state.Chart.candles = candles
+    }()
 
 	app := &App{
 		state:      state,

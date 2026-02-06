@@ -50,12 +50,10 @@ func (sl *StatusLine) Render(s *State) {
 		rl.DrawText(sl.utS, int32(sl.s.X)-sl.utTW, int32(sl.p.Y), RH_I32, s.P.Fg[3])
 	}
 
-	if len(s.StatusLine.Symbol) > 0 {
-		rl.DrawText(
-			fmt.Sprintf("%s/%s", s.StatusLine.Symbol, s.StatusLine.Interval),
-			int32(sl.p.X), int32(sl.p.Y), RH_I32, s.P.Fg[3],
-		)
-	}
+	rl.DrawText(
+		fmt.Sprintf("%s/%s", s.StatusLine.Symbol, s.StatusLine.Interval.AsString()),
+		int32(sl.p.X), int32(sl.p.Y), RH_I32, s.P.Fg[3],
+	)
 }
 
 type CommandLine struct {
@@ -87,9 +85,7 @@ func (cl *CommandLine) Render(s *State) {
 
 		if rl.IsKeyPressed(rl.KeyEnter) {
 			if len(s.CommandLine.Prompt) > 1 {
-				s.WTX <- CommandPromptT{
-					Prompt: strings.TrimPrefix(s.CommandLine.Prompt, ":"),
-				}
+				s.WTX <- strings.TrimPrefix(s.CommandLine.Prompt, ":")
 			} else {
 				s.CommandLine.Prompt = ""
 			}

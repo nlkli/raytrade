@@ -10,5 +10,35 @@ const (
 )
 
 type Broker interface {
-	GetCandles(c Category, s string, i cdl.Interval, l int) ([]cdl.Candle, error)
+	CandleStream(
+		done <-chan struct{},
+		category Category,
+		symbol string,
+		interval cdl.Interval,
+	) (<-chan cdl.CandleStreamData, error)
+
+	GetCandles(
+		category Category,
+		symbol string,
+		interval cdl.Interval,
+		limit int,
+		start *int,
+		end *int,
+	) ([]cdl.Candle, error)
+
+	ExtendStartCandles(
+		candles []cdl.Candle,
+		category Category,
+		symbol string,
+		interval cdl.Interval,
+		limit int,
+	) ([]cdl.Candle, error)
+
+	ExtendEndCandles(
+		candles []cdl.Candle,
+		category Category,
+		symbol string,
+		interval cdl.Interval,
+		limit int,
+	) ([]cdl.Candle, error)
 }
