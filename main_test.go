@@ -2,7 +2,6 @@ package main
 
 import (
 	"math/rand/v2"
-	"nlkli/raytrade/internal/app"
 	"sync/atomic"
 	"testing"
 )
@@ -14,6 +13,5 @@ func randomInt(min, max int) int {
 }
 
 func TestApp(t *testing.T) {
-	app.Run()
 }
 

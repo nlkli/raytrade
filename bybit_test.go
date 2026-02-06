@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit"
 	"nlkli/raytrade/internal/broker/bybit/models"
+	"nlkli/raytrade/internal/cdl"
 	"testing"
 	"time"
 )
@@ -40,4 +42,29 @@ func TestWsConnect(t *testing.T) {
 		json.Unmarshal(data.Data, &klineData)
 		fmt.Printf("%+v\n", klineData)
 	}
+}
+
+func pp(v any) {
+	s, _ := json.MarshalIndent(v, "", "    ")
+	fmt.Println(string(s))
+}
+
+func TestGetCandles(t *testing.T) {
+	client := bybit.NewClientFromEnv(context.Background())
+	b := bybit.NewBroker(client)
+	candles, err := b.GetCandles(broker.Futures, "BTCUSDT", cdl.M15, 5, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	pp(candles)
+	r, err := b.GetCandles(broker.Futures, "BTCUSDT", cdl.M15, 5, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	pp(r)
+	esc, err := b.ExtendEndCandles(candles[:len(candles)-2], broker.Futures, "BTCUSDT", cdl.M15, 2)
+	if err != nil {
+		t.Error(err)
+	}
+	pp(esc)
 }
