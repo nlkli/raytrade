@@ -50,7 +50,7 @@ func MinMaxPrice(candles []Candle) (float64, float64) {
 		if c.L < minP {
 			minP = c.L
 		}
-		if c.H < maxP {
+		if c.H > maxP {
 			maxP = c.H
 		}
 	}

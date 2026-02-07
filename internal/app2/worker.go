@@ -42,11 +42,7 @@ func NewWorker(ctx context.Context, br broker.Broker) *Worker {
 
 func cmd(prompt string) Command {
 	if len(prompt) == 0 {
-		return func(s *State) error {
-			s.CommandLine.Prompt = "Empty command"
-			s.CommandLine.Color = s.P.Base.Red
-			return nil
-		}
+		return cmdError("empty command")
 	}
 
 	var commands []Command
@@ -114,7 +110,9 @@ func cmd(prompt string) Command {
 		default:
 		}
 
-		commands = append(commands, command)
+		if command != nil {
+			commands = append(commands, command)
+		}
 
 	}
 

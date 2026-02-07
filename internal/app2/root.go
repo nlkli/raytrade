@@ -10,6 +10,9 @@ const (
 	OBW      float32 = 200      // OrderBook section width
 	TLH      float32 = 20       // Time line height
 	PBW      float32 = 40       // Price bar width
+	CW       float32 = 5        // Candle width
+	CG       float32 = 2        // Candles gap
+	CWW      float32 = 2        // Candle wick width
 	FOOTER_H float32 = RH + CLH
 )
 

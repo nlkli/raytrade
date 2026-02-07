@@ -4,79 +4,79 @@
         "height": 600,
         "title": "raytrade"
     },
-    "target_fps": 60,
+    "target_fps": 29,
     "theme": {
-        "name": "Gruvbox Dark Hard",
-        "is_light": false,
+        "name": "Xcode Light hc",
+        "is_light": true,
         "colors": {
             "background": [
-                "#131516",
-                "#1d2021",
-                "#2a2f30",
-                "#383e40",
-                "#51595c"
+                "#f4f4f4",
+                "#ffffff",
+                "#f0f0f0",
+                "#e0e0e0",
+                "#c4c4c4"
             ],
             "foreground": [
-                "#fae9be",
-                "#ebdbb2",
-                "#b0a486",
-                "#7b725d"
+                "#0f0f0f",
+                "#000000",
+                "#3b3b3b",
+                "#707070"
             ],
             "selection": {
-                "bg": "#665c54",
-                "fg": "#ebdbb2"
+                "bg": "#b4d8fd",
+                "fg": "#000000"
             },
             "cursor": {
-                "bg": "#ebdbb2",
-                "fg": "#1d2021"
+                "bg": "#000000",
+                "fg": "#ffffff"
             },
             "base": {
-                "black": "#1d2021",
-                "red": "#cc241d",
-                "green": "#98971a",
-                "yellow": "#d79921",
-                "blue": "#458588",
-                "magenta": "#b16286",
-                "cyan": "#689d6a",
-                "white": "#a89984",
-                "orange": "#d25f1f",
-                "pink": "#ba5f51"
+                "black": "#b4d8fd",
+                "red": "#ad1805",
+                "green": "#355d61",
+                "yellow": "#78492a",
+                "blue": "#0058a1",
+                "magenta": "#9c2191",
+                "cyan": "#703daa",
+                "white": "#000000",
+                "orange": "#933118",
+                "pink": "#570c03"
             },
             "bright": {
-                "black": "#1d2021",
-                "red": "#cc241d",
-                "green": "#98971a",
-                "yellow": "#d79921",
-                "blue": "#458588",
-                "magenta": "#b16286",
-                "cyan": "#689d6a",
-                "white": "#a89984",
-                "orange": "#d25f1f",
-                "pink": "#ba5f51"
+                "black": "#b4d8fd",
+                "red": "#ad1805",
+                "green": "#355d61",
+                "yellow": "#78492a",
+                "blue": "#0058a1",
+                "magenta": "#9c2191",
+                "cyan": "#703daa",
+                "white": "#000000",
+                "orange": "#933118",
+                "pink": "#570c03"
             },
             "dim": {
-                "black": "#191b1c",
-                "red": "#ad1f19",
-                "green": "#818016",
-                "yellow": "#b7821c",
-                "blue": "#3b7174",
-                "magenta": "#965372",
-                "cyan": "#58855a",
-                "white": "#8f8270",
-                "orange": "#b2501a",
-                "pink": "#9e5044"
+                "black": "#99b8d7",
+                "red": "#931404",
+                "green": "#2d4f52",
+                "yellow": "#663e24",
+                "blue": "#004b89",
+                "magenta": "#851c7b",
+                "cyan": "#5f3491",
+                "white": "#000000",
+                "orange": "#7d2914",
+                "pink": "#4a0a02"
             },
             "diff": {
-                "add": "#7f7f1b",
-                "delete": "#a9231e",
-                "change": "#3d7173",
-                "text": "#854e68"
+                "add": "#5d7d81",
+                "delete": "#bd4637",
+                "change": "#3379b4",
+                "text": "#ba64b2"
             },
             "code_selection": [
-                "#3c3c37",
-                "#4e4d44"
+                "#d9d9d9",
+                "#c2c2c2"
             ],
-            "comment": "#999078"
+            "comment": "#666666"
         }
     }
 }

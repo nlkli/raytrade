@@ -67,13 +67,13 @@ func Run(ctx context.Context, configPath string) error {
 	worker := NewWorker(ctx, br)
 	state.WTX = worker.Tx
 
-    go func() {
-        candles, err := br.GetCandles(broker.Futures, "BTCUSDT", cdl.M15, 100, nil, nil)
-        if err != nil {
-            return
-        }
-        state.Chart.candles = candles
-    }()
+	go func() {
+		candles, err := br.GetCandles(broker.Futures, "FARTCOINUSDT", cdl.M1, 100, nil, nil)
+		if err != nil {
+			return
+		}
+		state.Chart.candles = candles
+	}()
 
 	app := &App{
 		state:      state,

@@ -33,18 +33,32 @@ type State struct {
 
 	WTX chan<- string // Worker tx
 
-	StatusLine struct {
-		Symbol   string
-		Interval cdl.Interval
-	}
-	CommandLine struct {
-		Prompt string
-		Color  rl.Color
-	}
-	Chart struct {
-		liveCandleCh chan cdl.CandleStreamData
-		candles      []cdl.Candle
-	}
+	StatusLine  StatusLineState
+	CommandLine CommandLineState
+	Chart       ChatState
+}
+
+type StatusLineState struct {
+	Symbol   string
+	Interval cdl.Interval
+}
+
+type CommandLineState struct {
+	Prompt string
+	Color  rl.Color
+}
+
+type ChatState struct {
+	candleCh chan cdl.CandleStreamData
+	done     chan struct{}
+
+	scale rl.Vector2
+	shift rl.Vector2
+
+	candles    []cdl.Candle
+	winSize    int
+	minP, maxP float64
+	offset     int
 }
 
 func InitState(c *Config) *State {
@@ -54,5 +68,12 @@ func InitState(c *Config) *State {
 		WS:   rl.NewVector2(float32(c.InitWindow.Width), float32(c.InitWindow.Height)),
 		M:    Normal,
 		P:    PaletteFromConfig(c),
+		Chart: ChatState{
+			candleCh: make(chan cdl.CandleStreamData, 1),
+			done:     make(chan struct{}, 1),
+
+			scale: rl.NewVector2(1, 0.9),
+			shift: rl.NewVector2(20, 0),
+		},
 	}
 }
