@@ -1,4 +1,4 @@
-package app2
+package app
 
 import rl "github.com/gen2brain/raylib-go/raylib"
 
@@ -6,6 +6,7 @@ const (
 	RPD      float32 = 4        // Root pading
 	RH       float32 = 16       // Row height
 	RH_I32   int32   = 16       // Row height int32
+	PBRH_I32 int32   = 12       // Price bar row height
 	CLH      float32 = RH * 1.2 // Command line height
 	OBW      float32 = 200      // OrderBook section width
 	TLH      float32 = 20       // Time line height

@@ -1,4 +1,4 @@
-package app2
+package app
 
 type Config struct {
 	InitWindow InitWindow `json:"init_window"`

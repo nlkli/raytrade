@@ -3,41 +3,50 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"nlkli/raytrade/internal/app/components"
-	"nlkli/raytrade/internal/app/config"
-	"nlkli/raytrade/internal/app/state"
+	"nlkli/raytrade/internal/broker"
+	"nlkli/raytrade/internal/broker/bybit"
+	"nlkli/raytrade/internal/cdl"
 	"os"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-type app struct {
-	*state.State
+type App struct {
+	state      *State
+	root       *Root
+	worker     *Worker
+	controller *Controller
 
-	components []components.Component
-
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx context.Context
 }
 
-func (a *app) render() {
-	rl.ClearBackground(a.P.Bg[1])
-	a.Update()
+func (a *App) Frame() {
 
-	n := 0
-	var actions [8]state.Action
-	for _, c := range a.components {
-		action := c.Render(a.State)
-		if action != nil {
-			actions[n] = action
-			n += 1
+	a.state.WHF = rl.IsWindowHidden()
+	a.state.WFF = rl.IsWindowFocused()
+	a.state.WRF = rl.IsWindowResized() || a.state.FN == 0
+
+	if a.state.WRF {
+		sW, sH := rl.GetScreenWidth(), rl.GetScreenHeight()
+		a.state.WS = rl.NewVector2(float32(sW), float32(sH))
+	}
+
+	a.state.E = a.controller.Event(a.state.M)
+
+	rl.BeginDrawing()
+	a.root.Render(a.state)
+	rl.EndDrawing()
+
+	a.state.FN += 1
+
+	select {
+	case f := <-a.worker.Rx:
+		if f != nil {
+			f(a.state)
 		}
+	default:
+		return
 	}
-	for i := 0; i < n; i++ {
-		a.Apply(actions[i])
-	}
-
-	a.FN += 1
 }
 
 func Run(ctx context.Context, configPath string) error {
@@ -45,28 +54,44 @@ func Run(ctx context.Context, configPath string) error {
 	if err != nil {
 		return err
 	}
-	var config config.Config
-	if err = json.Unmarshal(b, &config); err != nil {
+
+	var c Config
+	if err = json.Unmarshal(b, &c); err != nil {
 		return err
 	}
-	app := &app{
-		State: state.InitState(&config),
-		components: []components.Component{
-			components.NewCommandLine(),
-		},
+
+	client := bybit.NewClientFromEnv(ctx)
+	br := bybit.NewBroker(client)
+
+	state := InitState(&c)
+	worker := NewWorker(ctx, br)
+	state.WTX = worker.Tx
+
+	go func() {
+		candles, err := br.GetCandles(broker.Futures, "FARTCOINUSDT", cdl.M1, 20, nil, nil)
+		if err != nil {
+			return
+		}
+		state.Chart.candles = candles
+	}()
+
+	app := &App{
+		state:      state,
+		root:       InitRoot(),
+		worker:     worker,
+		controller: NewController(),
 	}
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
-	rl.InitWindow(config.InitWin.Width, config.InitWin.Height, "raytrade")
+	rl.InitWindow(c.InitWindow.Width, c.InitWindow.Height, c.InitWindow.Title)
+	rl.SetExitKey(0)
 
 	defer rl.CloseWindow()
 
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(c.TargetFPS)
 
 	for !rl.WindowShouldClose() {
-		rl.BeginDrawing()
-		app.render()
-		rl.EndDrawing()
+		app.Frame()
 	}
 
 	return nil

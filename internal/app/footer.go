@@ -1,4 +1,4 @@
-package app2
+package app
 
 import (
 	"fmt"
@@ -85,7 +85,9 @@ func (cl *CommandLine) Render(s *State) {
 
 		if rl.IsKeyPressed(rl.KeyEnter) {
 			if len(s.CommandLine.Prompt) > 1 {
-				s.WTX <- strings.TrimPrefix(s.CommandLine.Prompt, ":")
+				s.WTX <- CommandPromptT{
+					Prompt: strings.TrimPrefix(s.CommandLine.Prompt, ":"),
+				}
 			} else {
 				s.CommandLine.Prompt = ""
 			}

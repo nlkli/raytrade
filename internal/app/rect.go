@@ -1,4 +1,4 @@
-package app2
+package app
 
 import rl "github.com/gen2brain/raylib-go/raylib"
 

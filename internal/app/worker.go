@@ -1,18 +1,25 @@
-package app2
+package app
 
 import (
 	"context"
 	"fmt"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
+	"strconv"
 	"strings"
 	"time"
 )
 
+type Task any
+
+type CommandPromptT struct {
+	Prompt string
+}
+
 type Command func(*State) error
 
 type Worker struct {
-	Tx chan string
+	Tx chan Task
 	Rx chan Command
 
 	broker broker.Broker
@@ -20,7 +27,7 @@ type Worker struct {
 
 func NewWorker(ctx context.Context, br broker.Broker) *Worker {
 	w := &Worker{
-		Tx: make(chan string, 32),
+		Tx: make(chan Task, 32),
 		Rx: make(chan Command, 32),
 
 		broker: br,
@@ -29,8 +36,11 @@ func NewWorker(ctx context.Context, br broker.Broker) *Worker {
 	go func() {
 		for {
 			select {
-			case prompt := <-w.Tx:
-				w.Rx <- cmd(prompt)
+			case t := <-w.Tx:
+				switch t := t.(type) {
+				case CommandPromptT:
+					w.Rx <- cmd(t.Prompt)
+				}
 			case <-ctx.Done():
 				return
 			}
@@ -47,9 +57,9 @@ func cmd(prompt string) Command {
 
 	var commands []Command
 
-	parts := strings.Split(prompt, "|")
+	parts := strings.SplitSeq(prompt, "|")
 
-	for _, part := range parts {
+	for part := range parts {
 
 		part = strings.TrimSpace(part)
 
@@ -60,7 +70,7 @@ func cmd(prompt string) Command {
 
 		switch args[0] {
 
-		case "s", "symbol":
+		case "symbol", "s":
 
 			if n == 1 {
 				break
@@ -72,7 +82,7 @@ func cmd(prompt string) Command {
 				return nil
 			}
 
-		case "i", "interval":
+		case "interval", "i":
 
 			if n == 1 {
 				break
@@ -105,6 +115,70 @@ func cmd(prompt string) Command {
 				}
 
 			default:
+			}
+
+		case "scalex", "scx":
+
+			if n == 1 {
+				break
+			}
+
+			f, err := strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				return cmdError(err.Error())
+			}
+
+			command = func(s *State) error {
+				s.Chart.scale.X = float32(f)
+				return nil
+			}
+
+		case "scaley", "scy":
+
+			if n == 1 {
+				break
+			}
+
+			f, err := strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				return cmdError(err.Error())
+			}
+
+			command = func(s *State) error {
+				s.Chart.scale.Y = float32(f)
+				return nil
+			}
+
+		case "shiftx", "shx":
+
+			if n == 1 {
+				break
+			}
+
+			f, err := strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				return cmdError(err.Error())
+			}
+
+			command = func(s *State) error {
+				s.Chart.shift.X = float32(f)
+				return nil
+			}
+
+		case "shifty", "shy":
+
+			if n == 1 {
+				break
+			}
+
+			f, err := strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				return cmdError(err.Error())
+			}
+
+			command = func(s *State) error {
+				s.Chart.shift.Y = float32(f)
+				return nil
 			}
 
 		default:

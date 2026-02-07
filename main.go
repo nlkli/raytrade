@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"nlkli/raytrade/internal/app2"
+	"nlkli/raytrade/internal/app"
 )
 
 func main() {
-	app2.Run(context.Background(), "config.json")
+	app.Run(context.Background(), "config.json")
 }

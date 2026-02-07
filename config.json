@@ -6,77 +6,77 @@
     },
     "target_fps": 29,
     "theme": {
-        "name": "Xcode Light hc",
+        "name": "Gruvbox Light Hard",
         "is_light": true,
         "colors": {
             "background": [
-                "#f4f4f4",
-                "#ffffff",
-                "#f0f0f0",
-                "#e0e0e0",
-                "#c4c4c4"
+                "#fffbdc",
+                "#f9f5d7",
+                "#eae6ca",
+                "#dad7bd",
+                "#bebba4"
             ],
             "foreground": [
-                "#0f0f0f",
-                "#000000",
-                "#3b3b3b",
-                "#707070"
+                "#2d2a28",
+                "#3c3836",
+                "#776f6b",
+                "#aca19b"
             ],
             "selection": {
-                "bg": "#b4d8fd",
-                "fg": "#000000"
+                "bg": "#3c3836",
+                "fg": "#f9f5d7"
             },
             "cursor": {
-                "bg": "#000000",
-                "fg": "#ffffff"
+                "bg": "#3c3836",
+                "fg": "#f9f5d7"
             },
             "base": {
-                "black": "#b4d8fd",
-                "red": "#ad1805",
-                "green": "#355d61",
-                "yellow": "#78492a",
-                "blue": "#0058a1",
-                "magenta": "#9c2191",
-                "cyan": "#703daa",
-                "white": "#000000",
-                "orange": "#933118",
-                "pink": "#570c03"
+                "black": "#f9f5d7",
+                "red": "#cc241d",
+                "green": "#98971a",
+                "yellow": "#d79921",
+                "blue": "#458588",
+                "magenta": "#b16286",
+                "cyan": "#689d6a",
+                "white": "#7c6f64",
+                "orange": "#d25f1f",
+                "pink": "#a44a41"
             },
             "bright": {
-                "black": "#b4d8fd",
-                "red": "#ad1805",
-                "green": "#355d61",
-                "yellow": "#78492a",
-                "blue": "#0058a1",
-                "magenta": "#9c2191",
-                "cyan": "#703daa",
-                "white": "#000000",
-                "orange": "#933118",
-                "pink": "#570c03"
+                "black": "#f9f5d7",
+                "red": "#cc241d",
+                "green": "#98971a",
+                "yellow": "#d79921",
+                "blue": "#458588",
+                "magenta": "#b16286",
+                "cyan": "#689d6a",
+                "white": "#7c6f64",
+                "orange": "#d25f1f",
+                "pink": "#a44a41"
             },
             "dim": {
-                "black": "#99b8d7",
-                "red": "#931404",
-                "green": "#2d4f52",
-                "yellow": "#663e24",
-                "blue": "#004b89",
-                "magenta": "#851c7b",
-                "cyan": "#5f3491",
-                "white": "#000000",
-                "orange": "#7d2914",
-                "pink": "#4a0a02"
+                "black": "#d4d0b7",
+                "red": "#ad1f19",
+                "green": "#818016",
+                "yellow": "#b7821c",
+                "blue": "#3b7174",
+                "magenta": "#965372",
+                "cyan": "#58855a",
+                "white": "#695e55",
+                "orange": "#b2501a",
+                "pink": "#8b3e37"
             },
             "diff": {
-                "add": "#5d7d81",
-                "delete": "#bd4637",
-                "change": "#3379b4",
-                "text": "#ba64b2"
+                "add": "#abaa40",
+                "delete": "#d54e42",
+                "change": "#699b98",
+                "text": "#c78e9e"
             },
             "code_selection": [
-                "#d9d9d9",
-                "#c2c2c2"
+                "#ddd9bf",
+                "#ccc8b0"
             ],
-            "comment": "#666666"
+            "comment": "#888476"
         }
     }
 }

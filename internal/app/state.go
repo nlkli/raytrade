@@ -1,4 +1,4 @@
-package app2
+package app
 
 import (
 	"nlkli/raytrade/internal/cdl"
@@ -31,7 +31,7 @@ type State struct {
 
 	E Event // Controller event
 
-	WTX chan<- string // Worker tx
+	WTX chan<- Task // Worker tx
 
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
@@ -49,15 +49,19 @@ type CommandLineState struct {
 }
 
 type ChatState struct {
-	candleCh chan cdl.CandleStreamData
-	done     chan struct{}
+	shouldUpdate bool
+	candleCh     chan cdl.CandleStreamData
+	done         chan struct{}
 
 	scale rl.Vector2
 	shift rl.Vector2
 
+	price      float64
 	candles    []cdl.Candle
 	winSize    int
 	minP, maxP float64
+	center     float64
+	rng        float64
 	offset     int
 }
 
