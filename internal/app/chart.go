@@ -153,7 +153,12 @@ func (pb *PriceBar) Render(s *State) {
 		s.P.Base.Orange,
 	)
 
-	priceText := fmt.Sprintf("%.4f", s.Chart.price)
+	priceText := fmt.Sprintf("%.5f", s.Chart.price)
+	if len(priceText) > 6 {
+		priceText = priceText[:6]
+	}
+    // textY := scaleY
+    
 	rl.DrawText(
 		priceText,
 		int32(pb.p.X),
