@@ -63,17 +63,22 @@ func Run(ctx context.Context, configPath string) error {
 	client := bybit.NewClientFromEnv(ctx)
 	br := bybit.NewBroker(client)
 
+	rl.SetConfigFlags(rl.FlagWindowResizable)
+	rl.InitWindow(c.InitWindow.Width, c.InitWindow.Height, c.InitWindow.Title)
+
+	rl.SetExitKey(0)
+
 	state := InitState(&c)
+	// state.CommandLine.Lines = []string{"HELLO", "WORLD", "1", "00000000000000000000", "HELLO", "WORLD", "1", "00000000000000000000", "7777", "--=-=-=-=---=-==--=----=="}
+	// TEMP
+	candles, err := br.GetCandles(broker.Futures, "BTCUSDT", cdl.M1, 200, nil, nil)
+	if err != nil {
+		return err
+	}
+	state.Chart.candles = candles
+
 	worker := NewWorker(ctx, br)
 	state.WTX = worker.Tx
-
-	go func() {
-		candles, err := br.GetCandles(broker.Futures, "FARTCOINUSDT", cdl.M1, 20, nil, nil)
-		if err != nil {
-			return
-		}
-		state.Chart.candles = candles
-	}()
 
 	app := &App{
 		state:      state,
@@ -81,10 +86,6 @@ func Run(ctx context.Context, configPath string) error {
 		worker:     worker,
 		controller: NewController(),
 	}
-
-	rl.SetConfigFlags(rl.FlagWindowResizable)
-	rl.InitWindow(c.InitWindow.Width, c.InitWindow.Height, c.InitWindow.Title)
-	rl.SetExitKey(0)
 
 	defer rl.CloseWindow()
 

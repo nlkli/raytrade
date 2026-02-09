@@ -2,21 +2,6 @@ package app
 
 import rl "github.com/gen2brain/raylib-go/raylib"
 
-const (
-	RPD      float32 = 4        // Root pading
-	RH       float32 = 16       // Row height
-	RH_I32   int32   = 16       // Row height int32
-	PBRH_I32 int32   = 12       // Price bar row height
-	CLH      float32 = RH * 1.2 // Command line height
-	OBW      float32 = 200      // OrderBook section width
-	TLH      float32 = 20       // Time line height
-	PBW      float32 = 40       // Price bar width
-	CW       float32 = 5        // Candle width
-	CG       float32 = 2        // Candles gap
-	CWW      float32 = 2        // Candle wick width
-	FOOTER_H float32 = RH + CLH
-)
-
 type Root struct {
 	*Rect
 	parent *Rect
@@ -82,8 +67,11 @@ func (r *Root) Render(s *State) {
 		r.SetSize(s.WS.X-RPD*2, s.WS.Y-RPD*2)
 	}
 
-	r.mc.Render(s)
+	s.Cache.Static.CmdLineOutputH = s.RH * float32(len(s.CommandLine.Lines))
+	s.Cache.Static.FooterH = s.RH*2 + CMD_LINE_MARGIN_BOTTOM + s.Cache.Static.CmdLineOutputH
+
 	r.f.Render(s)
+	r.mc.Render(s)
 }
 
 // type TabsLine struct {
@@ -102,7 +90,7 @@ type MainContent struct {
 func (mc *MainContent) Render(s *State) {
 	if s.WRF {
 		mc.MoveTo(mc.parent.p.X, mc.parent.p.Y)
-		mc.SetSize(mc.parent.s.X, mc.parent.s.Y-FOOTER_H)
+		mc.SetSize(mc.parent.s.X, mc.parent.s.Y-s.Cache.Static.FooterH)
 	}
 
 	mc.ch.Render(s)

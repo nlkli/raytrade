@@ -109,75 +109,140 @@ func cmd(prompt string) Command {
 
 			case "ut":
 				tn := time.Now()
-				return func(s *State) error {
+
+				command = func(s *State) error {
 					s.ST = tn
+					return nil
+				}
+
+			case "scalex", "sx":
+
+				if n == 1 {
+					break
+				}
+
+				command = func(s *State) error {
+					s.Chart.shouldUpdate = true
+					s.Chart.scale.X = DEFAULT_SCALE_X
+					return nil
+				}
+
+			case "scaley", "sy":
+
+				if n == 1 {
+					break
+				}
+
+				command = func(s *State) error {
+					s.Chart.shouldUpdate = true
+					s.Chart.scale.Y = DEFAULT_SCALE_Y
+					return nil
+				}
+
+			case "targetx", "tx":
+
+				if n == 1 {
+					break
+				}
+
+				command = func(s *State) error {
+					s.Chart.shouldUpdate = true
+					s.Chart.shift.X = DEFAULT_SHIFT_X
+					return nil
+				}
+
+			case "targety", "ty":
+
+				if n == 1 {
+					break
+				}
+
+				command = func(s *State) error {
+					s.Chart.shouldUpdate = true
+					s.Chart.shift.Y = DEFAULT_SHIFT_Y
+					return nil
+				}
+
+			case "rowheight", "rh":
+
+				if n == 1 {
+					break
+				}
+
+				command = func(s *State) error {
+					s.RH = DEFAULT_ROW_HEIGHT
 					return nil
 				}
 
 			default:
 			}
 
-		case "scalex", "scx":
+		case "scalex", "sx":
 
 			if n == 1 {
 				break
 			}
 
-			f, err := strconv.ParseFloat(args[1], 64)
-			if err != nil {
-				return cmdError(err.Error())
-			}
-
 			command = func(s *State) error {
+				s.Chart.shouldUpdate = true
+				f := float64(s.Chart.scale.X)
+				parseFloatValue(args[1], &f)
 				s.Chart.scale.X = float32(f)
 				return nil
 			}
 
-		case "scaley", "scy":
+		case "scaley", "sy":
 
 			if n == 1 {
 				break
 			}
 
-			f, err := strconv.ParseFloat(args[1], 64)
-			if err != nil {
-				return cmdError(err.Error())
-			}
-
 			command = func(s *State) error {
+				s.Chart.shouldUpdate = true
+				f := float64(s.Chart.scale.Y)
+				parseFloatValue(args[1], &f)
 				s.Chart.scale.Y = float32(f)
 				return nil
 			}
 
-		case "shiftx", "shx":
+		case "targetx", "tx":
 
 			if n == 1 {
 				break
 			}
 
-			f, err := strconv.ParseFloat(args[1], 64)
-			if err != nil {
-				return cmdError(err.Error())
-			}
-
 			command = func(s *State) error {
+				s.Chart.shouldUpdate = true
+				f := float64(s.Chart.shift.X)
+				parseFloatValue(args[1], &f)
 				s.Chart.shift.X = float32(f)
 				return nil
 			}
 
-		case "shifty", "shy":
+		case "targety", "ty":
 
 			if n == 1 {
 				break
 			}
 
-			f, err := strconv.ParseFloat(args[1], 64)
-			if err != nil {
-				return cmdError(err.Error())
+			command = func(s *State) error {
+				s.Chart.shouldUpdate = true
+				f := float64(s.Chart.shift.Y)
+				parseFloatValue(args[1], &f)
+				s.Chart.shift.Y = float32(f)
+				return nil
+			}
+
+		case "rowheight", "rh":
+
+			if n == 1 {
+				break
 			}
 
 			command = func(s *State) error {
-				s.Chart.shift.Y = float32(f)
+				f := float64(s.RH)
+				parseFloatValue(args[1], &f)
+				s.RH = float32(f)
 				return nil
 			}
 
@@ -213,4 +278,24 @@ func cmdError(text string) func(s *State) error {
 		s.CommandLine.Color = s.P.Base.Red
 		return nil
 	}
+}
+
+func parseFloatValue(v string, f *float64) (err error) {
+	switch rune(v[0]) {
+	case '+':
+		pf, err := strconv.ParseFloat(v[1:], 64)
+		if err != nil {
+			return err
+		}
+		*f += pf
+	case '-':
+		pf, err := strconv.ParseFloat(v[1:], 64)
+		if err != nil {
+			return err
+		}
+		*f -= pf
+	default:
+		*f, err = strconv.ParseFloat(v, 64)
+	}
+	return err
 }

@@ -73,7 +73,7 @@ func TestCandlesStream(t *testing.T) {
 	client := bybit.NewClientFromEnv(context.Background())
 	b := bybit.NewBroker(client)
 	done := make(chan struct{}, 1)
-	ch, err := b.CandlesStream(done, broker.Futures, "BTCUSDT", cdl.M1)
+	ch, err := b.CandleStream(done, broker.Futures, "BTCUSDT", cdl.M1)
 	if err != nil {
 		t.Error(err)
 	}
