@@ -40,11 +40,12 @@ const (
 )
 
 type State struct {
-	TFPS   int32         // Target FPS
-	TFPSFT time.Duration // Target FPS frame time
-
 	ST time.Time // Start time
 	FN uint64    // Frame number
+
+	TFPS int32         // Target FPS
+	TFT  time.Duration // Target FPS frame time
+	// FT   time.Duration // Frame time
 
 	WRF bool // Window resized flag
 	WHF bool // Window hidden flag
@@ -53,16 +54,16 @@ type State struct {
 	WS rl.Vector2 // Window size
 
 	M Mode
+	// E Event // Controller event
 
 	P *Palette
 
 	RH float32 // Row height
 	F  rl.Font
 
-	E Event // Controller event
+	BTX chan<- Task // Backgorund tx
 
-	WTX chan<- Task // Worker tx
-
+	Footer      FooterState
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 	Chart       ChatState
@@ -73,68 +74,83 @@ type State struct {
 type Cache struct {
 	M      map[string]any
 	Static struct {
-		FooterH        float32
-		FooterResizeF  bool
-		CmdLineOutputH float32
-		PriceBarW      float32
-		TimeLineH      float32
 	}
+}
+
+type FooterState struct {
+	Height float32
+	Forced bool
 }
 
 type StatusLineState struct {
 	Symbol   string
-	Interval cdl.Interval
+	Interval string
 }
 
 type CommandLineState struct {
-	Prompt string
-	Lines  []string
-	Color  rl.Color
+	History []string
+	Prompt  string
+	PromptW float32
+	Lines   []string
+	LinesH  float32
+	Color   rl.Color
 }
 
 type ChatState struct {
-	shouldUpdate bool // forced update
+	Forced bool // forced update
 
 	candleCh chan cdl.CandleStreamData
 	done     chan struct{} // for close candle stream
 
-	scale rl.Vector2
-	shift rl.Vector2
+	Scale rl.Vector2
+	Shift rl.Vector2
 
-	price  float64
-	priceY float32 // price y coord
+	Price  float64
+	PriceY float32 // price y coord
 
-	candles    []cdl.Candle // candles buffer
-	winSize    int          //
-	minP, maxP float64      // min max price
-	center     float64      // price center
-	rng        float64      // price range
+	Candles []cdl.Candle // candles buffer
+	Cap     int          // canvas candles capacity
 
-	yGrid [][2]float32 // [][y coord, price]
+	MinP, MaxP float64 // min, max price
+	CenterP    float64 // price center
+	RangeP     float64 // price range
+
+	ShowGrid bool
+
+	GridY [][2]float32 // [][y coord, price]
 
 	// TODO ?
 	offset int
+
+	PriceBarW float32
+	TimeLineH float32
 }
 
 func InitState(c *Config) *State {
 	palette := PaletteFromConfig(c)
 	return &State{
-		TFPS:   c.TargetFPS,
-		TFPSFT: time.Second / time.Duration(c.TargetFPS),
-		ST:     time.Now(),
-		WS:     rl.NewVector2(float32(c.InitWindow.Width), float32(c.InitWindow.Height)),
-		M:      Normal,
-		P:      palette,
-		RH:     DEFAULT_ROW_HEIGHT,
-		F:      rl.LoadFont(c.LoadFont),
+		TFPS: c.TargetFPS,
+		TFT:  time.Second / time.Duration(c.TargetFPS),
+
+		ST: time.Now(),
+		WS: rl.NewVector2(
+			float32(c.InitWindow.Width),
+			float32(c.InitWindow.Height),
+		),
+		M:  Normal,
+		P:  palette,
+		RH: DEFAULT_ROW_HEIGHT,
+		F:  rl.LoadFont(c.LoadFont),
 		Chart: ChatState{
-			shouldUpdate: true,
+			Forced: true,
 
 			candleCh: make(chan cdl.CandleStreamData, 1),
 			done:     make(chan struct{}, 1),
 
-			scale: rl.NewVector2(DEFAULT_SCALE_X, DEFAULT_SCALE_Y),
-			shift: rl.NewVector2(DEFAULT_SHIFT_X, DEFAULT_SHIFT_Y),
+			Scale: rl.NewVector2(DEFAULT_SCALE_X, DEFAULT_SCALE_Y),
+			Shift: rl.NewVector2(DEFAULT_SHIFT_X, DEFAULT_SHIFT_Y),
+
+			ShowGrid: true,
 		},
 		CommandLine: CommandLineState{
 			Color: palette.Fg[1],

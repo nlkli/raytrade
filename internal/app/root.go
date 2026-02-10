@@ -67,8 +67,8 @@ func (r *Root) Render(s *State) {
 		r.SetSize(s.WS.X-RPD*2, s.WS.Y-RPD*2)
 	}
 
-	s.Cache.Static.CmdLineOutputH = s.RH * float32(len(s.CommandLine.Lines))
-	s.Cache.Static.FooterH = s.RH*2 + CMD_LINE_MARGIN_BOTTOM + s.Cache.Static.CmdLineOutputH
+	s.CommandLine.LinesH = s.RH * float32(len(s.CommandLine.Lines))
+	s.Footer.Height = s.RH*2 + CMD_LINE_MARGIN_BOTTOM + s.CommandLine.LinesH
 
 	r.f.Render(s)
 	r.mc.Render(s)
@@ -90,7 +90,7 @@ type MainContent struct {
 func (mc *MainContent) Render(s *State) {
 	if s.WRF {
 		mc.MoveTo(mc.parent.p.X, mc.parent.p.Y)
-		mc.SetSize(mc.parent.s.X, mc.parent.s.Y-s.Cache.Static.FooterH)
+		mc.SetSize(mc.parent.s.X, mc.parent.s.Y-s.Footer.Height)
 	}
 
 	mc.ch.Render(s)

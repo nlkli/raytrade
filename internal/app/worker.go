@@ -7,7 +7,6 @@ import (
 	"nlkli/raytrade/internal/cdl"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Task any
@@ -18,15 +17,15 @@ type CommandPromptT struct {
 
 type Command func(*State) error
 
-type Worker struct {
+type Background struct {
 	Tx chan Task
 	Rx chan Command
 
 	broker broker.Broker
 }
 
-func NewWorker(ctx context.Context, br broker.Broker) *Worker {
-	w := &Worker{
+func NewBackground(ctx context.Context, br broker.Broker) *Background {
+	w := &Background{
 		Tx: make(chan Task, 32),
 		Rx: make(chan Command, 32),
 
@@ -95,7 +94,7 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.StatusLine.Interval = interval
+				s.StatusLine.Interval = interval.AsString()
 				return nil
 			}
 
@@ -107,13 +106,13 @@ func cmd(prompt string) Command {
 
 			switch args[1] {
 
-			case "ut":
-				tn := time.Now()
+			// case "ut":
+			// 	tn := time.Now()
 
-				command = func(s *State) error {
-					s.ST = tn
-					return nil
-				}
+			// 	command = func(s *State) error {
+			// 		s.ST = tn
+			// 		return nil
+			// 	}
 
 			case "scalex", "sx":
 
@@ -122,8 +121,8 @@ func cmd(prompt string) Command {
 				}
 
 				command = func(s *State) error {
-					s.Chart.shouldUpdate = true
-					s.Chart.scale.X = DEFAULT_SCALE_X
+					s.Chart.Forced = true
+					s.Chart.Scale.X = DEFAULT_SCALE_X
 					return nil
 				}
 
@@ -134,8 +133,8 @@ func cmd(prompt string) Command {
 				}
 
 				command = func(s *State) error {
-					s.Chart.shouldUpdate = true
-					s.Chart.scale.Y = DEFAULT_SCALE_Y
+					s.Chart.Forced = true
+					s.Chart.Scale.Y = DEFAULT_SCALE_Y
 					return nil
 				}
 
@@ -146,8 +145,8 @@ func cmd(prompt string) Command {
 				}
 
 				command = func(s *State) error {
-					s.Chart.shouldUpdate = true
-					s.Chart.shift.X = DEFAULT_SHIFT_X
+					s.Chart.Forced = true
+					s.Chart.Shift.X = DEFAULT_SHIFT_X
 					return nil
 				}
 
@@ -158,8 +157,8 @@ func cmd(prompt string) Command {
 				}
 
 				command = func(s *State) error {
-					s.Chart.shouldUpdate = true
-					s.Chart.shift.Y = DEFAULT_SHIFT_Y
+					s.Chart.Forced = true
+					s.Chart.Shift.Y = DEFAULT_SHIFT_Y
 					return nil
 				}
 
@@ -184,10 +183,10 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.shouldUpdate = true
-				f := float64(s.Chart.scale.X)
+				s.Chart.Forced = true
+				f := float64(s.Chart.Scale.X)
 				parseFloatValue(args[1], &f)
-				s.Chart.scale.X = float32(f)
+				s.Chart.Scale.X = float32(f)
 				return nil
 			}
 
@@ -198,10 +197,10 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.shouldUpdate = true
-				f := float64(s.Chart.scale.Y)
+				s.Chart.Forced = true
+				f := float64(s.Chart.Scale.Y)
 				parseFloatValue(args[1], &f)
-				s.Chart.scale.Y = float32(f)
+				s.Chart.Scale.Y = float32(f)
 				return nil
 			}
 
@@ -212,10 +211,10 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.shouldUpdate = true
-				f := float64(s.Chart.shift.X)
+				s.Chart.Forced = true
+				f := float64(s.Chart.Shift.X)
 				parseFloatValue(args[1], &f)
-				s.Chart.shift.X = float32(f)
+				s.Chart.Shift.X = float32(f)
 				return nil
 			}
 
@@ -226,10 +225,10 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.shouldUpdate = true
-				f := float64(s.Chart.shift.Y)
+				s.Chart.Forced = true
+				f := float64(s.Chart.Shift.Y)
 				parseFloatValue(args[1], &f)
-				s.Chart.shift.Y = float32(f)
+				s.Chart.Shift.Y = float32(f)
 				return nil
 			}
 

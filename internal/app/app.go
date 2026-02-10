@@ -12,37 +12,39 @@ import (
 )
 
 type App struct {
-	state      *State
-	root       *Root
-	worker     *Worker
-	controller *Controller
+	S          *State
+	Root       *Root
+	BG         *Background
+	C *Controller
 
 	ctx context.Context
 }
 
 func (a *App) Frame() {
+	// a.state.FT = time.Duration(
+	// 	rl.GetFrameTime() * float32(time.Second),
+	// )
 
-	a.state.WHF = rl.IsWindowHidden()
-	a.state.WFF = rl.IsWindowFocused()
-	a.state.WRF = rl.IsWindowResized() || a.state.FN == 0
-
-	if a.state.WRF {
+	a.S.WHF = rl.IsWindowHidden()
+	a.S.WFF = rl.IsWindowFocused()
+	a.S.WRF = rl.IsWindowResized() || a.S.FN == 0
+	if a.S.WRF {
 		sW, sH := rl.GetScreenWidth(), rl.GetScreenHeight()
-		a.state.WS = rl.NewVector2(float32(sW), float32(sH))
+		a.S.WS = rl.NewVector2(float32(sW), float32(sH))
 	}
 
-	a.state.E = a.controller.Event(a.state.M)
+	a.C.Event(a.S)
 
 	rl.BeginDrawing()
-	a.root.Render(a.state)
+	a.Root.Render(a.S)
 	rl.EndDrawing()
 
-	a.state.FN += 1
+	a.S.FN += 1
 
 	select {
-	case f := <-a.worker.Rx:
+	case f := <-a.BG.Rx:
 		if f != nil {
-			f(a.state)
+			f(a.S)
 		}
 	default:
 		return
@@ -75,16 +77,16 @@ func Run(ctx context.Context, configPath string) error {
 	if err != nil {
 		return err
 	}
-	state.Chart.candles = candles
+	state.Chart.Candles = candles
 
-	worker := NewWorker(ctx, br)
-	state.WTX = worker.Tx
+	bg := NewBackground(ctx, br)
+	state.BTX = bg.Tx
 
 	app := &App{
-		state:      state,
-		root:       InitRoot(),
-		worker:     worker,
-		controller: NewController(),
+		S:          state,
+		Root:       InitRoot(),
+		BG:         bg,
+		C: NewController(),
 	}
 
 	defer rl.CloseWindow()
