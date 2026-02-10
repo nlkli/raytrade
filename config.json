@@ -4,7 +4,7 @@
         "height": 600,
         "title": "raytrade"
     },
-    "target_fps": 29,
+    "target_fps": 111,
     "load_font": "resources/ComicRelief-Bold.ttf",
     "theme": {
         "name": "Gruvbox Light Hard",

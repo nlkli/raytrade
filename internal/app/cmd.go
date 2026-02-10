@@ -3,58 +3,79 @@ package app
 import (
 	"context"
 	"fmt"
-	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
-type Task any
-
-type CommandPromptT struct {
-	Prompt string
+type CMD struct {
+	Tx   chan string
+	slot atomic.Pointer[CommitFn]
 }
 
-type Command func(*State) error
-
-type Background struct {
-	Tx chan Task
-	Rx chan Command
-
-	broker broker.Broker
-}
-
-func NewBackground(ctx context.Context, br broker.Broker) *Background {
-	w := &Background{
-		Tx: make(chan Task, 32),
-		Rx: make(chan Command, 32),
-
-		broker: br,
+func InitCMD(ctx context.Context) *CMD {
+	c := &CMD{
+		Tx: make(chan string, 32),
 	}
 
 	go func() {
 		for {
 			select {
-			case t := <-w.Tx:
-				switch t := t.(type) {
-				case CommandPromptT:
-					w.Rx <- cmd(t.Prompt)
-				}
+			case p := <-c.Tx:
+				f := c.translate(p)
+				c.slot.Store(&f)
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 
-	return w
+	return c
 }
 
-func cmd(prompt string) Command {
+func (c *CMD) Update(s *State) error {
+	if ptr := c.slot.Swap(nil); ptr != nil {
+		return (*ptr)(s)
+	}
+	return nil
+}
+
+func (c *CMD) translate(prompt string) CommitFn {
+
+	cmdError := func(text string) func(s *State) error {
+		return func(s *State) error {
+			s.CommandLine.Prompt = text
+			s.CommandLine.Color = s.P.Base.Red
+			return nil
+		}
+	}
+
+	parseFloatValue := func(v string, f *float64) (err error) {
+		switch rune(v[0]) {
+		case '+':
+			pf, err := strconv.ParseFloat(v[1:], 64)
+			if err != nil {
+				return err
+			}
+			*f += pf
+		case '-':
+			pf, err := strconv.ParseFloat(v[1:], 64)
+			if err != nil {
+				return err
+			}
+			*f -= pf
+		default:
+			*f, err = strconv.ParseFloat(v, 64)
+		}
+		return err
+	}
+
 	if len(prompt) == 0 {
 		return cmdError("empty command")
 	}
 
-	var commands []Command
+	var commands []CommitFn
 
 	parts := strings.SplitSeq(prompt, "|")
 
@@ -65,7 +86,7 @@ func cmd(prompt string) Command {
 		args := strings.Split(part, " ")
 		n := len(args)
 
-		var command Command
+		var command CommitFn
 
 		switch args[0] {
 
@@ -170,6 +191,8 @@ func cmd(prompt string) Command {
 
 				command = func(s *State) error {
 					s.RH = DEFAULT_ROW_HEIGHT
+					s.Footer.Forced = true
+					s.Chart.Forced = true
 					return nil
 				}
 
@@ -183,10 +206,12 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.Forced = true
 				f := float64(s.Chart.Scale.X)
-				parseFloatValue(args[1], &f)
+				if err := parseFloatValue(args[1], &f); err != nil {
+					return cmdError(err.Error())(s)
+				}
 				s.Chart.Scale.X = float32(f)
+				s.Chart.Forced = true
 				return nil
 			}
 
@@ -197,10 +222,12 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.Forced = true
 				f := float64(s.Chart.Scale.Y)
-				parseFloatValue(args[1], &f)
+				if err := parseFloatValue(args[1], &f); err != nil {
+					return cmdError(err.Error())(s)
+				}
 				s.Chart.Scale.Y = float32(f)
+				s.Chart.Forced = true
 				return nil
 			}
 
@@ -211,10 +238,12 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.Forced = true
 				f := float64(s.Chart.Shift.X)
-				parseFloatValue(args[1], &f)
+				if err := parseFloatValue(args[1], &f); err != nil {
+					return cmdError(err.Error())(s)
+				}
 				s.Chart.Shift.X = float32(f)
+				s.Chart.Forced = true
 				return nil
 			}
 
@@ -225,10 +254,12 @@ func cmd(prompt string) Command {
 			}
 
 			command = func(s *State) error {
-				s.Chart.Forced = true
 				f := float64(s.Chart.Shift.Y)
-				parseFloatValue(args[1], &f)
+				if err := parseFloatValue(args[1], &f); err != nil {
+					return cmdError(err.Error())(s)
+				}
 				s.Chart.Shift.Y = float32(f)
+				s.Chart.Forced = true
 				return nil
 			}
 
@@ -240,8 +271,12 @@ func cmd(prompt string) Command {
 
 			command = func(s *State) error {
 				f := float64(s.RH)
-				parseFloatValue(args[1], &f)
+				if err := parseFloatValue(args[1], &f); err != nil {
+					return cmdError(err.Error())(s)
+				}
 				s.RH = float32(f)
+				s.Footer.Forced = true
+				s.Chart.Forced = true
 				return nil
 			}
 
@@ -251,7 +286,6 @@ func cmd(prompt string) Command {
 		if command != nil {
 			commands = append(commands, command)
 		}
-
 	}
 
 	if len(commands) == 1 {
@@ -260,41 +294,11 @@ func cmd(prompt string) Command {
 	if len(commands) > 1 {
 		return func(s *State) error {
 			for _, c := range commands {
-				if c != nil {
-					c(s)
-				}
+				c(s)
 			}
 			return nil
 		}
 	}
 
 	return cmdError(fmt.Sprintf("unknown command: %s", prompt))
-}
-
-func cmdError(text string) func(s *State) error {
-	return func(s *State) error {
-		s.CommandLine.Prompt = text
-		s.CommandLine.Color = s.P.Base.Red
-		return nil
-	}
-}
-
-func parseFloatValue(v string, f *float64) (err error) {
-	switch rune(v[0]) {
-	case '+':
-		pf, err := strconv.ParseFloat(v[1:], 64)
-		if err != nil {
-			return err
-		}
-		*f += pf
-	case '-':
-		pf, err := strconv.ParseFloat(v[1:], 64)
-		if err != nil {
-			return err
-		}
-		*f -= pf
-	default:
-		*f, err = strconv.ParseFloat(v, 64)
-	}
-	return err
 }

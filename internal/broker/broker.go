@@ -26,6 +26,7 @@ type Broker interface {
 		end *int,
 	) ([]cdl.Candle, error)
 
+	// Create new slice
 	ExtendStartCandles(
 		candles []cdl.Candle,
 		category Category,
@@ -34,6 +35,7 @@ type Broker interface {
 		limit int,
 	) ([]cdl.Candle, error)
 
+	// Create new slice
 	ExtendEndCandles(
 		candles []cdl.Candle,
 		category Category,

@@ -12,10 +12,11 @@ import (
 )
 
 type App struct {
-	S          *State
-	Root       *Root
-	BG         *Background
-	C *Controller
+	S    *State
+	Root *Root
+	CMD  *CMD
+	BG   *Background
+	C    *Controller
 
 	ctx context.Context
 }
@@ -35,20 +36,16 @@ func (a *App) Frame() {
 
 	a.C.Event(a.S)
 
+	a.BG.Update(a.S)
+
 	rl.BeginDrawing()
+	rl.DrawFPS(2, 2)
 	a.Root.Render(a.S)
 	rl.EndDrawing()
 
 	a.S.FN += 1
 
-	select {
-	case f := <-a.BG.Rx:
-		if f != nil {
-			f(a.S)
-		}
-	default:
-		return
-	}
+	a.CMD.Update(a.S)
 }
 
 func Run(ctx context.Context, configPath string) error {
@@ -79,14 +76,17 @@ func Run(ctx context.Context, configPath string) error {
 	}
 	state.Chart.Candles = candles
 
-	bg := NewBackground(ctx, br)
+	cmd := InitCMD(ctx)
+	state.CMDTX = cmd.Tx
+	bg := InitBackground(ctx, br)
 	state.BTX = bg.Tx
 
 	app := &App{
-		S:          state,
-		Root:       InitRoot(),
-		BG:         bg,
-		C: NewController(),
+		S:    state,
+		Root: InitRoot(),
+		CMD:  cmd,
+		BG:   bg,
+		C:    NewController(),
 	}
 
 	defer rl.CloseWindow()

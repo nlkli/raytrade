@@ -25,7 +25,7 @@ func (ch *Chart) Render(s *State) {
 	}
 
 	s.Chart.TimeLineH = s.RH + TIME_LINE_LABELS_HEIGHT
-	if s.FN%uint64(s.TFPS) == 0 {
+	if s.FN%uint64(s.TFPS) == 0 || s.Chart.Forced {
 		s.Chart.PriceBarW = rl.MeasureTextEx(
 			s.F,
 			PRICE_BAR_MAX_CONTENT,
@@ -60,7 +60,7 @@ func (c *Canvas) Render(s *State) {
 
 	c.cam.Target = s.Chart.Shift
 
-	if s.WRF {
+	if s.WRF || s.Chart.Forced {
 		tlh := s.Chart.TimeLineH
 
 		c.MoveTo(c.parent.p.X, c.parent.p.Y)
@@ -68,9 +68,7 @@ func (c *Canvas) Render(s *State) {
 
 		c.cam.Offset = rl.Vector2{X: c.p.X, Y: c.p.Y}
 		c.cam.Zoom = 1
-	}
 
-	if s.WRF || s.Chart.Forced {
 		s.Chart.Cap = int((c.s.X - c.cam.Target.X + CW) / stepX)
 		if n > 0 {
 			s.Chart.Price = candles[n-1].C // TODO
@@ -98,7 +96,6 @@ func (c *Canvas) Render(s *State) {
 			}
 		}
 
-		s.Chart.Forced = false
 	}
 
 	if n == 0 {
@@ -169,7 +166,7 @@ type TimeLine struct {
 }
 
 func (tl *TimeLine) Render(s *State) {
-	if s.WRF {
+	if s.WRF || s.Chart.Forced {
 		tlh := s.Chart.TimeLineH
 
 		tl.MoveTo(tl.parent.p.X, tl.parent.s.Y-tlh+tl.parent.p.Y)
@@ -187,7 +184,7 @@ type PriceBar struct {
 }
 
 func (pb *PriceBar) Render(s *State) {
-	if s.WRF {
+	if s.WRF || s.Chart.Forced {
 		tlh := s.Chart.TimeLineH
 		pbw := s.Chart.PriceBarW
 
@@ -268,12 +265,14 @@ type Crossing struct {
 }
 
 func (cr *Crossing) Render(s *State) {
-	if s.WRF {
+	if s.WRF || s.Chart.Forced {
 		tlh := s.Chart.TimeLineH
 		pbw := s.Chart.PriceBarW
 
 		cr.MoveTo(cr.parent.s.X-pbw, cr.parent.s.Y-tlh+cr.parent.p.Y)
 		cr.SetSize(cr.parent.p.X+pbw, tlh)
+
+		s.Chart.Forced = false
 	}
 
 	// cr.Fill(s.P.Bg[0])
@@ -324,8 +323,4 @@ func quantizePriceStep(price float64) float64 {
 	default:
 		return 10 * base
 	}
-}
-
-func PriceBarSteps() {
-
 }

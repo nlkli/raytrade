@@ -18,6 +18,7 @@ const (
 	CG  float32 = 2   // Candles gap
 	CWW float32 = 1.5 // Candle wick width
 
+	COMMAND_LINE_HISTORY_CAP  int     = 8
 	CMD_LINE_MARGIN_BOTTOM    float32 = 4
 	TIME_LINE_LABELS_HEIGHT   float32 = 4
 	PRICE_BAR_MAX_CONTENT     string  = ".0000000"
@@ -38,6 +39,8 @@ const (
 	Normal Mode = iota
 	Input
 )
+
+type CommitFn func(*State) error
 
 type State struct {
 	ST time.Time // Start time
@@ -61,7 +64,8 @@ type State struct {
 	RH float32 // Row height
 	F  rl.Font
 
-	BTX chan<- Task // Backgorund tx
+	BTX   chan<- Task   // Backgorund tx
+	CMDTX chan<- string // CMD tx
 
 	Footer      FooterState
 	StatusLine  StatusLineState
@@ -89,11 +93,13 @@ type StatusLineState struct {
 
 type CommandLineState struct {
 	History []string
-	Prompt  string
-	PromptW float32
-	Lines   []string
-	LinesH  float32
-	Color   rl.Color
+	// TmpHistory []string
+	HustoryCur int
+	Prompt     string
+	PromptW    float32
+	Lines      []string
+	LinesH     float32
+	Color      rl.Color
 }
 
 type ChatState struct {
@@ -153,6 +159,8 @@ func InitState(c *Config) *State {
 			ShowGrid: true,
 		},
 		CommandLine: CommandLineState{
+			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
+			// TmpHistory: make([]string, COMMAND_LINE_HISTORY_CAP-1),
 			Color: palette.Fg[1],
 		},
 		Cache: Cache{
