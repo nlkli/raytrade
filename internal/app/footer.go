@@ -26,6 +26,10 @@ func (f *Footer) Render(s *State) {
 	f.sl.Render(s)
 	f.cl.Render(s)
 
+	if s.Footer.Forced {
+		s.Footer.Forced = false
+	}
+
 	// f.Outline(1, s.P.Base.Pink)
 }
 
@@ -55,7 +59,6 @@ func (sl *StatusLine) Render(s *State) {
 	}
 
 	s.StdDrawText(
-		// TODO interval to string
 		fmt.Sprintf("%s/%s", s.StatusLine.Symbol, s.StatusLine.Interval),
 		rl.Vector2{X: sl.p.X, Y: sl.p.Y},
 		s.P.Fg[3],
@@ -72,8 +75,6 @@ func (cl *CommandLine) Render(s *State) {
 	if s.WRF || s.Footer.Forced {
 		cl.MoveTo(cl.parent.p.X, cl.parent.p.Y+s.RH)
 		cl.SetSize(cl.parent.s.X, s.RH+CMD_LINE_MARGIN_BOTTOM)
-
-		s.Footer.Forced = false
 	}
 
 	if s.M == Input {

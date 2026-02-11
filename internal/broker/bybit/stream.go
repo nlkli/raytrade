@@ -104,6 +104,7 @@ func (s *Stream) Topics() []string {
 	for t := range s.topics {
 		out = append(out, t)
 	}
+
 	return out
 }
 

@@ -29,7 +29,7 @@ const (
 	DEFAULT_ROW_HEIGHT float32 = 20
 	DEFAULT_SCALE_X    float32 = 1
 	DEFAULT_SCALE_Y    float32 = .9
-	DEFAULT_SHIFT_X    float32 = 20
+	DEFAULT_SHIFT_X    float32 = 25
 	DEFAULT_SHIFT_Y    float32 = 0
 )
 
@@ -67,10 +67,12 @@ type State struct {
 	BTX   chan<- Task   // Backgorund tx
 	CMDTX chan<- string // CMD tx
 
+	// Instrument InstrumentState
+
 	Footer      FooterState
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
-	Chart       ChatState
+	Chart       ChartState
 
 	Cache Cache
 }
@@ -80,6 +82,12 @@ type Cache struct {
 	Static struct {
 	}
 }
+
+// type InstrumentState struct {
+// 	Category broker.Category
+// 	Symbol   string
+// 	Interval cdl.Interval
+// }
 
 type FooterState struct {
 	Height float32
@@ -102,24 +110,21 @@ type CommandLineState struct {
 	Color      rl.Color
 }
 
-type ChatState struct {
-	Forced bool // forced update
-
-	candleCh chan cdl.CandleStreamData
-	done     chan struct{} // for close candle stream
+type ChartState struct {
+	Forced bool // Forced update
 
 	Scale rl.Vector2
 	Shift rl.Vector2
 
-	Price  float64
-	PriceY float32 // price y coord
+	Price  float64 // Last price
+	PriceY float32 // Last price y coord
 
-	Candles []cdl.Candle // candles buffer
-	Cap     int          // canvas candles capacity
+	Candles []cdl.Candle // Candles buffer
 
+	Cap        int     // Canvas candles capacity
 	MinP, MaxP float64 // min, max price
-	CenterP    float64 // price center
-	RangeP     float64 // price range
+	CenterP    float64 // Price center
+	RangeP     float64 // Price range
 
 	ShowGrid bool
 
@@ -147,11 +152,15 @@ func InitState(c *Config) *State {
 		P:  palette,
 		RH: DEFAULT_ROW_HEIGHT,
 		F:  rl.LoadFont(c.LoadFont),
-		Chart: ChatState{
+		// Instrument: InstrumentState{
+		// 	Category: broker.Futures,
+		// 	Interval: cdl.M5,
+		// },
+		StatusLine: StatusLineState{
+			Interval: cdl.M1.AsString(),
+		},
+		Chart: ChartState{
 			Forced: true,
-
-			candleCh: make(chan cdl.CandleStreamData, 1),
-			done:     make(chan struct{}, 1),
 
 			Scale: rl.NewVector2(DEFAULT_SCALE_X, DEFAULT_SCALE_Y),
 			Shift: rl.NewVector2(DEFAULT_SHIFT_X, DEFAULT_SHIFT_Y),

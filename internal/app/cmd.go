@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"strconv"
 	"strings"
@@ -43,7 +44,7 @@ func (c *CMD) Update(s *State) error {
 
 func (c *CMD) translate(prompt string) CommitFn {
 
-	cmdError := func(text string) func(s *State) error {
+	cmdError := func(text string) CommitFn {
 		return func(s *State) error {
 			s.CommandLine.Prompt = text
 			s.CommandLine.Color = s.P.Base.Red
@@ -97,8 +98,31 @@ func (c *CMD) translate(prompt string) CommitFn {
 			}
 
 			symbol := strings.ToUpper(args[1])
+
 			command = func(s *State) error {
-				s.StatusLine.Symbol = symbol
+				if s.StatusLine.Symbol == symbol {
+					return nil
+				}
+
+				interval, err := cdl.IntervalFromString(s.StatusLine.Interval)
+				if err != nil {
+					return cmdError(err.Error())(s)
+				}
+
+				s.StatusLine.Symbol = "..."
+
+				limit := s.Chart.Cap * 2
+				if limit == 0 {
+					limit = 200
+				}
+
+				s.BTX <- InstrumentObserverT{
+					Category:         broker.Futures,
+					Symbol:           symbol,
+					Interval:         interval,
+					InitCandlesLimit: limit,
+				}
+
 				return nil
 			}
 

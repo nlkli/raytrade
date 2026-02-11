@@ -3,9 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit"
-	"nlkli/raytrade/internal/cdl"
 	"os"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -59,7 +57,7 @@ func Run(ctx context.Context, configPath string) error {
 		return err
 	}
 
-	client := bybit.NewClientFromEnv(ctx)
+	client := bybit.NewClientFromEnv(context.Background())
 	br := bybit.NewBroker(client)
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
@@ -68,17 +66,15 @@ func Run(ctx context.Context, configPath string) error {
 	rl.SetExitKey(0)
 
 	state := InitState(&c)
-	// state.CommandLine.Lines = []string{"HELLO", "WORLD", "1", "00000000000000000000", "HELLO", "WORLD", "1", "00000000000000000000", "7777", "--=-=-=-=---=-==--=----=="}
-	// TEMP
-	candles, err := br.GetCandles(broker.Futures, "BTCUSDT", cdl.M1, 200, nil, nil)
-	if err != nil {
-		return err
-	}
-	state.Chart.Candles = candles
+	// candles, err := br.GetCandles(broker.Futures, "BTCUSDT", cdl.M1, 200, nil, nil)
+	// if err != nil {
+	// 	return err
+	// }
+	// state.Chart.Candles = candles
 
-	cmd := InitCMD(ctx)
+	cmd := InitCMD(context.Background())
 	state.CMDTX = cmd.Tx
-	bg := InitBackground(ctx, br)
+	bg := InitBackground(context.Background(), br)
 	state.BTX = bg.Tx
 
 	app := &App{

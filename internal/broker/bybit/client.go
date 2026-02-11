@@ -26,26 +26,34 @@ const (
 )
 
 type Client struct {
-	baseURL    string
-	apiKey     string
-	apiSecret  string
+	baseURL string
+
+	apiKey    string
+	apiSecret string
+
 	recvWindow int
+
 	httpClient *http.Client
-	ctx        context.Context
+	timeout    time.Duration
+
+	ctx context.Context
 }
 
-func NewClient(apiKey, apiSecret string, ctx context.Context, opts ...Option) *Client {
+func NewClient(ctx context.Context, apiKey, apiSecret string, opts ...Option) *Client {
 	client := &Client{
 		baseURL:    MAINNET,
 		apiKey:     apiKey,
 		apiSecret:  apiSecret,
 		recvWindow: DEFAULT_RECV_WINDOW,
-		httpClient: &http.Client{Timeout: 15 * time.Second},
+		httpClient: http.DefaultClient,
+		timeout:    7 * time.Second,
 		ctx:        ctx,
 	}
+
 	for _, opt := range opts {
 		opt(client)
 	}
+
 	return client
 }
 
@@ -53,15 +61,18 @@ func NewClientFromEnv(ctx context.Context, opts ...Option) *Client {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("error loading .env file")
 	}
+
 	apiKey := os.Getenv("BYBIT_API_KEY")
 	if apiKey == "" {
 		log.Fatal("env var BYBIT_API_KEY is missing")
 	}
+
 	apiSecret := os.Getenv("BYBIT_API_SECRET")
 	if apiSecret == "" {
 		log.Fatal("env var BYBIT_API_SECRET is missing")
 	}
-	return NewClient(apiKey, apiSecret, ctx, opts...)
+
+	return NewClient(ctx, apiKey, apiSecret, opts...)
 }
 
 type Option func(*Client)
@@ -86,7 +97,7 @@ func WithHttpClient(httpClient *http.Client) Option {
 
 func WithTimeout(timeout time.Duration) Option {
 	return func(c *Client) {
-		c.httpClient.Timeout = timeout
+		c.timeout = timeout
 	}
 }
 
@@ -103,6 +114,7 @@ func (c *Client) signature(s string) (string, error) {
 	if _, err := hmac256.Write([]byte(s)); err != nil {
 		return "", err
 	}
+
 	return hex.EncodeToString(hmac256.Sum(nil)), nil
 }
 
@@ -113,6 +125,7 @@ func (c *Client) callAPI(req *http.Request, queryString string, result any) erro
 	if err != nil {
 		return err
 	}
+
 	req.Header = map[string][]string{
 		"X-BAPI-API-KEY":     {c.apiKey},
 		"X-BAPI-TIMESTAMP":   {timestamp},
@@ -121,28 +134,40 @@ func (c *Client) callAPI(req *http.Request, queryString string, result any) erro
 		"Content-Type":       {"application/json"},
 		"Accept":             {"application/json"},
 	}
-	req = req.WithContext(c.ctx)
+
+	if c.timeout > 0 {
+		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+		defer cancel()
+		req = req.WithContext(ctx)
+	}
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
+
 	defer resp.Body.Close()
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
+
 	var apiResponse apiResponse
 	if err := json.Unmarshal(body, &apiResponse); err != nil {
 		return err
 	}
+
 	if apiResponse.RetCode != 0 {
 		return fmt.Errorf("BybitApiError: %s", apiResponse.RetMsg)
 	}
+
 	if result != nil {
 		if err := json.Unmarshal(apiResponse.Result, result); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
