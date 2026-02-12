@@ -46,9 +46,9 @@ func NewConn(ctx context.Context, url string, onOpen func(*Conn) error) *Conn {
 }
 
 func (c *Conn) Send(b []byte) error {
-	if err := c.ctx.Err(); err != nil {
-		return err
-	}
+	// if err := c.ctx.Err(); err != nil {
+	// 	return err
+	// }
 	select {
 	case c.tx <- b:
 		return nil
@@ -58,12 +58,10 @@ func (c *Conn) Send(b []byte) error {
 }
 
 func (c *Conn) Recv() ([]byte, error) {
-	select {
-	case b := <-c.rx:
+	if b, ok := <-c.rx; ok {
 		return b, nil
-	case <-c.ctx.Done():
-		return nil, c.ctx.Err()
 	}
+	return nil, c.ctx.Err()
 }
 
 func (c *Conn) Close() {
@@ -79,7 +77,13 @@ func (c *Conn) run() {
 	for {
 		var done chan struct{}
 		var ticker *time.Ticker
-		conn, _, err := websocket.DefaultDialer.Dial(c.url, nil)
+
+		dialer := &websocket.Dialer{
+			EnableCompression: false,
+			HandshakeTimeout:  writeTimeout,
+		}
+
+		conn, _, err := dialer.Dial(c.url, nil)
 		if err != nil {
 			goto reconnect
 		}

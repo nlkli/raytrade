@@ -7,77 +7,77 @@
     "target_fps": 111,
     "load_font": "resources/ComicRelief-Bold.ttf",
     "theme": {
-        "name": "Gruvbox Light Hard",
-        "is_light": true,
+        "name": "GitHub Dark High Contrast",
+        "is_light": false,
         "colors": {
             "background": [
-                "#fffbdc",
-                "#f9f5d7",
-                "#eae6ca",
-                "#dad7bd",
-                "#bebba4"
+                "#030405",
+                "#0a0c10",
+                "#14171f",
+                "#1d232f",
+                "#2f384b"
             ],
             "foreground": [
-                "#2d2a28",
-                "#3c3836",
-                "#776f6b",
-                "#aca19b"
+                "#e1e4e7",
+                "#f0f3f6",
+                "#b7b9bb",
+                "#838486"
             ],
             "selection": {
-                "bg": "#3c3836",
-                "fg": "#f9f5d7"
+                "bg": "#f0f3f6",
+                "fg": "#0a0c10"
             },
             "cursor": {
-                "bg": "#3c3836",
-                "fg": "#f9f5d7"
+                "bg": "#71b7ff",
+                "fg": "#b1f7ff"
             },
             "base": {
-                "black": "#f9f5d7",
-                "red": "#cc241d",
-                "green": "#98971a",
-                "yellow": "#d79921",
-                "blue": "#458588",
-                "magenta": "#b16286",
-                "cyan": "#689d6a",
-                "white": "#7c6f64",
-                "orange": "#d25f1f",
-                "pink": "#a44a41"
+                "black": "#7a828e",
+                "red": "#ff9492",
+                "green": "#26cd4d",
+                "yellow": "#f0b72f",
+                "blue": "#71b7ff",
+                "magenta": "#cb9eff",
+                "cyan": "#39c5cf",
+                "white": "#d9dee3",
+                "orange": "#f8a661",
+                "pink": "#ecb9bb"
             },
             "bright": {
-                "black": "#f9f5d7",
-                "red": "#cc241d",
-                "green": "#98971a",
-                "yellow": "#d79921",
-                "blue": "#458588",
-                "magenta": "#b16286",
-                "cyan": "#689d6a",
-                "white": "#7c6f64",
-                "orange": "#d25f1f",
-                "pink": "#a44a41"
+                "black": "#7a828e",
+                "red": "#ff9492",
+                "green": "#26cd4d",
+                "yellow": "#f0b72f",
+                "blue": "#71b7ff",
+                "magenta": "#cb9eff",
+                "cyan": "#39c5cf",
+                "white": "#d9dee3",
+                "orange": "#f8a661",
+                "pink": "#ecb9bb"
             },
             "dim": {
-                "black": "#d4d0b7",
-                "red": "#ad1f19",
-                "green": "#818016",
-                "yellow": "#b7821c",
-                "blue": "#3b7174",
-                "magenta": "#965372",
-                "cyan": "#58855a",
-                "white": "#695e55",
-                "orange": "#b2501a",
-                "pink": "#8b3e37"
+                "black": "#686f79",
+                "red": "#d97e7c",
+                "green": "#20ae41",
+                "yellow": "#cc9c28",
+                "blue": "#609cd9",
+                "magenta": "#ad86d9",
+                "cyan": "#30a7b0",
+                "white": "#b8bdc1",
+                "orange": "#d28d52",
+                "pink": "#c99d9f"
             },
             "diff": {
-                "add": "#abaa40",
-                "delete": "#d54e42",
-                "change": "#699b98",
-                "text": "#c78e9e"
+                "add": "#20a641",
+                "delete": "#ce7978",
+                "change": "#5c95cf",
+                "text": "#9172b7"
             },
             "code_selection": [
-                "#ddd9bf",
-                "#ccc8b0"
+                "#2d2f33",
+                "#233549"
             ],
-            "comment": "#888476"
+            "comment": "#94979a"
         }
     }
 }

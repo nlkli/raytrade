@@ -130,6 +130,7 @@ func (b *Broadcaster[T]) Publish(event T) {
 func (b *Broadcaster[T]) Subs() int {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
+
 	return len(b.subs)
 }
 

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 const (
 	RPD float32 = 4 // Root padding
 
-	OBW float32 = 200 // OrderBook section width
+	OBW float32 = 0 // OrderBook section width
 
 	TLH float32 = 20 // Time line height
 
@@ -29,7 +30,7 @@ const (
 	DEFAULT_ROW_HEIGHT float32 = 20
 	DEFAULT_SCALE_X    float32 = 1
 	DEFAULT_SCALE_Y    float32 = .9
-	DEFAULT_SHIFT_X    float32 = 25
+	DEFAULT_SHIFT_X    float32 = 40
 	DEFAULT_SHIFT_Y    float32 = 0
 )
 
@@ -40,7 +41,21 @@ const (
 	Input
 )
 
-type CommitFn func(*State) error
+type CommitFn func(*State)
+
+func CommitCommandLineError(text string) CommitFn {
+	return func(s *State) {
+		s.CommandLine.Prompt = text
+		s.CommandLine.Color = s.P.Base.Red
+	}
+}
+
+func CommitCommandLineErrorAnd(text string, f CommitFn) CommitFn {
+	return func(s *State) {
+		CommitCommandLineError(text)(s)
+		f(s)
+	}
+}
 
 type State struct {
 	ST time.Time // Start time
@@ -61,6 +76,8 @@ type State struct {
 
 	P *Palette
 
+	Mouse MouseState
+
 	RH float32 // Row height
 	F  rl.Font
 
@@ -73,8 +90,17 @@ type State struct {
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 	Chart       ChartState
+	Bg          BackgroundState
 
 	Cache Cache
+
+	ShowFPS     bool
+	ShowOverlay bool
+}
+
+type MouseState struct {
+	P        rl.Vector2
+	Captured bool
 }
 
 type Cache struct {
@@ -89,6 +115,13 @@ type Cache struct {
 // 	Interval cdl.Interval
 // }
 
+type BackgroundState struct {
+	IsActiveIO bool
+	Category   broker.Category
+	Symbol     string
+	Interval   cdl.Interval
+}
+
 type FooterState struct {
 	Height float32
 	Forced bool
@@ -102,7 +135,7 @@ type StatusLineState struct {
 type CommandLineState struct {
 	History []string
 	// TmpHistory []string
-	HustoryCur int
+	HistoryCur int
 	Prompt     string
 	PromptW    float32
 	Lines      []string
@@ -119,6 +152,9 @@ type ChartState struct {
 	Price  float64 // Last price
 	PriceY float32 // Last price y coord
 
+	CursorY     float32
+	CursorPrice float64
+
 	Candles []cdl.Candle // Candles buffer
 
 	Cap        int     // Canvas candles capacity
@@ -128,6 +164,7 @@ type ChartState struct {
 
 	ShowGrid bool
 
+	GridX [][2]float32 // [][x coord, seconds]
 	GridY [][2]float32 // [][y coord, price]
 
 	// TODO ?
@@ -164,6 +201,8 @@ func InitState(c *Config) *State {
 
 			Scale: rl.NewVector2(DEFAULT_SCALE_X, DEFAULT_SCALE_Y),
 			Shift: rl.NewVector2(DEFAULT_SHIFT_X, DEFAULT_SHIFT_Y),
+
+			// GridX: make([][2]float32, ), // TODO
 
 			ShowGrid: true,
 		},

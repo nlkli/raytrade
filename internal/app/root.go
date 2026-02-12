@@ -1,6 +1,10 @@
 package app
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	"fmt"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
+)
 
 type Root struct {
 	*Rect
@@ -72,6 +76,16 @@ func (r *Root) Render(s *State) {
 
 	r.f.Render(s)
 	r.mc.Render(s)
+
+	if s.ShowFPS {
+		fps := fmt.Sprintf("%d", rl.GetFPS())
+		s.StdDrawText(string(fps), rl.Vector2{X: RPD, Y: RPD}, s.P.Comment)
+	}
+
+	// if s.ShowOverlay {
+	// 	fps := fmt.Sprintf("%d", rl.GetFPS())
+	// 	s.StdDrawText(string(fps), rl.Vector2{X: RPD, Y: RPD}, s.P.Comment)
+	// }
 }
 
 // type TabsLine struct {

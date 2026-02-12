@@ -2,9 +2,9 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
+	"sync"
 	"sync/atomic"
 )
 
@@ -18,15 +18,30 @@ type InstrumentObserverT struct {
 }
 
 func (t *InstrumentObserverT) run(b *Background) {
-	done := make(chan struct{}, 1)
-	stream, err := b.broker.CandleStream(done, t.Category, t.Symbol, t.Interval)
+	doneIOT := make(chan struct{}, 1)
+
+	stream, err := b.broker.CandleStream(doneIOT, t.Category, t.Symbol, t.Interval)
 	if err != nil {
-		fmt.Println(err.Error())
+		b.push(CommitCommandLineErrorAnd(
+			err.Error(),
+			func(s *State) {
+				s.StatusLine.Symbol = s.Bg.Symbol
+				s.StatusLine.Interval = s.Bg.Interval.AsString()
+			},
+		))
+        close(doneIOT)
 		return
 	}
 
-	firs := <-stream
-	candles := []cdl.Candle{firs.Candle}
+	var first cdl.CandleStreamData
+	for {
+		first = <-stream
+		if !first.Confirm {
+			break
+		}
+	}
+
+	candles := []cdl.Candle{first.Candle}
 
 	candles, err = b.broker.ExtendStartCandles(
 		candles,
@@ -36,53 +51,83 @@ func (t *InstrumentObserverT) run(b *Background) {
 		t.InitCandlesLimit,
 	)
 	if err != nil {
-		fmt.Println(err.Error())
+		b.push(CommitCommandLineErrorAnd(
+			err.Error(),
+			func(s *State) {
+				s.StatusLine.Symbol = s.Bg.Symbol
+				s.StatusLine.Interval = s.Bg.Interval.AsString()
+			},
+		))
+		doneIOT <- struct{}{}
 		return
 	}
 
+	if b.doneIOT != nil {
+		close(b.doneIOT)
+	}
+	b.wg.Wait()
+	b.doneIOT = doneIOT
+
 	var f CommitFn
-	f = func(s *State) error {
+	f = func(s *State) {
+		s.Bg.IsActiveIO = true
+		s.Bg.Category = t.Category
+		s.Bg.Symbol = t.Symbol
+		s.Bg.Interval = t.Interval
+
+		s.StatusLine.Symbol = t.Symbol
+		s.StatusLine.Interval = t.Interval.AsString()
+
 		s.Chart.Candles = candles
 		s.Chart.Forced = true
-		return nil
 	}
 
 	b.push(f)
 
-	go func() {
+	b.wg.Go(func() {
+		defer b.push(func(s *State) {
+			s.Bg.IsActiveIO = false
+		})
+
 		for d := range stream {
 			var f CommitFn
 			if d.Confirm {
-				f = func(s *State) error {
+				f = func(s *State) {
 					s.Chart.Candles = append(s.Chart.Candles, d.Candle)
 					s.Chart.Forced = true
-					return nil
 				}
 			} else {
-				f = func(s *State) error {
+				f = func(s *State) {
 					s.Chart.Candles[len(s.Chart.Candles)-1] = d.Candle
-					return nil
+					s.Chart.MaxP = max(s.Chart.MaxP, d.Candle.H)
+					s.Chart.MinP = min(s.Chart.MinP, d.Candle.L)
+					s.Chart.CenterP = (s.Chart.MaxP + s.Chart.MinP) * .5
+					s.Chart.RangeP = s.Chart.MaxP - s.Chart.MinP
 				}
 			}
 			b.push(f)
 		}
-	}()
+	})
 }
 
 type Background struct {
 	Tx chan Task
 
-	buf  [4]CommitFn
+	buff [4]CommitFn
 	head atomic.Uint32
 	tail atomic.Uint32
 
 	broker broker.Broker
+
+	mu sync.Mutex
+	wg sync.WaitGroup
+
+	doneIOT chan struct{}
 }
 
 func InitBackground(ctx context.Context, br broker.Broker) *Background {
 	b := &Background{
-		Tx: make(chan Task, 32),
-
+		Tx:     make(chan Task, 32),
 		broker: br,
 	}
 
@@ -104,24 +149,17 @@ func InitBackground(ctx context.Context, br broker.Broker) *Background {
 	return b
 }
 
-func (b *Background) Update(s *State) error {
+func (b *Background) Update(s *State) {
 	tail := b.tail.Load()
 	head := b.head.Load()
 
 	for tail != head {
-		f := b.buf[tail&3]
-		b.buf[tail&3] = nil
-
-		if err := f(s); err != nil {
-			b.tail.Store(tail + 1)
-			return err
-		}
-
+		b.buff[tail&3](s)
+		b.buff[tail&3] = nil
 		tail++
 	}
 
 	b.tail.Store(tail)
-	return nil
 }
 
 func (b *Background) push(f CommitFn) bool {
@@ -129,10 +167,10 @@ func (b *Background) push(f CommitFn) bool {
 	tail := b.tail.Load()
 
 	if head-tail == 4 {
-		return false // full
+		return false
 	}
 
-	b.buf[head&3] = f
+	b.buff[head&3] = f
 	b.head.Store(head + 1)
 
 	return true

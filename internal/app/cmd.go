@@ -35,22 +35,13 @@ func InitCMD(ctx context.Context) *CMD {
 	return c
 }
 
-func (c *CMD) Update(s *State) error {
+func (c *CMD) Update(s *State) {
 	if ptr := c.slot.Swap(nil); ptr != nil {
-		return (*ptr)(s)
+		(*ptr)(s)
 	}
-	return nil
 }
 
 func (c *CMD) translate(prompt string) CommitFn {
-
-	cmdError := func(text string) CommitFn {
-		return func(s *State) error {
-			s.CommandLine.Prompt = text
-			s.CommandLine.Color = s.P.Base.Red
-			return nil
-		}
-	}
 
 	parseFloatValue := func(v string, f *float64) (err error) {
 		switch rune(v[0]) {
@@ -66,6 +57,8 @@ func (c *CMD) translate(prompt string) CommitFn {
 				return err
 			}
 			*f -= pf
+		case '=':
+			*f, err = strconv.ParseFloat(v[1:], 64)
 		default:
 			*f, err = strconv.ParseFloat(v, 64)
 		}
@@ -73,12 +66,14 @@ func (c *CMD) translate(prompt string) CommitFn {
 	}
 
 	if len(prompt) == 0 {
-		return cmdError("empty command")
+		return CommitCommandLineError("empty command")
 	}
 
 	var commands []CommitFn
 
 	parts := strings.SplitSeq(prompt, "|")
+
+	var intervalArg *cdl.Interval
 
 	for part := range parts {
 
@@ -93,20 +88,31 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 		case "symbol", "s":
 
-			if n == 1 {
-				break
+			var symbol string
+			if n > 1 {
+				symbol = strings.ToUpper(args[1])
 			}
 
-			symbol := strings.ToUpper(args[1])
-
-			command = func(s *State) error {
-				if s.StatusLine.Symbol == symbol {
-					return nil
+			command = func(s *State) {
+				if s.StatusLine.Symbol == "..." {
+					CommitCommandLineError("TODO")(s)
 				}
 
-				interval, err := cdl.IntervalFromString(s.StatusLine.Interval)
-				if err != nil {
-					return cmdError(err.Error())(s)
+				interval := intervalArg
+				if interval == nil {
+					res, err := cdl.IntervalFromString(s.StatusLine.Interval)
+					if err != nil {
+						CommitCommandLineError(err.Error())(s)
+					}
+					interval = &res
+				}
+
+				if len(symbol) == 0 {
+					symbol = s.StatusLine.Symbol
+				}
+
+				if len(symbol) == 0 {
+					CommitCommandLineError("TODO")(s)
 				}
 
 				s.StatusLine.Symbol = "..."
@@ -119,11 +125,9 @@ func (c *CMD) translate(prompt string) CommitFn {
 				s.BTX <- InstrumentObserverT{
 					Category:         broker.Futures,
 					Symbol:           symbol,
-					Interval:         interval,
+					Interval:         *interval,
 					InitCandlesLimit: limit,
 				}
-
-				return nil
 			}
 
 		case "interval", "i":
@@ -132,16 +136,12 @@ func (c *CMD) translate(prompt string) CommitFn {
 				break
 			}
 
-			interval, err := cdl.IntervalFromString(args[1])
-
+			res, err := cdl.IntervalFromString(args[1])
 			if err != nil {
-				return cmdError(err.Error())
+				return CommitCommandLineError(err.Error())
 			}
 
-			command = func(s *State) error {
-				s.StatusLine.Interval = interval.AsString()
-				return nil
-			}
+			intervalArg = &res
 
 		case "reset", "r":
 
@@ -165,10 +165,9 @@ func (c *CMD) translate(prompt string) CommitFn {
 					break
 				}
 
-				command = func(s *State) error {
+				command = func(s *State) {
 					s.Chart.Forced = true
 					s.Chart.Scale.X = DEFAULT_SCALE_X
-					return nil
 				}
 
 			case "scaley", "sy":
@@ -177,10 +176,9 @@ func (c *CMD) translate(prompt string) CommitFn {
 					break
 				}
 
-				command = func(s *State) error {
+				command = func(s *State) {
 					s.Chart.Forced = true
 					s.Chart.Scale.Y = DEFAULT_SCALE_Y
-					return nil
 				}
 
 			case "targetx", "tx":
@@ -189,10 +187,9 @@ func (c *CMD) translate(prompt string) CommitFn {
 					break
 				}
 
-				command = func(s *State) error {
+				command = func(s *State) {
 					s.Chart.Forced = true
 					s.Chart.Shift.X = DEFAULT_SHIFT_X
-					return nil
 				}
 
 			case "targety", "ty":
@@ -201,10 +198,9 @@ func (c *CMD) translate(prompt string) CommitFn {
 					break
 				}
 
-				command = func(s *State) error {
+				command = func(s *State) {
 					s.Chart.Forced = true
 					s.Chart.Shift.Y = DEFAULT_SHIFT_Y
-					return nil
 				}
 
 			case "rowheight", "rh":
@@ -213,11 +209,10 @@ func (c *CMD) translate(prompt string) CommitFn {
 					break
 				}
 
-				command = func(s *State) error {
+				command = func(s *State) {
 					s.RH = DEFAULT_ROW_HEIGHT
 					s.Footer.Forced = true
 					s.Chart.Forced = true
-					return nil
 				}
 
 			default:
@@ -229,14 +224,13 @@ func (c *CMD) translate(prompt string) CommitFn {
 				break
 			}
 
-			command = func(s *State) error {
+			command = func(s *State) {
 				f := float64(s.Chart.Scale.X)
 				if err := parseFloatValue(args[1], &f); err != nil {
-					return cmdError(err.Error())(s)
+					CommitCommandLineError(err.Error())(s)
 				}
 				s.Chart.Scale.X = float32(f)
 				s.Chart.Forced = true
-				return nil
 			}
 
 		case "scaley", "sy":
@@ -245,14 +239,13 @@ func (c *CMD) translate(prompt string) CommitFn {
 				break
 			}
 
-			command = func(s *State) error {
+			command = func(s *State) {
 				f := float64(s.Chart.Scale.Y)
 				if err := parseFloatValue(args[1], &f); err != nil {
-					return cmdError(err.Error())(s)
+					CommitCommandLineError(err.Error())(s)
 				}
 				s.Chart.Scale.Y = float32(f)
 				s.Chart.Forced = true
-				return nil
 			}
 
 		case "targetx", "tx":
@@ -261,14 +254,13 @@ func (c *CMD) translate(prompt string) CommitFn {
 				break
 			}
 
-			command = func(s *State) error {
+			command = func(s *State) {
 				f := float64(s.Chart.Shift.X)
 				if err := parseFloatValue(args[1], &f); err != nil {
-					return cmdError(err.Error())(s)
+					CommitCommandLineError(err.Error())(s)
 				}
 				s.Chart.Shift.X = float32(f)
 				s.Chart.Forced = true
-				return nil
 			}
 
 		case "targety", "ty":
@@ -277,14 +269,13 @@ func (c *CMD) translate(prompt string) CommitFn {
 				break
 			}
 
-			command = func(s *State) error {
+			command = func(s *State) {
 				f := float64(s.Chart.Shift.Y)
 				if err := parseFloatValue(args[1], &f); err != nil {
-					return cmdError(err.Error())(s)
+					CommitCommandLineError(err.Error())(s)
 				}
 				s.Chart.Shift.Y = float32(f)
 				s.Chart.Forced = true
-				return nil
 			}
 
 		case "rowheight", "rh":
@@ -293,15 +284,26 @@ func (c *CMD) translate(prompt string) CommitFn {
 				break
 			}
 
-			command = func(s *State) error {
+			command = func(s *State) {
 				f := float64(s.RH)
 				if err := parseFloatValue(args[1], &f); err != nil {
-					return cmdError(err.Error())(s)
+					CommitCommandLineError(err.Error())(s)
 				}
 				s.RH = float32(f)
 				s.Footer.Forced = true
 				s.Chart.Forced = true
-				return nil
+			}
+
+		case "fps":
+
+			command = func(s *State) {
+				s.ShowFPS = !s.ShowFPS
+			}
+
+		case "overlay":
+
+			command = func(s *State) {
+				s.ShowOverlay = !s.ShowOverlay
 			}
 
 		default:
@@ -316,13 +318,12 @@ func (c *CMD) translate(prompt string) CommitFn {
 		return commands[0]
 	}
 	if len(commands) > 1 {
-		return func(s *State) error {
+		return func(s *State) {
 			for _, c := range commands {
 				c(s)
 			}
-			return nil
 		}
 	}
 
-	return cmdError(fmt.Sprintf("unknown command: %s", prompt))
+	return CommitCommandLineError(fmt.Sprintf("unknown command: %s", prompt))
 }

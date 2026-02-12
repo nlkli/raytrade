@@ -17,7 +17,7 @@ func NewFuture[T any](onComplete func()) *Future[T] {
 
 func (f *Future[T]) Complete(res T) {
 	f.once.Do(func() {
-		f.ch<-res
+		f.ch <- res
 		if f.onComplete != nil {
 			f.onComplete()
 		}

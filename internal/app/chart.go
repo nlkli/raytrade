@@ -77,29 +77,44 @@ func (c *Canvas) Render(s *State) {
 		}
 
 		s.Chart.Cap = int((c.s.X - c.cam.Target.X + CW) / stepX)
+		visibleC := candles[max(0, n-s.Chart.Cap):]
 
-		s.Chart.MinP, s.Chart.MaxP = cdl.MinMaxPrice(
-			candles[max(0, n-s.Chart.Cap):],
-		)
+		s.Chart.MinP, s.Chart.MaxP = cdl.MinMaxPrice(visibleC)
 		s.Chart.CenterP = (s.Chart.MaxP + s.Chart.MinP) * .5
 		s.Chart.RangeP = s.Chart.MaxP - s.Chart.MinP
 
 		// Y grid
 
 		pricePerPixel := s.Chart.RangeP / float64(sf.Y) / float64(c.s.Y)
-		priceStep := pricePerPixel * float64(s.RH*2.2)
+		priceStep := float64(s.RH*2.2) * pricePerPixel
 
 		qPriceStep := quantizePriceStep(priceStep)
-		pixelStep := float32(qPriceStep / pricePerPixel)
+		pixelStepY := float32(qPriceStep / pricePerPixel)
 
 		scaleY := c.s.Y / (float32(s.Chart.RangeP) / sf.Y)
 		offsetY := c.s.Y * .5
 
-		s.Chart.GridY = make([][2]float32, 0, int(c.s.Y/pixelStep)+1)
-		for y := c.s.Y - pixelStep*.5; y > 0; y -= pixelStep {
+		s.Chart.GridY = make([][2]float32, 0, int(c.s.Y/pixelStepY)+1) // TODO no alocc
+		for y := c.s.Y - pixelStepY*.5; y > 0; y -= pixelStepY {
 			yPrice := float32(s.Chart.CenterP) - (y-offsetY)/scaleY
 			s.Chart.GridY = append(s.Chart.GridY, [...]float32{y, yPrice})
 		}
+
+		// X grid
+
+		// secondsPerCandle := s.Bg.Interval.AsSeconds()
+		// secondsPerPixel := float64(secondsPerCandle) / float64(stepX)
+		// timeStep := float64(s.RH*6) * secondsPerPixel
+
+		// qTimeStep := quantizeTimeStep(timeStep)
+		// pixelStepX := float32(qTimeStep / secondsPerPixel)
+
+		// s.Chart.GridX = make([][2]float32, 0, int(c.s.X/pixelStepX)+1) // TODO no alocc
+		// for x := c.s.X - pixelStepX*.5; x > 0; x -= pixelStepX {
+		// 	xSec := 
+		// 	s.Chart.GridX = append(s.Chart.GridY, [...]float32{x, xSec})
+		// }
+
 	}
 
 	if n == 0 {
@@ -181,6 +196,30 @@ func (c *Canvas) Render(s *State) {
 			rl.Vector2{X: cw, Y: bodySizeY},
 			color,
 		)
+	}
+
+	if !s.Mouse.Captured && c.ContainsV(s.Mouse.P) {
+		s.Mouse.Captured = true
+
+		worldMouse := rl.GetScreenToWorld2D(s.Mouse.P, c.cam)
+		s.Chart.CursorY = worldMouse.Y
+		s.Chart.CursorPrice = s.Chart.CenterP -
+			float64((worldMouse.Y-offsetY)/scaleY)
+
+		rl.DrawLineEx(
+			rl.Vector2{X: 0, Y: worldMouse.Y},
+			rl.Vector2{X: c.s.X + c.cam.Target.X, Y: worldMouse.Y},
+			1,
+			s.P.Bg[4],
+		)
+		rl.DrawLineEx(
+			rl.Vector2{X: worldMouse.X, Y: 0},
+			rl.Vector2{X: worldMouse.X, Y: c.s.Y},
+			1,
+			s.P.Bg[4],
+		)
+	} else {
+		s.Chart.CursorY = 0
 	}
 
 	rl.EndMode2D()
@@ -276,6 +315,25 @@ func (pb *PriceBar) Render(s *State) {
 		s.P.Fg[1],
 	)
 
+	if s.Chart.CursorY > 0 {
+		localCursorY := s.Chart.CursorY + pb.p.Y
+		localTextY := localCursorY - rc
+
+		priceText := fmt.Sprintf("%.5f", s.Chart.CursorPrice)
+		if len(priceText) > len(PRICE_BAR_MAX_CONTENT) {
+			priceText = priceText[:len(PRICE_BAR_MAX_CONTENT)]
+		}
+
+		rl.DrawTextEx(
+			s.F,
+			priceText,
+			rl.Vector2{X: pb.p.X, Y: localTextY},
+			rh,
+			0,
+			s.P.Base.Blue,
+		)
+	}
+
 	// pb.Outline(1, s.P.Base.Red)
 
 	rl.EndScissorMode()
@@ -317,4 +375,29 @@ func quantizePriceStep(price float64) float64 {
 	default:
 		return 10 * base
 	}
+}
+
+func quantizeTimeStep(seconds float64) float64 {
+	steps := []float64{
+		60,      // 1m
+		180,     // 3m
+		300,     // 5m
+		900,     // 15m
+		1800,    // 30m
+		3600,    // 1h
+		7200,    // 2h
+		14400,   // 4h
+		21600,   // 6h
+		43200,   // 12h
+		86400,   // 1d
+		604800,  // 1w
+		2592000, // 1m
+	}
+
+	for _, s := range steps {
+		if float64(s) >= seconds {
+			return s
+		}
+	}
+	return steps[len(steps)-1]
 }

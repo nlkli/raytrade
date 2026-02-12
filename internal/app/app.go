@@ -33,11 +33,9 @@ func (a *App) Frame() {
 	}
 
 	a.C.Event(a.S)
-
 	a.BG.Update(a.S)
 
 	rl.BeginDrawing()
-	rl.DrawFPS(2, 2)
 	a.Root.Render(a.S)
 	rl.EndDrawing()
 
@@ -62,15 +60,9 @@ func Run(ctx context.Context, configPath string) error {
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
 	rl.InitWindow(c.InitWindow.Width, c.InitWindow.Height, c.InitWindow.Title)
-
 	rl.SetExitKey(0)
 
 	state := InitState(&c)
-	// candles, err := br.GetCandles(broker.Futures, "BTCUSDT", cdl.M1, 200, nil, nil)
-	// if err != nil {
-	// 	return err
-	// }
-	// state.Chart.Candles = candles
 
 	cmd := InitCMD(context.Background())
 	state.CMDTX = cmd.Tx

@@ -135,6 +135,11 @@ func (c *Client) callAPI(req *http.Request, queryString string, result any) erro
 		"Accept":             {"application/json"},
 	}
 
+	if err := c.ctx.Err(); err != nil {
+		// TODO
+		log.Println("PARENT CONTEXT DEAD:", err)
+	}
+
 	if c.timeout > 0 {
 		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
 		defer cancel()
