@@ -17,8 +17,8 @@ type StreamOpRequest struct {
 }
 
 // https://bybit-exchange.github.io/docs/v5/ws/connect
-// StreamOperationResult represents an operation result (auth, subscribe, unsubscribe).
-type StreamOperationResult struct {
+// StreamOpResult represents an operation result (auth, subscribe, unsubscribe).
+type StreamOpResult struct {
 	Success bool   `json:"success"`
 	RetMsg  string `json:"ret_msg"`
 	ConnID  string `json:"conn_id"`

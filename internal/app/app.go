@@ -3,8 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"net"
+	"net/http"
 	"nlkli/raytrade/internal/broker/bybit"
 	"os"
+	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -55,7 +58,24 @@ func Run(ctx context.Context, configPath string) error {
 		return err
 	}
 
-	client := bybit.NewClientFromEnv(context.Background())
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   3 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			TLSHandshakeTimeout:   3 * time.Second,
+			ResponseHeaderTimeout: 5 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			IdleConnTimeout:       90 * time.Second,
+			MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   20,
+		},
+	}
+
+	client := bybit.NewClientFromEnv(
+		context.Background(), bybit.WithHttpClient(httpClient),
+	)
 	br := bybit.NewBroker(client)
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
@@ -68,6 +88,11 @@ func Run(ctx context.Context, configPath string) error {
 	state.CMDTX = cmd.Tx
 	bg := InitBackground(context.Background(), br)
 	state.BTX = bg.Tx
+
+	go func() {
+		time.Sleep(time.Second * 3)
+		cmd.Tx <- "i 1 | s btcusdt"
+	}()
 
 	app := &App{
 		S:    state,

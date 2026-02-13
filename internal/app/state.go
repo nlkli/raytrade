@@ -153,7 +153,7 @@ type ChartState struct {
 	Price  float64 // Last price
 	PriceY float32 // Last price y coord
 
-	Cursor     rl.Vector2
+	Cursor      rl.Vector2
 	CursorPrice float64
 
 	Candles     []cdl.Candle // Candles buffer
@@ -164,13 +164,13 @@ type ChartState struct {
 	MidP       float64 // Price center
 	RngP       float64 // Price range
 
+	MaxVisiblePrice float64
+	PriceToPixel    float64
+
+	GridStepY float32
+	GridStepX float32
+
 	ShowGrid bool
-
-	GridX [][2]float32 // [][x coord, ts]
-	GridY [][2]float32 // [][y coord, price]
-
-	// TODO ?
-	offset int
 
 	PriceBarW float32
 	TimeLineH float32
@@ -191,10 +191,7 @@ func InitState(c *Config) *State {
 		P:  palette,
 		RH: DEFAULT_ROW_HEIGHT,
 		F:  rl.LoadFont(c.LoadFont),
-		// Instrument: InstrumentState{
-		// 	Category: broker.Futures,
-		// 	Interval: cdl.M5,
-		// },
+
 		StatusLine: StatusLineState{
 			Interval: cdl.M1.AsString(),
 		},
@@ -203,9 +200,6 @@ func InitState(c *Config) *State {
 
 			Scale: rl.NewVector2(DEFAULT_SCALE_X, DEFAULT_SCALE_Y),
 			Shift: rl.NewVector2(DEFAULT_SHIFT_X, DEFAULT_SHIFT_Y),
-
-			GridX: make([][2]float32, 0, 32),
-			GridY: make([][2]float32, 0, 64),
 
 			ShowGrid: true,
 		},

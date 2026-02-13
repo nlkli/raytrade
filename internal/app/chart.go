@@ -46,12 +46,12 @@ func (ch *Chart) Render(s *State) {
 	// ch.Outline(1, s.P.Base.Magenta)
 }
 
-func priceToWorldY(price float64, maxVisible float64, scale float32) float32 {
-	return float32(maxVisible-price) * scale
+func priceToWorldY(price float64, maxVisible float64, scale float64) float32 {
+	return float32((maxVisible - price) * scale)
 }
 
-func worldYToPrice(y float32, maxVisible float64, scale float32) float64 {
-	return maxVisible - float64(y)/float64(scale)
+func worldYToPrice(y float32, maxVisible float64, scale float64) float64 {
+	return maxVisible - float64(y)/scale
 }
 
 type Canvas struct {
@@ -66,12 +66,8 @@ func (c *Canvas) Render(s *State) {
 	n := len(candles)
 
 	sf := s.Chart.Scale
-	cw := CW * sf.X
-	stepX := cw + CG
-
-	var maxVisiblePrice float64
-	var priceToPixel float32
-	var pixelToPrice float32
+	cw := CW * sf.X // candle width * scale
+	stepX := cw + CG // scale candle width + gap
 
 	if s.WRF || s.Chart.Forced {
 		c.MoveTo(c.parent.p.X, c.parent.p.Y)
@@ -98,21 +94,18 @@ func (c *Canvas) Render(s *State) {
 		// Y grid
 
 		visiblePriceRange := s.Chart.RngP / float64(sf.Y)
-		maxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
+		s.Chart.MaxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
 
-		priceToPixel = c.s.Y / float32(visiblePriceRange)
-		pixelToPrice = float32(1 / priceToPixel)
+		s.Chart.PriceToPixel = float64(c.s.Y) / visiblePriceRange
 
-		priceStep := quantizePriceStep(float64(s.RH * 2.5 * pixelToPrice))
+		priceStep := quantizePriceStep(
+			float64(s.RH * 2.5 * float32(1/s.Chart.PriceToPixel)),
+		)
 
-		pixelStepY := float32(priceStep) * priceToPixel
+		s.Chart.GridStepY = float32(priceStep * s.Chart.PriceToPixel)
 
-		s.Chart.GridY = s.Chart.GridY[:0]
+        // s.Chart.SecInterval
 
-		for y := c.s.Y - pixelStepY*.5; y > 0; y -= pixelStepY {
-			yPrice := float32(worldYToPrice(y, maxVisiblePrice, pixelToPrice))
-			s.Chart.GridY = append(s.Chart.GridY, [2]float32{y, yPrice})
-		}
 	} else {
 
 		if n == 0 {
@@ -120,14 +113,28 @@ func (c *Canvas) Render(s *State) {
 		}
 
 		visiblePriceRange := s.Chart.RngP / float64(sf.Y)
-		maxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
 
-		priceToPixel = c.s.Y / float32(visiblePriceRange)
-		pixelToPrice = float32(1.0 / priceToPixel)
+		s.Chart.MaxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
+
+		s.Chart.PriceToPixel = float64(c.s.Y) / visiblePriceRange
 	}
 
 	s.Chart.Price = candles[n-1].C
-	s.Chart.PriceY = priceToWorldY(s.Chart.Price, maxVisiblePrice, priceToPixel)
+	s.Chart.PriceY = priceToWorldY(
+		s.Chart.Price, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel,
+	)
+
+	if s.Chart.ShowGrid {
+		for y := c.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
+			localY := y + c.p.Y
+			rl.DrawLineEx(
+				rl.Vector2{X: c.p.X, Y: localY},
+				rl.Vector2{X: c.s.X, Y: localY},
+				1,
+				s.P.Bg[2],
+			)
+		}
+	}
 
 	rl.BeginScissorMode(
 		int32(c.p.X),
@@ -144,17 +151,6 @@ func (c *Canvas) Render(s *State) {
 		s.P.Bg[4],
 	)
 
-	if s.Chart.ShowGrid {
-		for _, g := range s.Chart.GridY {
-			rl.DrawLineEx(
-				rl.Vector2{X: 0, Y: g[0]},
-				rl.Vector2{X: c.s.X + c.cam.Target.X, Y: g[0]},
-				1,
-				s.P.Bg[2],
-			)
-		}
-	}
-
 	for i := range n {
 		candle := candles[n-i-1]
 
@@ -163,10 +159,10 @@ func (c *Canvas) Render(s *State) {
 			break
 		}
 
-		yO := priceToWorldY(candle.O, maxVisiblePrice, priceToPixel)
-		yH := priceToWorldY(candle.H, maxVisiblePrice, priceToPixel)
-		yL := priceToWorldY(candle.L, maxVisiblePrice, priceToPixel)
-		yC := priceToWorldY(candle.C, maxVisiblePrice, priceToPixel)
+		yO := priceToWorldY(candle.O, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
+		yH := priceToWorldY(candle.H, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
+		yL := priceToWorldY(candle.L, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
+		yC := priceToWorldY(candle.C, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
 
 		color := s.P.Base.Green
 		if candle.C < candle.O {
@@ -207,7 +203,7 @@ func (c *Canvas) Render(s *State) {
 		s.Chart.Cursor = worldMouse
 
 		s.Chart.CursorPrice = worldYToPrice(
-			s.Chart.Cursor.Y, maxVisiblePrice, pixelToPrice,
+			s.Chart.Cursor.Y, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel,
 		)
 
 		rl.DrawLineEx(
@@ -216,6 +212,7 @@ func (c *Canvas) Render(s *State) {
 			1,
 			s.P.Bg[4],
 		)
+
 		rl.DrawLineEx(
 			rl.Vector2{X: worldMouse.X, Y: 0},
 			rl.Vector2{X: worldMouse.X, Y: c.s.Y},
@@ -266,22 +263,28 @@ func (pb *PriceBar) Render(s *State) {
 		return
 	}
 
-	localPriceY := s.Chart.PriceY + pb.p.Y
+	localPriceY := s.Chart.PriceY + pb.p.Y - s.Chart.Shift.Y
 
 	rh := s.RHL(2) // Price bar row height
 	rc := rh * .5  // Price bae row center
 
+	pxInt32 := int32(pb.p.X)
+
 	rl.BeginScissorMode(
-		int32(pb.p.X),
+		pxInt32,
 		int32(pb.p.Y),
 		int32(pb.s.X),
 		int32(pb.s.Y),
 	)
 
-	for _, g := range s.Chart.GridY {
-		localTextY := pb.p.Y + g[0] - rc
+	for y := pb.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
+		localTextY := y + pb.p.Y - rc
 
-		priceText := fmt.Sprintf("%.5f", g[1])
+		yPrice := worldYToPrice(
+			y+s.Chart.Shift.Y, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel,
+		)
+
+		priceText := fmt.Sprintf("%.5f", yPrice)
 		if len(priceText) > len(PRICE_BAR_MAX_CONTENT) {
 			priceText = priceText[:len(PRICE_BAR_MAX_CONTENT)]
 		}
@@ -297,7 +300,7 @@ func (pb *PriceBar) Render(s *State) {
 	}
 
 	rl.DrawRectangleGradientV(
-		int32(pb.p.X),
+		pxInt32,
 		int32(localPriceY-rh-4),
 		int32(pb.s.X),
 		int32(rh+4),
@@ -306,7 +309,7 @@ func (pb *PriceBar) Render(s *State) {
 	)
 
 	rl.DrawRectangleGradientV(
-		int32(pb.p.X),
+		pxInt32,
 		int32(localPriceY+2),
 		int32(pb.s.X),
 		int32(rh+4),
@@ -338,7 +341,7 @@ func (pb *PriceBar) Render(s *State) {
 	)
 
 	if s.Chart.Cursor.Y > 0 {
-		localCursorY := s.Chart.Cursor.Y + pb.p.Y
+		localCursorY := s.Chart.Cursor.Y + pb.p.Y - s.Chart.Shift.Y
 		localTextY := localCursorY - rc
 
 		priceText := fmt.Sprintf("%.5f", s.Chart.CursorPrice)
@@ -347,19 +350,19 @@ func (pb *PriceBar) Render(s *State) {
 		}
 
 		rl.DrawRectangleGradientV(
-			int32(pb.p.X),
-			int32(localTextY-4),
+			pxInt32,
+			int32(localTextY-3),
 			int32(pb.s.X),
-			int32(rc+4),
+			int32(rc+3),
 			rl.Color{},
 			s.P.Bg[1],
 		)
 
 		rl.DrawRectangleGradientV(
-			int32(pb.p.X),
+			pxInt32,
 			int32(localCursorY),
 			int32(pb.s.X),
-			int32(rc+4),
+			int32(rc+3),
 			s.P.Bg[1],
 			rl.Color{},
 		)

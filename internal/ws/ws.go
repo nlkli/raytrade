@@ -2,11 +2,189 @@ package ws
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+type MessageHandlerFn func(int, []byte) (any, bool)
+type OnConnectedFn func(chan<- []byte) error
+
+type Policy struct {
+	Dialer           *websocket.Dialer
+	ReconnectTimeout time.Duration
+	PingInterval     time.Duration
+	WriteTimeout     time.Duration
+	OnConnected      OnConnectedFn
+	MessageHandler   MessageHandlerFn
+}
+
+type PolicyOption func(*Policy)
+
+func NewPolicy(
+	OnConnected OnConnectedFn,
+	messageHandler MessageHandlerFn,
+	opts ...PolicyOption,
+) *Policy {
+	p := &Policy{
+		Dialer: &websocket.Dialer{
+			HandshakeTimeout: 7 * time.Second,
+		},
+		ReconnectTimeout: 200 * time.Millisecond,
+		PingInterval:     20 * time.Second,
+		WriteTimeout:     10 * time.Second,
+		OnConnected:      nil,
+		MessageHandler:   messageHandler,
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
+}
+
+func WithDialer(d *websocket.Dialer) PolicyOption {
+	return func(p *Policy) {
+		p.Dialer = d
+	}
+}
+
+func WithReconnectTimeout(d time.Duration) PolicyOption {
+	return func(p *Policy) {
+		p.ReconnectTimeout = d
+	}
+}
+
+func WithPingInterval(d time.Duration) PolicyOption {
+	return func(p *Policy) {
+		p.PingInterval = d
+	}
+}
+
+func WithWriteTimeout[T any](d time.Duration) PolicyOption {
+	return func(p *Policy) {
+		p.WriteTimeout = d
+	}
+}
+
+func NewConnV2(
+
+	url string,
+	header http.Header,
+	tx chan []byte,
+	rxBuff int,
+	policy *Policy,
+
+) <-chan any {
+
+	rx := make(chan any, rxBuff)
+
+	go func() {
+		defer close(rx)
+
+		var wg sync.WaitGroup
+		doneF := false
+
+		for {
+			println("wait")
+
+			wg.Wait()
+			if doneF {
+				return
+			}
+
+			println("reconnect")
+
+			conn, _, err := policy.Dialer.Dial(url, header)
+			if err != nil {
+				time.Sleep(policy.ReconnectTimeout)
+				continue
+			}
+
+			done := make(chan struct{}, 1)
+
+			wg.Go(func() {
+				ticker := time.NewTicker(policy.PingInterval)
+				defer ticker.Stop()
+
+			loop:
+				for {
+					select {
+
+					case b, ok := <-tx:
+
+						if ok && b == nil {
+							break loop
+						}
+
+						conn.SetWriteDeadline(time.Now().Add(policy.WriteTimeout))
+						if !ok {
+							conn.WriteMessage(
+								websocket.CloseMessage,
+								websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+							)
+
+							doneF = true
+							break loop
+						}
+
+						if err := conn.WriteMessage(websocket.TextMessage, b); err != nil {
+							break loop
+						}
+
+					case <-ticker.C:
+
+						conn.SetWriteDeadline(time.Now().Add(policy.WriteTimeout))
+						if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+							break loop
+						}
+
+					case <-done:
+						break loop
+
+					}
+				}
+
+				if !doneF {
+					time.Sleep(policy.ReconnectTimeout)
+				}
+
+				conn.Close()
+			})
+
+			if policy.OnConnected != nil {
+				err := policy.OnConnected(tx)
+				if err != nil {
+					done <- struct{}{}
+					continue
+				}
+			}
+
+			conn.SetReadDeadline(time.Now().Add(policy.PingInterval * 2))
+			conn.SetPongHandler(func(string) error {
+				conn.SetReadDeadline(time.Now().Add(policy.PingInterval * 2))
+				return nil
+			})
+
+			for {
+				mt, b, err := conn.ReadMessage()
+				if err != nil {
+					done <- struct{}{}
+					break
+				}
+
+				if d, skip := policy.MessageHandler(mt, b); !skip {
+					rx <- d
+				}
+			}
+		}
+	}()
+
+	return rx
+}
 
 const (
 	pingInterval = 20 * time.Second

@@ -1,6 +1,10 @@
 package broker
 
-import "nlkli/raytrade/internal/cdl"
+import (
+	"nlkli/raytrade/internal/cdl"
+	"nlkli/raytrade/internal/ws"
+	"sync"
+)
 
 type Category int
 
@@ -10,13 +14,6 @@ const (
 )
 
 type Broker interface {
-	CandleStream(
-		done <-chan struct{},
-		category Category,
-		symbol string,
-		interval cdl.Interval,
-	) (<-chan cdl.CandleStreamData, error)
-
 	GetCandles(
 		category Category,
 		symbol string,
@@ -43,4 +40,42 @@ type Broker interface {
 		interval cdl.Interval,
 		limit int,
 	) ([]cdl.Candle, error)
+
+	CreateStream(
+		category Category,
+		opts ...ws.PolicyOption,
+	) BrokerStream
+}
+
+type BrokerStreamSubscription[T any] struct {
+	C      <-chan T
+	onStop func() error
+	once   sync.Once
+	err    error
+}
+
+func NewBrokerStreamSubscription[T any](
+	ch <-chan T, onStop func() error,
+) *BrokerStreamSubscription[T] {
+	return &BrokerStreamSubscription[T]{
+		C:      ch,
+		onStop: onStop,
+	}
+}
+
+func (s *BrokerStreamSubscription[T]) Stop() error {
+	s.once.Do(func() {
+		if s.onStop != nil {
+			s.err = s.onStop()
+		}
+	})
+
+	return s.err
+}
+
+type BrokerStream interface {
+	SubscribeCandleStream(
+		symbol string,
+		interval cdl.Interval,
+	) (*BrokerStreamSubscription[cdl.CandleStreamData], error)
 }

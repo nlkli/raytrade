@@ -22,7 +22,7 @@ import (
 const (
 	MAINNET             = "https://api.bybit.com"
 	STREAM_MAINNET      = "wss://stream.bybit.com"
-	DEFAULT_RECV_WINDOW = 5000
+	DEFAULT_RECV_WINDOW = "5000"
 )
 
 type Client struct {
@@ -31,12 +31,9 @@ type Client struct {
 	apiKey    string
 	apiSecret string
 
-	recvWindow int
+	recvWindow string
 
 	httpClient *http.Client
-	timeout    time.Duration
-
-	ctx context.Context
 }
 
 func NewClient(ctx context.Context, apiKey, apiSecret string, opts ...Option) *Client {
@@ -46,8 +43,6 @@ func NewClient(ctx context.Context, apiKey, apiSecret string, opts ...Option) *C
 		apiSecret:  apiSecret,
 		recvWindow: DEFAULT_RECV_WINDOW,
 		httpClient: http.DefaultClient,
-		timeout:    7 * time.Second,
-		ctx:        ctx,
 	}
 
 	for _, opt := range opts {
@@ -77,7 +72,7 @@ func NewClientFromEnv(ctx context.Context, opts ...Option) *Client {
 
 type Option func(*Client)
 
-func WithRecvWindow(recvWindow int) Option {
+func WithRecvWindow(recvWindow string) Option {
 	return func(c *Client) {
 		c.recvWindow = recvWindow
 	}
@@ -95,12 +90,6 @@ func WithHttpClient(httpClient *http.Client) Option {
 	}
 }
 
-func WithTimeout(timeout time.Duration) Option {
-	return func(c *Client) {
-		c.timeout = timeout
-	}
-}
-
 type apiResponse struct {
 	RetCode    int             `json:"retCode"`
 	RetMsg     string          `json:"retMsg"`
@@ -109,42 +98,24 @@ type apiResponse struct {
 	Time       int64           `json:"time"`
 }
 
-func (c *Client) signature(s string) (string, error) {
-	hmac256 := hmac.New(sha256.New, []byte(c.apiSecret))
-	if _, err := hmac256.Write([]byte(s)); err != nil {
-		return "", err
-	}
+func (c *Client) genSignature(s string) string {
+	h := hmac.New(sha256.New, []byte(c.apiSecret))
+	h.Write([]byte(s))
 
-	return hex.EncodeToString(hmac256.Sum(nil)), nil
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func (c *Client) callAPI(req *http.Request, queryString string, result any) error {
-	timestamp := strconv.FormatInt(time.Now().UnixNano()/1e6, 10)
-	signatureString := fmt.Sprintf("%s%s%d%s", timestamp, c.apiKey, c.recvWindow, queryString)
-	signature, err := c.signature(signatureString)
-	if err != nil {
-		return err
-	}
 
-	req.Header = map[string][]string{
-		"X-BAPI-API-KEY":     {c.apiKey},
-		"X-BAPI-TIMESTAMP":   {timestamp},
-		"X-BAPI-SIGN":        {signature},
-		"X-BAPI-RECV-WINDOW": {strconv.Itoa(c.recvWindow)},
-		"Content-Type":       {"application/json"},
-		"Accept":             {"application/json"},
-	}
+	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	payload := timestamp + c.apiKey + c.recvWindow + queryString
 
-	if err := c.ctx.Err(); err != nil {
-		// TODO
-		log.Println("PARENT CONTEXT DEAD:", err)
-	}
+	signature := c.genSignature(payload)
 
-	if c.timeout > 0 {
-		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
-		defer cancel()
-		req = req.WithContext(ctx)
-	}
+	req.Header.Set("X-BAPI-API-KEY", c.apiKey)
+	req.Header.Set("X-BAPI-TIMESTAMP", timestamp)
+	req.Header.Set("X-BAPI-RECV-WINDOW", c.recvWindow)
+	req.Header.Set("X-BAPI-SIGN", signature)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -176,32 +147,77 @@ func (c *Client) callAPI(req *http.Request, queryString string, result any) erro
 	return nil
 }
 
-func (c *Client) CreatePublicStream(category models.Category) *Stream {
+// func (c *Client) CreatePublicStream(category models.Category) *Stream {
+// 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
+// 	return NewStream(context.Background(), url, nil)
+// }
+
+func (c *Client) CreatePublicStreamV2(
+	category models.Category,
+	tx chan []byte,
+	opts ...ws.PolicyOption,
+) *StreamV2 {
 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
-	return NewStream(c.ctx, url, nil)
+	return NewStreamV2(url, tx, nil, opts...)
 }
 
-func (c *Client) CreatePrivateStream(category models.Category) *Stream {
+func (c *Client) CreatePrivateStreamV2(
+	category models.Category,
+	tx chan []byte,
+	opts ...ws.PolicyOption,
+) *StreamV2 {
 	url := fmt.Sprintf("%s/v5/private/%s", STREAM_MAINNET, category)
-	return NewStream(c.ctx, url, func(conn *ws.Conn) error {
-		expires := time.Now().UnixNano()/1e6 + 10000
-		val := fmt.Sprintf("GET/realtime%d", expires)
-		signature, err := c.signature(val)
-		if err != nil {
-			return err
-		}
-		opReq := &models.StreamOpRequest{
-			ReqID: nextReqID(),
-			Op:    models.StreamOpAuth,
-			Args: []any{
-				c.apiKey, expires, signature,
-			},
-		}
-		b, err := json.Marshal(opReq)
-		if err != nil {
-			return err
-		}
+	return NewStreamV2(
+		url,
+		tx,
+		func(sendCh chan<- []byte) error {
+			expires := time.Now().UnixMilli()
+			payload := fmt.Sprintf("GET/realtime%d", expires)
 
-		return conn.Send(b)
-	})
+			signature := c.genSignature(payload)
+
+			opReq := &models.StreamOpRequest{
+				ReqID: nextReqID(),
+				Op:    models.StreamOpAuth,
+				Args: []any{
+					c.apiKey, expires, signature,
+				},
+			}
+
+			b, err := json.Marshal(opReq)
+			if err != nil {
+				return err
+			}
+
+			sendCh <- b
+
+			return nil
+		},
+		opts...)
 }
+
+// func (c *Client) CreatePrivateStream(category models.Category) *Stream {
+// 	url := fmt.Sprintf("%s/v5/private/%s", STREAM_MAINNET, category)
+//
+// 	return NewStream(context.Background(), url, func(conn *ws.Conn) error {
+// 		expires := time.Now().UnixNano()/1e6 + 10000
+// 		val := fmt.Sprintf("GET/realtime%d", expires)
+//
+// 		signature := c.genSignature(val)
+//
+// 		opReq := &models.StreamOpRequest{
+// 			ReqID: nextReqID(),
+// 			Op:    models.StreamOpAuth,
+// 			Args: []any{
+// 				c.apiKey, expires, signature,
+// 			},
+// 		}
+//
+// 		b, err := json.Marshal(opReq)
+// 		if err != nil {
+// 			return err
+// 		}
+//
+// 		return conn.Send(b)
+// 	})
+// }

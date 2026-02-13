@@ -18,9 +18,11 @@ type InstrumentObserverT struct {
 }
 
 func (t *InstrumentObserverT) run(b *Background) {
-	doneIOT := make(chan struct{}, 1)
+	if b.stream == nil {
+		b.stream = b.broker.CreateStream(t.Category)
+	}
 
-	stream, err := b.broker.CandleStream(doneIOT, t.Category, t.Symbol, t.Interval)
+	chartSub, err := b.stream.SubscribeCandleStream(t.Symbol, t.Interval)
 	if err != nil {
 		b.push(CommitCommandLineErrorAnd(
 			err.Error(),
@@ -29,13 +31,12 @@ func (t *InstrumentObserverT) run(b *Background) {
 				s.StatusLine.Interval = s.Bg.Interval.AsString()
 			},
 		))
-		close(doneIOT)
 		return
 	}
 
 	var first cdl.CandleStreamData
 	for {
-		first = <-stream
+		first = <-chartSub.C
 		if !first.Confirm {
 			break
 		}
@@ -58,15 +59,15 @@ func (t *InstrumentObserverT) run(b *Background) {
 				s.StatusLine.Interval = s.Bg.Interval.AsString()
 			},
 		))
-		doneIOT <- struct{}{}
+		chartSub.Stop()
 		return
 	}
 
-	if b.doneIOT != nil {
-		close(b.doneIOT)
+	if b.chartSub != nil {
+		b.chartSub.Stop()
 	}
 	b.wg.Wait()
-	b.doneIOT = doneIOT
+	b.chartSub = chartSub
 
 	var f CommitFn
 	f = func(s *State) {
@@ -90,7 +91,7 @@ func (t *InstrumentObserverT) run(b *Background) {
 			s.Bg.IsActiveIO = false
 		})
 
-		for d := range stream {
+		for d := range chartSub.C {
 			var f CommitFn
 			if d.Confirm {
 				f = func(s *State) {
@@ -118,7 +119,9 @@ type Background struct {
 	head atomic.Uint32
 	tail atomic.Uint32
 
-	broker broker.Broker
+	broker   broker.Broker
+	stream   broker.BrokerStream
+	chartSub *broker.BrokerStreamSubscription[cdl.CandleStreamData]
 
 	mu sync.Mutex
 	wg sync.WaitGroup

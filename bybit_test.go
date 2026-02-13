@@ -21,27 +21,33 @@ func TestBybitGetKline(t *testing.T) {
 	fmt.Printf("%+v\n", kline)
 }
 
-func TestWsConnect(t *testing.T) {
+func TestWsConnV2(t *testing.T) {
+	tx := make(chan []byte)
+
 	client := bybit.NewClientFromEnv(context.Background())
-	stream := client.CreatePublicStream(models.CategoryLinear)
 
-	topics := []string{"kline.5.BTCUSDT", "kline.5.ADAUSDT", "kline.1.FARTCOINUSDT"}
+	stream := client.CreatePublicStreamV2(models.CategoryLinear, tx)
 
-	s, err := stream.Subscribe(topics, 8)
+	sub, err := stream.Subscribe("kline.5.BTCUSDT")
 	if err != nil {
 		t.Error(err)
 	}
 
 	go func() {
-		<-time.After(5 * time.Second)
-		stream.Close()
+		time.Sleep(time.Second * 10)
+		stream.Unsubscribe("kline.5.BTCUSDT")
+		println("Send unsub")
 	}()
 
-	for data := range s.C() {
-		var klineData models.StreamKlineData
-		json.Unmarshal(data.Data, &klineData)
-		fmt.Printf("%+v\n", klineData)
+	for d := range sub {
+		println(string(d.Data))
 	}
+
+	println("Is unsub")
+	time.Sleep(time.Second * 30)
+}
+
+func TestWsConnect(t *testing.T) {
 }
 
 func pp(v any) {
@@ -72,12 +78,15 @@ func TestGetCandles(t *testing.T) {
 func TestCandlesStream(t *testing.T) {
 	client := bybit.NewClientFromEnv(context.Background())
 	b := bybit.NewBroker(client)
-	done := make(chan struct{}, 1)
-	ch, err := b.CandleStream(done, broker.Futures, "BTCUSDT", cdl.M1)
+
+	stream := b.CreateStream(broker.Futures)
+	sub, err := stream.SubscribeCandleStream("BTCUSDT", cdl.M1)
+
 	if err != nil {
 		t.Error(err)
 	}
-	for c := range ch {
-		fmt.Printf("%+v\n", c)
+
+	for d := range sub.C {
+		fmt.Printf("%+v\n", d)
 	}
 }

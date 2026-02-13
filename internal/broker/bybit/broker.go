@@ -6,6 +6,7 @@ import (
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit/models"
 	"nlkli/raytrade/internal/cdl"
+	"nlkli/raytrade/internal/ws"
 	"slices"
 	"strconv"
 )
@@ -13,34 +14,32 @@ import (
 type Broker struct {
 	c *Client
 
-	publicStream map[broker.Category]*Stream
+	publicStream map[broker.Category]*StreamV2
 }
 
 func NewBroker(c *Client) *Broker {
 	return &Broker{
 		c:            c,
-		publicStream: make(map[broker.Category]*Stream, 2),
+		publicStream: make(map[broker.Category]*StreamV2, 2),
 	}
 }
 
-func (b *Broker) CandleStream(
-	done <-chan struct{},
-	category broker.Category,
+type BrokerStream struct {
+	stream *StreamV2
+	tx     chan []byte
+}
+
+func (s *BrokerStream) SubscribeCandleStream(
 	symbol string,
 	interval cdl.Interval,
-) (<-chan cdl.CandleStreamData, error) {
-	lc := ToLocalCategory(category)
+) (*broker.BrokerStreamSubscription[cdl.CandleStreamData], error) {
 	li, err := TryToLocalInterval(interval)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := b.publicStream[category]; !ok {
-		b.publicStream[category] = b.c.CreatePublicStream(lc)
-	}
-
 	topic := fmt.Sprintf("kline.%s.%s", li, symbol)
-	sub, err := b.publicStream[category].Subscribe([]string{topic}, 1)
+	subCh, err := s.stream.Subscribe(topic)
 	if err != nil {
 		return nil, err
 	}
@@ -48,56 +47,67 @@ func (b *Broker) CandleStream(
 	ch := make(chan cdl.CandleStreamData, 1)
 	go func() {
 		defer close(ch)
-		defer sub.Stop()
 
-		for {
-			select {
-			case data := <-sub.C():
-				if data == nil {
+		for d := range subCh {
+
+			var streamKlineData models.StreamKlineData
+			json.Unmarshal(d.Data, &streamKlineData)
+
+			var candle cdl.Candle
+
+			for _, i := range streamKlineData {
+
+				candle.Time = i.Start
+				candle.O, err = strconv.ParseFloat(i.Open, 64)
+				if err != nil {
 					continue
 				}
-				var streamKlineData models.StreamKlineData
-				json.Unmarshal(data.Data, &streamKlineData)
-				var candle cdl.Candle
-				for _, i := range streamKlineData {
-					candle.Time = i.Start
-					candle.O, err = strconv.ParseFloat(i.Open, 64)
-					if err != nil {
-						continue
-					}
-					candle.H, err = strconv.ParseFloat(i.High, 64)
-					if err != nil {
-						continue
-					}
-					candle.L, err = strconv.ParseFloat(i.Low, 64)
-					if err != nil {
-						continue
-					}
-					candle.C, err = strconv.ParseFloat(i.Close, 64)
-					if err != nil {
-						continue
-					}
-					candle.Volume, err = strconv.ParseFloat(i.Volume, 64)
-					if err != nil {
-						continue
-					}
-					ch <- cdl.CandleStreamData{
-						Candle:   candle,
-						Interval: interval,
-						Confirm:  i.Confirm,
-					}
-
+				candle.H, err = strconv.ParseFloat(i.High, 64)
+				if err != nil {
+					continue
 				}
-			case <-done:
-				return
-			case <-b.c.ctx.Done():
-				return
+				candle.L, err = strconv.ParseFloat(i.Low, 64)
+				if err != nil {
+					continue
+				}
+				candle.C, err = strconv.ParseFloat(i.Close, 64)
+				if err != nil {
+					continue
+				}
+				candle.Volume, err = strconv.ParseFloat(i.Volume, 64)
+				if err != nil {
+					continue
+				}
+
+				ch <- cdl.CandleStreamData{
+					Candle:   candle,
+					Interval: interval,
+					Confirm:  i.Confirm,
+				}
 			}
 		}
-
 	}()
 
-	return ch, nil
+	return broker.NewBrokerStreamSubscription(
+		ch,
+		func() error {
+			return s.stream.Unsubscribe(topic)
+		},
+	), nil
+}
+
+func (b *Broker) CreateStream(
+	category broker.Category,
+	opts ...ws.PolicyOption,
+) broker.BrokerStream {
+	lc := ToLocalCategory(category)
+	tx := make(chan []byte, 1)
+	stream := b.c.CreatePublicStreamV2(lc, tx, opts...)
+
+	return &BrokerStream{
+		stream: stream,
+		tx:     tx,
+	}
 }
 
 func (b *Broker) GetCandles(
