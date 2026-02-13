@@ -19,11 +19,12 @@ const (
 	CG  float32 = 2   // Candles gap
 	CWW float32 = 1.5 // Candle wick width
 
-	COMMAND_LINE_HISTORY_CAP  int     = 8
-	CMD_LINE_MARGIN_BOTTOM    float32 = 4
-	TIME_LINE_LABELS_HEIGHT   float32 = 4
-	PRICE_BAR_MAX_CONTENT     string  = ".0000000"
-	PRICE_BAR_ROW_HEIGHT_DIFF float32 = -4
+	COMMAND_LINE_HISTORY_CAP    int     = 8
+	CMD_LINE_MARGIN_BOTTOM      float32 = 4
+	TIME_LINE_LABELS_HEIGHT     float32 = 4
+	TIME_LINE_LABLE_MAX_CONTENT string  = "00:00"
+	PRICE_BAR_MAX_CONTENT       string  = ".0000000"
+	PRICE_BAR_ROW_HEIGHT_DIFF   float32 = -4
 
 	PRICE_GRID_STEP_PX float64 = 40
 
@@ -152,19 +153,20 @@ type ChartState struct {
 	Price  float64 // Last price
 	PriceY float32 // Last price y coord
 
-	CursorY     float32
+	Cursor     rl.Vector2
 	CursorPrice float64
 
-	Candles []cdl.Candle // Candles buffer
+	Candles     []cdl.Candle // Candles buffer
+	SecInterval float32      // Seconds interval
 
 	Cap        int     // Canvas candles capacity
 	MinP, MaxP float64 // min, max price
-	CenterP    float64 // Price center
-	RangeP     float64 // Price range
+	MidP       float64 // Price center
+	RngP       float64 // Price range
 
 	ShowGrid bool
 
-	GridX [][2]float32 // [][x coord, seconds]
+	GridX [][2]float32 // [][x coord, ts]
 	GridY [][2]float32 // [][y coord, price]
 
 	// TODO ?
@@ -202,7 +204,8 @@ func InitState(c *Config) *State {
 			Scale: rl.NewVector2(DEFAULT_SCALE_X, DEFAULT_SCALE_Y),
 			Shift: rl.NewVector2(DEFAULT_SHIFT_X, DEFAULT_SHIFT_Y),
 
-			// GridX: make([][2]float32, ), // TODO
+			GridX: make([][2]float32, 0, 32),
+			GridY: make([][2]float32, 0, 64),
 
 			ShowGrid: true,
 		},

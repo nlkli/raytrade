@@ -29,7 +29,7 @@ func (t *InstrumentObserverT) run(b *Background) {
 				s.StatusLine.Interval = s.Bg.Interval.AsString()
 			},
 		))
-        close(doneIOT)
+		close(doneIOT)
 		return
 	}
 
@@ -78,6 +78,7 @@ func (t *InstrumentObserverT) run(b *Background) {
 		s.StatusLine.Symbol = t.Symbol
 		s.StatusLine.Interval = t.Interval.AsString()
 
+		s.Chart.SecInterval = float32(t.Interval.AsSeconds())
 		s.Chart.Candles = candles
 		s.Chart.Forced = true
 	}
@@ -101,8 +102,8 @@ func (t *InstrumentObserverT) run(b *Background) {
 					s.Chart.Candles[len(s.Chart.Candles)-1] = d.Candle
 					s.Chart.MaxP = max(s.Chart.MaxP, d.Candle.H)
 					s.Chart.MinP = min(s.Chart.MinP, d.Candle.L)
-					s.Chart.CenterP = (s.Chart.MaxP + s.Chart.MinP) * .5
-					s.Chart.RangeP = s.Chart.MaxP - s.Chart.MinP
+					s.Chart.MidP = (s.Chart.MaxP + s.Chart.MinP) * .5
+					s.Chart.RngP = s.Chart.MaxP - s.Chart.MinP
 				}
 			}
 			b.push(f)

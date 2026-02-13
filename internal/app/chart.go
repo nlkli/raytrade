@@ -46,6 +46,14 @@ func (ch *Chart) Render(s *State) {
 	// ch.Outline(1, s.P.Base.Magenta)
 }
 
+func priceToWorldY(price float64, maxVisible float64, scale float32) float32 {
+	return float32(maxVisible-price) * scale
+}
+
+func worldYToPrice(y float32, maxVisible float64, scale float32) float64 {
+	return maxVisible - float64(y)/float64(scale)
+}
+
 type Canvas struct {
 	*Rect
 	parent *Rect
@@ -60,6 +68,10 @@ func (c *Canvas) Render(s *State) {
 	sf := s.Chart.Scale
 	cw := CW * sf.X
 	stepX := cw + CG
+
+	var maxVisiblePrice float64
+	var priceToPixel float32
+	var pixelToPrice float32
 
 	if s.WRF || s.Chart.Forced {
 		c.MoveTo(c.parent.p.X, c.parent.p.Y)
@@ -80,53 +92,42 @@ func (c *Canvas) Render(s *State) {
 		visibleC := candles[max(0, n-s.Chart.Cap):]
 
 		s.Chart.MinP, s.Chart.MaxP = cdl.MinMaxPrice(visibleC)
-		s.Chart.CenterP = (s.Chart.MaxP + s.Chart.MinP) * .5
-		s.Chart.RangeP = s.Chart.MaxP - s.Chart.MinP
+		s.Chart.MidP = (s.Chart.MaxP + s.Chart.MinP) * .5
+		s.Chart.RngP = s.Chart.MaxP - s.Chart.MinP
 
 		// Y grid
 
-		pricePerPixel := s.Chart.RangeP / float64(sf.Y) / float64(c.s.Y)
-		priceStep := float64(s.RH*2.2) * pricePerPixel
+		visiblePriceRange := s.Chart.RngP / float64(sf.Y)
+		maxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
 
-		qPriceStep := quantizePriceStep(priceStep)
-		pixelStepY := float32(qPriceStep / pricePerPixel)
+		priceToPixel = c.s.Y / float32(visiblePriceRange)
+		pixelToPrice = float32(1 / priceToPixel)
 
-		scaleY := c.s.Y / (float32(s.Chart.RangeP) / sf.Y)
-		offsetY := c.s.Y * .5
+		priceStep := quantizePriceStep(float64(s.RH * 2.5 * pixelToPrice))
 
-		s.Chart.GridY = make([][2]float32, 0, int(c.s.Y/pixelStepY)+1) // TODO no alocc
+		pixelStepY := float32(priceStep) * priceToPixel
+
+		s.Chart.GridY = s.Chart.GridY[:0]
+
 		for y := c.s.Y - pixelStepY*.5; y > 0; y -= pixelStepY {
-			yPrice := float32(s.Chart.CenterP) - (y-offsetY)/scaleY
-			s.Chart.GridY = append(s.Chart.GridY, [...]float32{y, yPrice})
+			yPrice := float32(worldYToPrice(y, maxVisiblePrice, pixelToPrice))
+			s.Chart.GridY = append(s.Chart.GridY, [2]float32{y, yPrice})
+		}
+	} else {
+
+		if n == 0 {
+			return
 		}
 
-		// X grid
+		visiblePriceRange := s.Chart.RngP / float64(sf.Y)
+		maxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
 
-		// secondsPerCandle := s.Bg.Interval.AsSeconds()
-		// secondsPerPixel := float64(secondsPerCandle) / float64(stepX)
-		// timeStep := float64(s.RH*6) * secondsPerPixel
-
-		// qTimeStep := quantizeTimeStep(timeStep)
-		// pixelStepX := float32(qTimeStep / secondsPerPixel)
-
-		// s.Chart.GridX = make([][2]float32, 0, int(c.s.X/pixelStepX)+1) // TODO no alocc
-		// for x := c.s.X - pixelStepX*.5; x > 0; x -= pixelStepX {
-		// 	xSec := 
-		// 	s.Chart.GridX = append(s.Chart.GridY, [...]float32{x, xSec})
-		// }
-
+		priceToPixel = c.s.Y / float32(visiblePriceRange)
+		pixelToPrice = float32(1.0 / priceToPixel)
 	}
 
-	if n == 0 {
-		return
-	}
-
-	center := s.Chart.CenterP
-	scaleY := c.s.Y / (float32(s.Chart.RangeP) / sf.Y)
-	offsetY := c.s.Y * .5
-
-	s.Chart.Price = candles[n-1].C // TODO
-	s.Chart.PriceY = float32(center-s.Chart.Price)*scaleY + offsetY - s.Chart.Shift.Y
+	s.Chart.Price = candles[n-1].C
+	s.Chart.PriceY = priceToWorldY(s.Chart.Price, maxVisiblePrice, priceToPixel)
 
 	rl.BeginScissorMode(
 		int32(c.p.X),
@@ -162,10 +163,10 @@ func (c *Canvas) Render(s *State) {
 			break
 		}
 
-		yO := float32(center-candle.O)*scaleY + offsetY
-		yH := float32(center-candle.H)*scaleY + offsetY
-		yL := float32(center-candle.L)*scaleY + offsetY
-		yC := float32(center-candle.C)*scaleY + offsetY
+		yO := priceToWorldY(candle.O, maxVisiblePrice, priceToPixel)
+		yH := priceToWorldY(candle.H, maxVisiblePrice, priceToPixel)
+		yL := priceToWorldY(candle.L, maxVisiblePrice, priceToPixel)
+		yC := priceToWorldY(candle.C, maxVisiblePrice, priceToPixel)
 
 		color := s.P.Base.Green
 		if candle.C < candle.O {
@@ -202,9 +203,12 @@ func (c *Canvas) Render(s *State) {
 		s.Mouse.Captured = true
 
 		worldMouse := rl.GetScreenToWorld2D(s.Mouse.P, c.cam)
-		s.Chart.CursorY = worldMouse.Y
-		s.Chart.CursorPrice = s.Chart.CenterP -
-			float64((worldMouse.Y-offsetY)/scaleY)
+
+		s.Chart.Cursor = worldMouse
+
+		s.Chart.CursorPrice = worldYToPrice(
+			s.Chart.Cursor.Y, maxVisiblePrice, pixelToPrice,
+		)
 
 		rl.DrawLineEx(
 			rl.Vector2{X: 0, Y: worldMouse.Y},
@@ -219,7 +223,7 @@ func (c *Canvas) Render(s *State) {
 			s.P.Bg[4],
 		)
 	} else {
-		s.Chart.CursorY = 0
+		s.Chart.Cursor = rl.Vector2{}
 	}
 
 	rl.EndMode2D()
@@ -292,6 +296,24 @@ func (pb *PriceBar) Render(s *State) {
 		)
 	}
 
+	rl.DrawRectangleGradientV(
+		int32(pb.p.X),
+		int32(localPriceY-rh-4),
+		int32(pb.s.X),
+		int32(rh+4),
+		rl.Color{},
+		s.P.Bg[1],
+	)
+
+	rl.DrawRectangleGradientV(
+		int32(pb.p.X),
+		int32(localPriceY+2),
+		int32(pb.s.X),
+		int32(rh+4),
+		s.P.Bg[1],
+		rl.Color{},
+	)
+
 	rl.DrawLineEx(
 		rl.Vector2{X: pb.p.X, Y: localPriceY},
 		rl.Vector2{X: pb.p.X + pb.s.X, Y: localPriceY},
@@ -315,14 +337,32 @@ func (pb *PriceBar) Render(s *State) {
 		s.P.Fg[1],
 	)
 
-	if s.Chart.CursorY > 0 {
-		localCursorY := s.Chart.CursorY + pb.p.Y
+	if s.Chart.Cursor.Y > 0 {
+		localCursorY := s.Chart.Cursor.Y + pb.p.Y
 		localTextY := localCursorY - rc
 
 		priceText := fmt.Sprintf("%.5f", s.Chart.CursorPrice)
 		if len(priceText) > len(PRICE_BAR_MAX_CONTENT) {
 			priceText = priceText[:len(PRICE_BAR_MAX_CONTENT)]
 		}
+
+		rl.DrawRectangleGradientV(
+			int32(pb.p.X),
+			int32(localTextY-4),
+			int32(pb.s.X),
+			int32(rc+4),
+			rl.Color{},
+			s.P.Bg[1],
+		)
+
+		rl.DrawRectangleGradientV(
+			int32(pb.p.X),
+			int32(localCursorY),
+			int32(pb.s.X),
+			int32(rc+4),
+			s.P.Bg[1],
+			rl.Color{},
+		)
 
 		rl.DrawTextEx(
 			s.F,
@@ -377,10 +417,9 @@ func quantizePriceStep(price float64) float64 {
 	}
 }
 
-func quantizeTimeStep(seconds float64) float64 {
-	steps := []float64{
+func quantizeTimeStep(seconds float32) float32 {
+	steps := []float32{
 		60,      // 1m
-		180,     // 3m
 		300,     // 5m
 		900,     // 15m
 		1800,    // 30m
@@ -395,7 +434,7 @@ func quantizeTimeStep(seconds float64) float64 {
 	}
 
 	for _, s := range steps {
-		if float64(s) >= seconds {
+		if s >= seconds {
 			return s
 		}
 	}
