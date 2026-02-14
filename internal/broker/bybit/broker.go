@@ -30,9 +30,12 @@ type BrokerStream struct {
 }
 
 func (s *BrokerStream) SubscribeCandleStream(
+
 	symbol string,
 	interval cdl.Interval,
+
 ) (*broker.BrokerStreamSubscription[cdl.CandleStreamData], error) {
+
 	li, err := TryToLocalInterval(interval)
 	if err != nil {
 		return nil, err
@@ -97,8 +100,10 @@ func (s *BrokerStream) SubscribeCandleStream(
 }
 
 func (b *Broker) CreateStream(
+
 	category broker.Category,
 	opts ...ws.PolicyOption,
+
 ) broker.BrokerStream {
 	lc := ToLocalCategory(category)
 	tx := make(chan []byte, 1)
@@ -111,13 +116,16 @@ func (b *Broker) CreateStream(
 }
 
 func (b *Broker) GetCandles(
+
 	category broker.Category,
 	symbol string,
 	interval cdl.Interval,
 	limit int,
 	start *int,
 	end *int,
+
 ) ([]cdl.Candle, error) {
+
 	if limit == 0 {
 		return make([]cdl.Candle, 0), nil
 	}
@@ -166,12 +174,15 @@ func (b *Broker) GetCandles(
 }
 
 func (b *Broker) ExtendStartCandles(
+
 	candles []cdl.Candle,
 	category broker.Category,
 	symbol string,
 	interval cdl.Interval,
 	limit int,
+
 ) ([]cdl.Candle, error) {
+
 	if limit == 0 {
 		return candles, nil
 	}
@@ -195,12 +206,15 @@ func (b *Broker) ExtendStartCandles(
 }
 
 func (b *Broker) ExtendEndCandles(
+
 	candles []cdl.Candle,
 	category broker.Category,
 	symbol string,
 	interval cdl.Interval,
 	limit int,
+
 ) ([]cdl.Candle, error) {
+
 	if limit == 0 {
 		return candles, nil
 	}
@@ -221,6 +235,59 @@ func (b *Broker) ExtendEndCandles(
 	res = append(res, end...)
 
 	return res, nil
+}
+
+// [bids, asks][][price, size]
+func (b *Broker) GetOrderBook(
+
+	category broker.Category,
+	symbol string,
+	limit int,
+
+) (*[2][][2]float64, error) {
+
+	res, err := b.c.GetOrderBook(ToLocalCategory(category), symbol, &limit)
+	if err != nil {
+		return nil, err
+	}
+
+	n := min(len(res.B), len(res.A))
+
+	bids := make([][2]float64, n)
+	asks := make([][2]float64, n)
+
+	ob := [2][][2]float64{bids, asks}
+
+	for i := range n {
+		var bid [2]float64
+
+		bid[0], err = strconv.ParseFloat(res.B[i][0], 64)
+		if err != nil {
+			return &ob, err
+		}
+
+		bid[1], err = strconv.ParseFloat(res.B[i][1], 64)
+		if err != nil {
+			return &ob, err
+		}
+
+		var ask [2]float64
+
+		ask[0], err = strconv.ParseFloat(res.A[i][0], 64)
+		if err != nil {
+			return &ob, err
+		}
+
+		ask[1], err = strconv.ParseFloat(res.A[i][1], 64)
+		if err != nil {
+			return &ob, err
+		}
+
+		ob[0][i] = bid
+		ob[1][i] = ask
+	}
+
+	return &ob, nil
 }
 
 func ToLocalCategory(c broker.Category) models.Category {

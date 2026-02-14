@@ -10,7 +10,7 @@ import (
 )
 
 type MessageHandlerFn func(int, []byte) (any, bool)
-type OnConnectedFn func(chan<- []byte) error
+type OnConnectedFn func(chan<- []byte, int) error
 
 type Policy struct {
 	Dialer           *websocket.Dialer
@@ -24,10 +24,11 @@ type Policy struct {
 type PolicyOption func(*Policy)
 
 func NewPolicy(
-	OnConnected OnConnectedFn,
+	onConnected OnConnectedFn,
 	messageHandler MessageHandlerFn,
 	opts ...PolicyOption,
 ) *Policy {
+
 	p := &Policy{
 		Dialer: &websocket.Dialer{
 			HandshakeTimeout: 7 * time.Second,
@@ -35,7 +36,7 @@ func NewPolicy(
 		ReconnectTimeout: 200 * time.Millisecond,
 		PingInterval:     20 * time.Second,
 		WriteTimeout:     10 * time.Second,
-		OnConnected:      nil,
+		OnConnected:      onConnected,
 		MessageHandler:   messageHandler,
 	}
 
@@ -86,17 +87,17 @@ func NewConnV2(
 		defer close(rx)
 
 		var wg sync.WaitGroup
-		doneF := false
+		exitF := false
+		n := 0
 
 		for {
-			println("wait")
-
 			wg.Wait()
-			if doneF {
+
+			if exitF {
 				return
 			}
 
-			println("reconnect")
+			n++
 
 			conn, _, err := policy.Dialer.Dial(url, header)
 			if err != nil {
@@ -127,7 +128,7 @@ func NewConnV2(
 								websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
 							)
 
-							doneF = true
+							exitF = true
 							break loop
 						}
 
@@ -148,7 +149,7 @@ func NewConnV2(
 					}
 				}
 
-				if !doneF {
+				if !exitF {
 					time.Sleep(policy.ReconnectTimeout)
 				}
 
@@ -156,7 +157,7 @@ func NewConnV2(
 			})
 
 			if policy.OnConnected != nil {
-				err := policy.OnConnected(tx)
+				err := policy.OnConnected(tx, n-1)
 				if err != nil {
 					done <- struct{}{}
 					continue

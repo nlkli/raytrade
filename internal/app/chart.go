@@ -20,18 +20,9 @@ type Chart struct {
 
 func (ch *Chart) Render(s *State) {
 	if s.WRF {
-		ch.MoveTo(ch.parent.p.X, ch.parent.p.Y)
-		ch.SetSize(ch.parent.s.X-OBW, ch.parent.s.Y)
-	}
-
-	s.Chart.TimeLineH = s.RH + TIME_LINE_LABELS_HEIGHT
-	if s.FN%uint64(s.TFPS) == 0 || s.Chart.Forced {
-		s.Chart.PriceBarW = rl.MeasureTextEx(
-			s.F,
-			PRICE_BAR_MAX_CONTENT,
-			s.RHL(2),
-			0,
-		).X
+		l, r := ch.SplitV(ch.s.X - s.Chart.PriceBarW)
+		ch.c.Rect, ch.tl.Rect = l.SplitH(ch.s.Y - s.Chart.TimeLineH)
+		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - s.Chart.TimeLineH)
 	}
 
 	ch.c.Render(s)
@@ -66,16 +57,10 @@ func (c *Canvas) Render(s *State) {
 	n := len(candles)
 
 	sf := s.Chart.Scale
-	cw := CW * sf.X // candle width * scale
+	cw := CW * sf.X  // candle width * scale
 	stepX := cw + CG // scale candle width + gap
 
 	if s.WRF || s.Chart.Forced {
-		c.MoveTo(c.parent.p.X, c.parent.p.Y)
-		c.SetSize(
-			c.parent.s.X-c.parent.p.X-s.Chart.PriceBarW,
-			c.parent.s.Y-s.Chart.TimeLineH,
-		)
-
 		c.cam.Offset = rl.Vector2{X: c.p.X, Y: c.p.Y}
 		c.cam.Target = s.Chart.Shift
 		c.cam.Zoom = 1
@@ -84,7 +69,7 @@ func (c *Canvas) Render(s *State) {
 			return
 		}
 
-		s.Chart.Cap = int((c.s.X - c.cam.Target.X + CW) / stepX)
+		s.Chart.Cap = int(c.s.X / stepX)
 		visibleC := candles[max(0, n-s.Chart.Cap):]
 
 		s.Chart.MinP, s.Chart.MaxP = cdl.MinMaxPrice(visibleC)
@@ -99,12 +84,12 @@ func (c *Canvas) Render(s *State) {
 		s.Chart.PriceToPixel = float64(c.s.Y) / visiblePriceRange
 
 		priceStep := quantizePriceStep(
-			float64(s.RH * 2.5 * float32(1/s.Chart.PriceToPixel)),
+			float64(s.Chart.PriceBarStep * float32(1/s.Chart.PriceToPixel)),
 		)
 
 		s.Chart.GridStepY = float32(priceStep * s.Chart.PriceToPixel)
 
-        // s.Chart.SecInterval
+		// s.Chart.SecInterval
 
 	} else {
 
@@ -127,9 +112,10 @@ func (c *Canvas) Render(s *State) {
 	if s.Chart.ShowGrid {
 		for y := c.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
 			localY := y + c.p.Y
+
 			rl.DrawLineEx(
 				rl.Vector2{X: c.p.X, Y: localY},
-				rl.Vector2{X: c.s.X, Y: localY},
+				rl.Vector2{X: c.p.X + c.s.X, Y: localY},
 				1,
 				s.P.Bg[2],
 			)
@@ -154,8 +140,8 @@ func (c *Canvas) Render(s *State) {
 	for i := range n {
 		candle := candles[n-i-1]
 
-		localX := c.s.X - stepX*float32(i+1)
-		if localX-stepX < c.p.X { // TODO
+		xp := c.s.X - stepX*float32(i+1)
+		if xp-stepX < 0 { // TODO
 			break
 		}
 
@@ -171,7 +157,7 @@ func (c *Canvas) Render(s *State) {
 
 		// Draw candle
 
-		wickX := localX + (cw * 0.5)
+		wickX := xp + (cw * 0.5)
 		rl.DrawLineEx(
 			rl.Vector2{X: wickX, Y: yH},
 			rl.Vector2{X: wickX, Y: yL},
@@ -189,7 +175,7 @@ func (c *Canvas) Render(s *State) {
 		}
 
 		rl.DrawRectangleV(
-			rl.Vector2{X: localX, Y: bodyPosY},
+			rl.Vector2{X: xp, Y: bodyPosY},
 			rl.Vector2{X: cw, Y: bodySizeY},
 			color,
 		)
@@ -234,10 +220,6 @@ type TimeLine struct {
 
 func (tl *TimeLine) Render(s *State) {
 	if s.WRF || s.Chart.Forced {
-		tlh := s.Chart.TimeLineH
-
-		tl.MoveTo(tl.parent.p.X, tl.parent.s.Y-tlh+tl.parent.p.Y)
-		tl.SetSize(tl.parent.s.X-tl.parent.p.Y-s.Chart.PriceBarW, tlh)
 	}
 
 	// tl.Fill(s.P.Bg[2])
@@ -252,11 +234,6 @@ type PriceBar struct {
 
 func (pb *PriceBar) Render(s *State) {
 	if s.WRF || s.Chart.Forced {
-		tlh := s.Chart.TimeLineH
-		pbw := s.Chart.PriceBarW
-
-		pb.MoveTo(pb.parent.s.X-pbw, pb.parent.p.Y)
-		pb.SetSize(pb.parent.p.X+pbw, pb.parent.s.Y-tlh)
 	}
 
 	if len(s.Chart.Candles) == 0 {
@@ -389,11 +366,6 @@ type Crossing struct {
 
 func (cr *Crossing) Render(s *State) {
 	if s.WRF || s.Chart.Forced {
-		tlh := s.Chart.TimeLineH
-		pbw := s.Chart.PriceBarW
-
-		cr.MoveTo(cr.parent.s.X-pbw, cr.parent.s.Y-tlh+cr.parent.p.Y)
-		cr.SetSize(cr.parent.p.X+pbw, tlh)
 	}
 
 	// cr.Fill(s.P.Bg[0])

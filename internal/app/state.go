@@ -11,7 +11,8 @@ import (
 const (
 	RPD float32 = 4 // Root padding
 
-	OBW float32 = 0 // OrderBook section width
+	OBW  float32 = 200 // OrderBook section width
+	OBRG float32 = 4   // OrderBook row gap
 
 	TLH float32 = 20 // Time line height
 
@@ -91,6 +92,7 @@ type State struct {
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 	Chart       ChartState
+	OrderBook   OrderBookState
 	Bg          BackgroundState
 
 	Cache Cache
@@ -172,13 +174,21 @@ type ChartState struct {
 
 	ShowGrid bool
 
-	PriceBarW float32
-	TimeLineH float32
+	PriceBarW    float32
+	PriceBarStep float32
+	TimeLineH    float32
+}
+
+type OrderBookState struct {
+	Forced bool // Forced update
+
+	Bids [][2]float64
+	Asks [][2]float64
 }
 
 func InitState(c *Config) *State {
 	palette := PaletteFromConfig(c)
-	return &State{
+	s := &State{
 		TFPS: c.TargetFPS,
 		TFT:  time.Second / time.Duration(c.TargetFPS),
 
@@ -195,6 +205,7 @@ func InitState(c *Config) *State {
 		StatusLine: StatusLineState{
 			Interval: cdl.M1.AsString(),
 		},
+
 		Chart: ChartState{
 			Forced: true,
 
@@ -203,28 +214,38 @@ func InitState(c *Config) *State {
 
 			ShowGrid: true,
 		},
+
 		CommandLine: CommandLineState{
 			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
-			// TmpHistory: make([]string, COMMAND_LINE_HISTORY_CAP-1),
 			Color: palette.Fg[1],
 		},
+
 		Cache: Cache{
 			M: make(map[string]any),
 		},
 	}
+
+	s.SetRH(DEFAULT_ROW_HEIGHT)
+
+	return s
 }
 
 // Row height lvl
 func (s *State) RHL(l int) float32 {
-	const RHS float32 = 2
-	switch l {
-	case 0:
-		return s.RH
-	case 1:
-		return max(RHS, s.RH-RHS)
-	default:
-		return max(RHS, s.RH-RHS*2)
-	}
+	return max(2, s.RH-2*float32(l))
+}
+
+func (s *State) SetRH(rh float32) {
+	s.RH = max(2, rh)
+
+	s.Chart.TimeLineH = s.RH + TIME_LINE_LABELS_HEIGHT
+	s.Chart.PriceBarStep = s.RH * 2
+	s.Chart.PriceBarW = rl.MeasureTextEx(
+		s.F,
+		PRICE_BAR_MAX_CONTENT,
+		s.RHL(2),
+		0,
+	).X
 }
 
 func (s *State) StdDrawText(text string, pos rl.Vector2, color rl.Color) {

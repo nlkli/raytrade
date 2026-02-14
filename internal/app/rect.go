@@ -122,3 +122,25 @@ func (r *Rect) Lerp(to *Rect, t float32) *Rect {
 		s: rl.NewVector2(rl.Lerp(r.s.X, to.s.X, t), rl.Lerp(r.s.Y, to.s.Y, t)),
 	}
 }
+
+func (r *Rect) SplitV(w float32) (*Rect, *Rect) {
+	return &Rect{
+			p: rl.Vector2{X: r.p.X, Y: r.p.Y},
+			s: rl.Vector2{X: w, Y: r.s.Y},
+		},
+		&Rect{
+			p: rl.Vector2{X: r.p.X + w, Y: r.p.Y},
+			s: rl.Vector2{X: r.s.X - w, Y: r.s.Y},
+		}
+}
+
+func (r *Rect) SplitH(h float32) (*Rect, *Rect) {
+	return &Rect{
+			p: rl.Vector2{X: r.p.X, Y: r.p.Y},
+			s: rl.Vector2{X: r.s.X, Y: h},
+		},
+		&Rect{
+			p: rl.Vector2{X: r.p.X, Y: r.p.Y + h},
+			s: rl.Vector2{X: r.s.X, Y: r.s.Y - h},
+		}
+}

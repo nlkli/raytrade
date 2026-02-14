@@ -105,9 +105,14 @@ func (mc *MainContent) Render(s *State) {
 	if s.WRF {
 		mc.MoveTo(mc.parent.p.X, mc.parent.p.Y)
 		mc.SetSize(mc.parent.s.X, mc.parent.s.Y-s.Footer.Height)
+
+		mc.ob.Rect, mc.ch.Rect = mc.SplitV(OBW)
 	}
 
+
+
 	mc.ch.Render(s)
+	mc.ob.Render(s)
 
 	// mc.Outline(1, s.P.Base.Red)
 }

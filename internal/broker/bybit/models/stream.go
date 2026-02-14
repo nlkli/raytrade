@@ -52,3 +52,13 @@ type StreamKlineFrame struct {
 
 // StreamKlineData is a batch of KlineFrame from the stream.
 type StreamKlineData = []StreamKlineFrame
+
+// https://bybit-exchange.github.io/docs/v5/websocket/public/orderbook
+type StreamOrderBookData struct {
+	Symbol   string      `json:"s"`
+	Bids     [][2]string `json:"b"`   // Desc sorted
+	Asks     [][2]string `json:"a"`   // Asc sorted
+	UpdateID int64       `json:"u"`   // Update ID
+	Seq      int64       `json:"seq"` // Cross sequence
+	CTS      int64       `json:"cts"` // Matching engine timestamp
+}

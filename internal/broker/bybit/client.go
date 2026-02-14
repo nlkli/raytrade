@@ -170,7 +170,7 @@ func (c *Client) CreatePrivateStreamV2(
 	return NewStreamV2(
 		url,
 		tx,
-		func(sendCh chan<- []byte) error {
+		func(sendCh chan<- []byte, _ int) error {
 			expires := time.Now().UnixMilli()
 			payload := fmt.Sprintf("GET/realtime%d", expires)
 

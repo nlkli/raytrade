@@ -9,25 +9,32 @@ import (
 )
 
 const (
-	MAX_KLINE_LIMIT = 1000
+	MAX_KLINE_LIMIT          = 1000
+	MAX_SPOT_ORDERBOOK_LIMIT = 200
+	MAX_ANY_ORDERBOOK_LIMIT  = 500
 )
 
 // https://bybit-exchange.github.io/docs/v5/market/kline
 func (c *Client) GetKline(
+
 	category models.Category,
 	symbol string,
 	interval models.Interval,
 	start,
 	end,
 	limit *int,
+
 ) (*models.KlineResult, error) {
+
 	query := make(url.Values)
 	if category != models.CategoryDefault {
 		query.Set("category", string(category))
 	}
 
 	query.Set("symbol", symbol)
+
 	query.Set("interval", string(interval))
+
 	if start != nil {
 		query.Set("start", strconv.Itoa(*start))
 	}
@@ -41,8 +48,9 @@ func (c *Client) GetKline(
 	}
 
 	queryString := query.Encode()
-	path := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/market/kline", queryString)
-	req, err := http.NewRequest("GET", path, nil)
+	fullURL := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/market/kline", queryString)
+
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -54,4 +62,45 @@ func (c *Client) GetKline(
 	}
 
 	return &kline, nil
+}
+
+// https://bybit-exchange.github.io/docs/v5/market/orderbook
+func (c *Client) GetOrderBook(
+
+	category models.Category,
+	symbol string,
+	limit *int,
+
+) (*models.OrderBookResult, error) {
+
+	query := make(url.Values)
+	if category != models.CategoryDefault {
+		query.Set("category", string(category))
+	}
+
+	query.Set("symbol", symbol)
+
+	if limit != nil {
+		if category == models.CategorySpot {
+			query.Set("limit", strconv.Itoa(min(max(*limit, 1), MAX_SPOT_ORDERBOOK_LIMIT)))
+		} else {
+			query.Set("limit", strconv.Itoa(min(max(*limit, 1), MAX_ANY_ORDERBOOK_LIMIT)))
+		}
+	}
+
+	queryString := query.Encode()
+	fullURL := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/market/orderbook", queryString)
+
+	req, err := http.NewRequest("GET", fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var orderBook models.OrderBookResult
+	err = c.callAPI(req, queryString, &orderBook)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orderBook, nil
 }

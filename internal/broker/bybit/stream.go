@@ -60,11 +60,15 @@ func NewStreamV2(
 		tx,
 		0,
 		ws.NewPolicy(
-			func(sendCh chan<- []byte) error {
+			func(sendCh chan<- []byte, n int) error {
 				if onConnectedFn != nil {
-					if err := onConnectedFn(sendCh); err != nil {
-						return nil
+					if err := onConnectedFn(sendCh, n); err != nil {
+						return err
 					}
+				}
+
+				if n == 0 {
+					return nil
 				}
 
 				topics := s.Topics()

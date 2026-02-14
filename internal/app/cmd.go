@@ -210,7 +210,8 @@ func (c *CMD) translate(prompt string) CommitFn {
 				}
 
 				command = func(s *State) {
-					s.RH = DEFAULT_ROW_HEIGHT
+					s.SetRH(DEFAULT_ROW_HEIGHT)
+
 					s.Footer.Forced = true
 					s.Chart.Forced = true
 				}
@@ -289,7 +290,9 @@ func (c *CMD) translate(prompt string) CommitFn {
 				if err := parseFloatValue(args[1], &f); err != nil {
 					CommitCommandLineError(err.Error())(s)
 				}
-				s.RH = float32(f)
+
+				s.SetRH(float32(f))
+
 				s.Footer.Forced = true
 				s.Chart.Forced = true
 			}

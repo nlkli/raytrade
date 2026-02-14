@@ -90,3 +90,24 @@ func TestCandlesStream(t *testing.T) {
 		fmt.Printf("%+v\n", d)
 	}
 }
+
+func TestGetOrderBook(t *testing.T) {
+	client := bybit.NewClientFromEnv(context.Background())
+	b := bybit.NewBroker(client)
+
+	ob, err := b.GetOrderBook(broker.Futures, "BTCUSDT", 10)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("ASKS:")
+	for _, a := range ob[1] {
+		fmt.Printf("price: %f, size: %f\n", a[0], a[1])
+	}
+
+	fmt.Println("BIDS:")
+	for _, b := range ob[0] {
+		fmt.Printf("price: %f, size: %f\n", b[0], b[1])
+	}
+}
