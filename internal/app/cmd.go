@@ -210,10 +210,7 @@ func (c *CMD) translate(prompt string) CommitFn {
 				}
 
 				command = func(s *State) {
-					s.SetRH(DEFAULT_ROW_HEIGHT)
-
-					s.Footer.Forced = true
-					s.Chart.Forced = true
+					s.SetRH(20) // TODO
 				}
 
 			default:
@@ -292,9 +289,6 @@ func (c *CMD) translate(prompt string) CommitFn {
 				}
 
 				s.SetRH(float32(f))
-
-				s.Footer.Forced = true
-				s.Chart.Forced = true
 			}
 
 		case "fps":

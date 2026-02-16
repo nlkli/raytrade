@@ -4,22 +4,30 @@ import (
 	"fmt"
 	"math"
 	"nlkli/raytrade/internal/cdl"
+	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 type Chart struct {
 	*Rect
-	parent *Rect
 
-	c  *Canvas
-	tl *TimeLine
-	pb *PriceBar
-	cr *Crossing
+	c  Canvas
+	tl TimeLine
+	pb PriceBar
+	cr Crossing
 }
 
 func (ch *Chart) Render(s *State) {
-	if s.WRF {
+	if s.WRF || s.RH_Dirty {
+		s.Chart.PriceBarW = (s.TextNumSV.X*
+			PRICE_BAR_MAX_NUMBERS_CAP+s.TextDotW)*
+			s.RHL_Scale(PRICE_BAR_RHL) + PRICE_BAR_FILL_XPD*2
+		s.Chart.PriceBarLabelsStep = s.RH * 2.5
+
+		s.Chart.TimeLineH = s.RH + TIME_LINE_LABELS_HEIGHT
+		s.Chart.TimeLineLabelsStep = s.RH * 6
+
 		l, r := ch.SplitV(ch.s.X - s.Chart.PriceBarW)
 		ch.c.Rect, ch.tl.Rect = l.SplitH(ch.s.Y - s.Chart.TimeLineH)
 		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - s.Chart.TimeLineH)
@@ -30,11 +38,19 @@ func (ch *Chart) Render(s *State) {
 	ch.tl.Render(s)
 	ch.cr.Render(s)
 
+	// left gradient separator
+	rl.DrawRectangleGradientH(
+		int32(ch.p.X),
+		int32(ch.p.Y),
+		6,
+		int32(ch.s.Y),
+		s.P.Bg[1],
+		rl.Color{},
+	)
+
 	if s.Chart.Forced {
 		s.Chart.Forced = false
 	}
-
-	// ch.Outline(1, s.P.Base.Magenta)
 }
 
 func priceToWorldY(price float64, maxVisible float64, scale float64) float32 {
@@ -47,20 +63,19 @@ func worldYToPrice(y float32, maxVisible float64, scale float64) float64 {
 
 type Canvas struct {
 	*Rect
-	parent *Rect
 
 	cam rl.Camera2D
 }
 
 func (c *Canvas) Render(s *State) {
-	candles := s.Chart.Candles
-	n := len(candles)
+	cdls := s.Chart.Candles
+	n := len(cdls)
 
 	sf := s.Chart.Scale
 	cw := CW * sf.X  // candle width * scale
-	stepX := cw + CG // scale candle width + gap
+	stepX := cw + CG // total width including gap
 
-	if s.WRF || s.Chart.Forced {
+	if s.WRF || s.Chart.Forced || s.RH_Dirty {
 		c.cam.Offset = rl.Vector2{X: c.p.X, Y: c.p.Y}
 		c.cam.Target = s.Chart.Shift
 		c.cam.Zoom = 1
@@ -69,47 +84,50 @@ func (c *Canvas) Render(s *State) {
 			return
 		}
 
+		// Visible candles count based on canvas width
 		s.Chart.Cap = int(c.s.X / stepX)
-		visibleC := candles[max(0, n-s.Chart.Cap):]
+		visC := cdls[max(0, n-s.Chart.Cap):]
 
-		s.Chart.MinP, s.Chart.MaxP = cdl.MinMaxPrice(visibleC)
+		s.Chart.MinP, s.Chart.MaxP = cdl.MinMaxPrice(visC)
 		s.Chart.MidP = (s.Chart.MaxP + s.Chart.MinP) * .5
 		s.Chart.RngP = s.Chart.MaxP - s.Chart.MinP
 
-		// Y grid
-
-		visiblePriceRange := s.Chart.RngP / float64(sf.Y)
-		s.Chart.MaxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
-
-		s.Chart.PriceToPixel = float64(c.s.Y) / visiblePriceRange
+		// Y-axis grid calculation
+		visPriceRng := s.Chart.RngP / float64(sf.Y)
+		s.Chart.MaxVisPrice = s.Chart.MidP + visPriceRng*0.5
+		s.Chart.PxPerPrice = float64(c.s.Y) / visPriceRng
 
 		priceStep := quantizePriceStep(
-			float64(s.Chart.PriceBarStep * float32(1/s.Chart.PriceToPixel)),
+			float64(s.Chart.PriceBarLabelsStep * float32(1/s.Chart.PxPerPrice)),
 		)
+		s.Chart.GridStepY = float32(priceStep * s.Chart.PxPerPrice)
 
-		s.Chart.GridStepY = float32(priceStep * s.Chart.PriceToPixel)
+		// X-axis grid calculation
+		s.Chart.StartSec = float32(visC[0].Time / 1000)
+		timeSecRng := float32(s.Chart.Cap) * s.Chart.SecInterval
+		s.Chart.SecPerPx = timeSecRng / c.s.X
 
-		// s.Chart.SecInterval
-
+		timeStep := quantizeTimeStep(s.Chart.TimeLineLabelsStep * s.Chart.SecPerPx)
+		s.Chart.GridStepX = timeStep * (1 / s.Chart.SecPerPx)
 	} else {
-
 		if n == 0 {
 			return
 		}
 
-		visiblePriceRange := s.Chart.RngP / float64(sf.Y)
-
-		s.Chart.MaxVisiblePrice = s.Chart.MidP + visiblePriceRange*0.5
-
-		s.Chart.PriceToPixel = float64(c.s.Y) / visiblePriceRange
+		visPriceRng := s.Chart.RngP / float64(sf.Y)
+		s.Chart.MaxVisPrice = s.Chart.MidP + visPriceRng*0.5
+		s.Chart.PxPerPrice = float64(c.s.Y) / visPriceRng
 	}
 
-	s.Chart.Price = candles[n-1].C
+	// Current price position
+	s.Chart.Price = cdls[n-1].C
 	s.Chart.PriceY = priceToWorldY(
-		s.Chart.Price, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel,
+		s.Chart.Price, s.Chart.MaxVisPrice, s.Chart.PxPerPrice,
 	)
 
+	// Draw grid
 	if s.Chart.ShowGrid {
+		// Horizontal grid lines
 		for y := c.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
 			localY := y + c.p.Y
 
@@ -120,8 +138,20 @@ func (c *Canvas) Render(s *State) {
 				s.P.Bg[2],
 			)
 		}
+		// Vertical grid lines
+		for x := c.s.X - s.Chart.GridStepX; x > 0; x -= s.Chart.GridStepX {
+			localX := x + c.p.X
+
+			rl.DrawLineEx(
+				rl.Vector2{X: localX, Y: c.p.Y},
+				rl.Vector2{X: localX, Y: c.p.Y + c.s.Y},
+				1,
+				s.P.Bg[2],
+			)
+		}
 	}
 
+	// Clip to canvas area
 	rl.BeginScissorMode(
 		int32(c.p.X),
 		int32(c.p.Y),
@@ -130,6 +160,7 @@ func (c *Canvas) Render(s *State) {
 	)
 	rl.BeginMode2D(c.cam)
 
+	// Current price line
 	rl.DrawLineEx(
 		rl.Vector2{X: 0, Y: s.Chart.PriceY},
 		rl.Vector2{X: c.s.X + c.cam.Target.X, Y: s.Chart.PriceY},
@@ -137,26 +168,26 @@ func (c *Canvas) Render(s *State) {
 		s.P.Bg[4],
 	)
 
+	// Draw candles from right to left (newest to oldest)
 	for i := range n {
-		candle := candles[n-i-1]
+		candle := cdls[n-i-1]
 
 		xp := c.s.X - stepX*float32(i+1)
-		if xp-stepX < 0 { // TODO
+		if xp-stepX < 0 {
 			break
 		}
 
-		yO := priceToWorldY(candle.O, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
-		yH := priceToWorldY(candle.H, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
-		yL := priceToWorldY(candle.L, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
-		yC := priceToWorldY(candle.C, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel)
+		yO := priceToWorldY(candle.O, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
+		yH := priceToWorldY(candle.H, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
+		yL := priceToWorldY(candle.L, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
+		yC := priceToWorldY(candle.C, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
 
 		color := s.P.Base.Green
 		if candle.C < candle.O {
 			color = s.P.Base.Red
 		}
 
-		// Draw candle
-
+		// Draw wick
 		wickX := xp + (cw * 0.5)
 		rl.DrawLineEx(
 			rl.Vector2{X: wickX, Y: yH},
@@ -165,22 +196,24 @@ func (c *Canvas) Render(s *State) {
 			color,
 		)
 
-		bodyPosY := min(yO, yC)
-		bodySizeY := yO - yC
-		if bodySizeY < 0 {
-			bodySizeY = -bodySizeY
+		// Draw body
+		bodyY := min(yO, yC)
+		bodyH := yO - yC
+		if bodyH < 0 {
+			bodyH = -bodyH
 		}
-		if bodySizeY < 1 {
-			bodySizeY = 1
+		if bodyH < 1 {
+			bodyH = 1 // Ensure minimum height for visibility
 		}
 
 		rl.DrawRectangleV(
-			rl.Vector2{X: xp, Y: bodyPosY},
-			rl.Vector2{X: cw, Y: bodySizeY},
+			rl.Vector2{X: xp, Y: bodyY},
+			rl.Vector2{X: cw, Y: bodyH},
 			color,
 		)
 	}
 
+	// Mouse crosshair
 	if !s.Mouse.Captured && c.ContainsV(s.Mouse.P) {
 		s.Mouse.Captured = true
 
@@ -189,9 +222,10 @@ func (c *Canvas) Render(s *State) {
 		s.Chart.Cursor = worldMouse
 
 		s.Chart.CursorPrice = worldYToPrice(
-			s.Chart.Cursor.Y, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel,
+			s.Chart.Cursor.Y, s.Chart.MaxVisPrice, s.Chart.PxPerPrice,
 		)
 
+		// Horizontal line
 		rl.DrawLineEx(
 			rl.Vector2{X: 0, Y: worldMouse.Y},
 			rl.Vector2{X: c.s.X + c.cam.Target.X, Y: worldMouse.Y},
@@ -199,6 +233,7 @@ func (c *Canvas) Render(s *State) {
 			s.P.Bg[4],
 		)
 
+		// Vertical line
 		rl.DrawLineEx(
 			rl.Vector2{X: worldMouse.X, Y: 0},
 			rl.Vector2{X: worldMouse.X, Y: c.s.Y},
@@ -215,85 +250,111 @@ func (c *Canvas) Render(s *State) {
 
 type TimeLine struct {
 	*Rect
-	parent *Rect
 }
 
 func (tl *TimeLine) Render(s *State) {
-	if s.WRF || s.Chart.Forced {
-	}
-
-	// tl.Fill(s.P.Bg[2])
-
-	// tl.Outline(1, s.P.Base.Blue)
-}
-
-type PriceBar struct {
-	*Rect
-	parent *Rect
-}
-
-func (pb *PriceBar) Render(s *State) {
-	if s.WRF || s.Chart.Forced {
-	}
-
 	if len(s.Chart.Candles) == 0 {
 		return
 	}
 
-	localPriceY := s.Chart.PriceY + pb.p.Y - s.Chart.Shift.Y
-
-	rh := s.RHL(2) // Price bar row height
-	rc := rh * .5  // Price bae row center
-
-	pxInt32 := int32(pb.p.X)
+	rowH := s.RHL(TIME_LINE_RHL)
+	// Text offset for centering
+	txtOffsetX := (s.TextNumSV.X*2 + s.TextDotW/2) * s.RHL_Scale(TIME_LINE_RHL)
 
 	rl.BeginScissorMode(
-		pxInt32,
-		int32(pb.p.Y),
-		int32(pb.s.X),
-		int32(pb.s.Y),
+		int32(tl.p.X),
+		int32(tl.p.Y),
+		int32(tl.s.X),
+		int32(tl.s.Y),
 	)
 
-	for y := pb.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
-		localTextY := y + pb.p.Y - rc
+	// Draw time labels at grid positions
+	for x := tl.s.X - s.Chart.GridStepX; x > 0; x -= s.Chart.GridStepX {
+		localX := x + tl.p.X - txtOffsetX
 
-		yPrice := worldYToPrice(
-			y+s.Chart.Shift.Y, s.Chart.MaxVisiblePrice, s.Chart.PriceToPixel,
-		)
-
-		priceText := fmt.Sprintf("%.5f", yPrice)
-		if len(priceText) > len(PRICE_BAR_MAX_CONTENT) {
-			priceText = priceText[:len(PRICE_BAR_MAX_CONTENT)]
-		}
+		xSec := (x + s.Chart.Shift.X) * s.Chart.SecPerPx
+		tm := time.Unix(int64(s.Chart.StartSec+xSec), 0)
+		timeText := tm.Format("15:04")
 
 		rl.DrawTextEx(
 			s.F,
-			priceText,
-			rl.Vector2{X: pb.p.X, Y: localTextY},
-			rh,
+			timeText,
+			rl.Vector2{X: localX, Y: tl.p.Y},
+			rowH,
 			0,
 			s.P.Fg[3],
 		)
 	}
 
-	rl.DrawRectangleGradientV(
-		pxInt32,
-		int32(localPriceY-rh-4),
+	rl.EndScissorMode()
+}
+
+type PriceBar struct {
+	*Rect
+}
+
+func (pb *PriceBar) Render(s *State) {
+	if len(s.Chart.Candles) == 0 {
+		return
+	}
+
+	// Current price position in local coordinates
+	localPriceY := s.Chart.PriceY + pb.p.Y - s.Chart.Shift.Y
+
+	rowH := s.RHL(PRICE_BAR_RHL)
+	rowCenter := rowH * .5
+	xFillPos := pb.p.X + PRICE_BAR_FILL_XPD
+
+	rl.BeginScissorMode(
+		int32(pb.p.X),
+		int32(pb.p.Y),
 		int32(pb.s.X),
-		int32(rh+4),
+		int32(pb.s.Y),
+	)
+
+	// Draw price labels at grid positions
+	for y := pb.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
+		localTextY := y + pb.p.Y - rowCenter
+
+		yPrice := worldYToPrice(
+			y+s.Chart.Shift.Y, s.Chart.MaxVisPrice, s.Chart.PxPerPrice,
+		)
+
+		priceText := fmt.Sprintf("%.5f", yPrice)
+		if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
+			priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
+		}
+
+		rl.DrawTextEx(
+			s.F,
+			priceText,
+			rl.Vector2{X: xFillPos, Y: localTextY},
+			rowH,
+			0,
+			s.P.Fg[3],
+		)
+	}
+
+	// Gradient highlights around current price line
+	rl.DrawRectangleGradientV(
+		int32(pb.p.X),
+		int32(localPriceY-rowH-4),
+		int32(pb.s.X),
+		int32(rowH+4),
 		rl.Color{},
 		s.P.Bg[1],
 	)
 
 	rl.DrawRectangleGradientV(
-		pxInt32,
+		int32(pb.p.X),
 		int32(localPriceY+2),
 		int32(pb.s.X),
-		int32(rh+4),
+		int32(rowH+4),
 		s.P.Bg[1],
 		rl.Color{},
 	)
 
+	// Current price line
 	rl.DrawLineEx(
 		rl.Vector2{X: pb.p.X, Y: localPriceY},
 		rl.Vector2{X: pb.p.X + pb.s.X, Y: localPriceY},
@@ -301,45 +362,46 @@ func (pb *PriceBar) Render(s *State) {
 		s.P.Base.Orange,
 	)
 
+	// Current price label
 	priceText := fmt.Sprintf("%.5f", s.Chart.Price)
-	if len(priceText) > len(PRICE_BAR_MAX_CONTENT) {
-		priceText = priceText[:len(PRICE_BAR_MAX_CONTENT)]
+	if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
+		priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 	}
-
-	localTextY := localPriceY - rh
-
+	localTextY := localPriceY - rowH
 	rl.DrawTextEx(
 		s.F,
 		priceText,
-		rl.Vector2{X: pb.p.X, Y: localTextY},
-		rh,
+		rl.Vector2{X: xFillPos, Y: localTextY},
+		rowH,
 		0,
 		s.P.Fg[1],
 	)
 
+	// Cursor price indicator
 	if s.Chart.Cursor.Y > 0 {
 		localCursorY := s.Chart.Cursor.Y + pb.p.Y - s.Chart.Shift.Y
-		localTextY := localCursorY - rc
+		localTextY := localCursorY - rowCenter
 
 		priceText := fmt.Sprintf("%.5f", s.Chart.CursorPrice)
-		if len(priceText) > len(PRICE_BAR_MAX_CONTENT) {
-			priceText = priceText[:len(PRICE_BAR_MAX_CONTENT)]
+		if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
+			priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 		}
 
+		// Gradient background for cursor price
 		rl.DrawRectangleGradientV(
-			pxInt32,
+			int32(pb.p.X),
 			int32(localTextY-3),
 			int32(pb.s.X),
-			int32(rc+3),
+			int32(rowCenter+3),
 			rl.Color{},
 			s.P.Bg[1],
 		)
 
 		rl.DrawRectangleGradientV(
-			pxInt32,
+			int32(pb.p.X),
 			int32(localCursorY),
 			int32(pb.s.X),
-			int32(rc+3),
+			int32(rowCenter+3),
 			s.P.Bg[1],
 			rl.Color{},
 		)
@@ -347,32 +409,24 @@ func (pb *PriceBar) Render(s *State) {
 		rl.DrawTextEx(
 			s.F,
 			priceText,
-			rl.Vector2{X: pb.p.X, Y: localTextY},
-			rh,
+			rl.Vector2{X: xFillPos, Y: localTextY},
+			rowH,
 			0,
 			s.P.Base.Blue,
 		)
 	}
-
-	// pb.Outline(1, s.P.Base.Red)
 
 	rl.EndScissorMode()
 }
 
 type Crossing struct {
 	*Rect
-	parent *Rect
 }
 
 func (cr *Crossing) Render(s *State) {
-	if s.WRF || s.Chart.Forced {
-	}
-
-	// cr.Fill(s.P.Bg[0])
-
-	// cr.Outline(1, s.P.Base.Red)
 }
 
+// quantizePriceStep rounds price to nice numbers for grid labels
 func quantizePriceStep(price float64) float64 {
 	exp := math.Floor(math.Log10(price))
 	base := math.Pow(10, exp)
@@ -392,26 +446,32 @@ func quantizePriceStep(price float64) float64 {
 	}
 }
 
-func quantizeTimeStep(seconds float32) float32 {
-	steps := []float32{
-		60,      // 1m
-		300,     // 5m
-		900,     // 15m
-		1800,    // 30m
-		3600,    // 1h
-		7200,    // 2h
-		14400,   // 4h
-		21600,   // 6h
-		43200,   // 12h
-		86400,   // 1d
-		604800,  // 1w
-		2592000, // 1m
+// quantizeTimeStep rounds time to common intervals (seconds)
+func quantizeTimeStep(sec float32) float32 {
+	switch {
+	case sec <= 60:
+		return 60 // 1m
+	case sec <= 300:
+		return 300 // 5m
+	case sec <= 900:
+		return 900 // 15m
+	case sec <= 1800:
+		return 1800 // 30m
+	case sec <= 3600:
+		return 3600 // 1h
+	case sec <= 7200:
+		return 7200 // 2h
+	case sec <= 14400:
+		return 14400 // 4h
+	case sec <= 21600:
+		return 21600 // 6h
+	case sec <= 43200:
+		return 43200 // 12h
+	case sec <= 86400:
+		return 86400 // 1d
+	case sec <= 604800:
+		return 604800 // 1w
+	default:
+		return 2592000 // 30d
 	}
-
-	for _, s := range steps {
-		if s >= seconds {
-			return s
-		}
-	}
-	return steps[len(steps)-1]
 }

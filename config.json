@@ -6,6 +6,7 @@
     },
     "target_fps": 111,
     "load_font": "resources/ComicRelief-Bold.ttf",
+    "row_height": 20,
     "theme": {
         "name": "GitHub Dark High Contrast",
         "is_light": false,

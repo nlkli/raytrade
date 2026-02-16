@@ -88,7 +88,6 @@ func (c *Controller) handleInputMode(s *State) {
 
 		s.M = Normal
 		s.CommandLine.Lines = nil
-		s.Footer.Forced = true
 		s.CommandLine.HistoryCur = -1
 
 		return
@@ -125,7 +124,6 @@ func (c *Controller) handleInputMode(s *State) {
 	// Escape
 	if rl.IsKeyPressed(rl.KeyEscape) {
 		s.CommandLine.Lines = nil
-		s.Footer.Forced = true
 
 		s.CommandLine.Prompt = ""
 		s.CommandLine.PromptW = 0

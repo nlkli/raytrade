@@ -9,44 +9,30 @@ import (
 
 type Footer struct {
 	*Rect
-	parent *Rect
 
-	sl *StatusLine
-	cl *CommandLine
+	sl StatusLine
+	cl CommandLine
 }
 
 func (f *Footer) Render(s *State) {
-	if s.WRF || s.Footer.Forced {
-		fh := s.Footer.Height
-
-		f.MoveTo(f.parent.p.X, f.parent.s.Y-fh+f.parent.p.Y)
-		f.SetSize(f.parent.s.X, fh)
+	if s.WRF || s.RH_Dirty {
+		f.sl.Rect, f.cl.Rect = f.SplitH(s.RH)
 	}
 
 	f.sl.Render(s)
 	f.cl.Render(s)
-
-	if s.Footer.Forced {
-		s.Footer.Forced = false
-	}
 
 	// f.Outline(1, s.P.Base.Pink)
 }
 
 type StatusLine struct {
 	*Rect
-	parent *Rect
 
 	utS  string
 	utTW float32
 }
 
 func (sl *StatusLine) Render(s *State) {
-	if s.WRF || s.Footer.Forced {
-		sl.MoveTo(sl.parent.p.X, sl.parent.p.Y)
-		sl.SetSize(sl.parent.s.X, s.RH)
-	}
-
 	sl.Fill(s.P.Bg[0])
 
 	if s.FN%uint64(s.TFPS/4) == 0 {
@@ -67,16 +53,9 @@ func (sl *StatusLine) Render(s *State) {
 
 type CommandLine struct {
 	*Rect
-	parent *Rect
 }
 
 func (cl *CommandLine) Render(s *State) {
-
-	if s.WRF || s.Footer.Forced {
-		cl.MoveTo(cl.parent.p.X, cl.parent.p.Y+s.RH)
-		cl.SetSize(cl.parent.s.X, s.RH+CMD_LINE_MARGIN_BOTTOM)
-	}
-
 	if s.M == Input {
 		rl.DrawRectangleV(
 			rl.Vector2{
@@ -88,16 +67,16 @@ func (cl *CommandLine) Render(s *State) {
 		)
 	}
 
-	if len(s.CommandLine.Lines) > 0 {
-		for i, l := range s.CommandLine.Lines {
-			height := s.RH * float32(i+1) // TODO limit
-			s.StdDrawText(
-				l,
-				rl.Vector2{X: cl.p.X, Y: cl.parent.p.Y + height},
-				s.CommandLine.Color,
-			)
-		}
-	}
+	// if len(s.CommandLine.Lines) > 0 {
+	// 	for i, l := range s.CommandLine.Lines {
+	// 		height := s.RH * float32(i+1) // TODO limit
+	// 		s.StdDrawText(
+	// 			l,
+	// 			rl.Vector2{X: cl.p.X, Y: cl.parent.p.Y + height},
+	// 			s.CommandLine.Color,
+	// 		)
+	// 	}
+	// }
 
 	if len(s.CommandLine.Prompt) > 0 {
 		s.StdDrawText(

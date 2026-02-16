@@ -11,29 +11,32 @@ import (
 const (
 	RPD float32 = 4 // Root padding
 
-	OBW  float32 = 200 // OrderBook section width
-	OBRG float32 = 4   // OrderBook row gap
-
-	TLH float32 = 20 // Time line height
-
 	CW  float32 = 6.5 // Candle width
 	CG  float32 = 2   // Candles gap
 	CWW float32 = 1.5 // Candle wick width
 
-	COMMAND_LINE_HISTORY_CAP    int     = 8
-	CMD_LINE_MARGIN_BOTTOM      float32 = 4
+	COMMAND_LINE_HISTORY_CAP int     = 8
+	CMD_LINE_MARGIN_BOTTOM   float32 = 4
+
+	TIME_LINE_RHL               int     = 2
 	TIME_LINE_LABELS_HEIGHT     float32 = 4
 	TIME_LINE_LABLE_MAX_CONTENT string  = "00:00"
-	PRICE_BAR_MAX_CONTENT       string  = ".0000000"
-	PRICE_BAR_ROW_HEIGHT_DIFF   float32 = -4
+
+	PRICE_BAR_RHL             int     = 2
+	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
+	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
+	PRICE_BAR_FILL_XPD        float32 = 4     // Padding
+
+	ORDER_BOOK_WIDTH    float32 = 180
+	ORDER_BOOK_RHL      int     = 1
+	ORDER_BOOK_FILL_XPD float32 = 4 // Padding
 
 	PRICE_GRID_STEP_PX float64 = 40
 
-	DEFAULT_ROW_HEIGHT float32 = 20
-	DEFAULT_SCALE_X    float32 = 1
-	DEFAULT_SCALE_Y    float32 = .9
-	DEFAULT_SHIFT_X    float32 = 40
-	DEFAULT_SHIFT_Y    float32 = 0
+	DEFAULT_SCALE_X float32 = 1
+	DEFAULT_SCALE_Y float32 = .9
+	DEFAULT_SHIFT_X float32 = 40
+	DEFAULT_SHIFT_Y float32 = 0
 )
 
 type Mode int
@@ -64,8 +67,7 @@ type State struct {
 	FN uint64    // Frame number
 
 	TFPS int32         // Target FPS
-	TFT  time.Duration // Target FPS frame time
-	// FT   time.Duration // Frame time
+	TFT  time.Duration // Target frame time
 
 	WRF bool // Window resized flag
 	WHF bool // Window hidden flag
@@ -80,25 +82,29 @@ type State struct {
 
 	Mouse MouseState
 
-	RH float32 // Row height
-	F  rl.Font
+	F        rl.Font
+	RH       float32 // Row height
+	RH_Dirty bool
+
+	TextNumSV rl.Vector2 // Font base size number vector
+	TextDotW  float32    // Font base size dot width
 
 	BTX   chan<- Task   // Backgorund tx
 	CMDTX chan<- string // CMD tx
 
-	// Instrument InstrumentState
-
 	Footer      FooterState
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
-	Chart       ChartState
-	OrderBook   OrderBookState
-	Bg          BackgroundState
 
-	Cache Cache
+	Chart     ChartState
+	OrderBook OrderBookState
+
+	Bg BackgroundState
 
 	ShowFPS     bool
 	ShowOverlay bool
+
+	Cache Cache
 }
 
 type MouseState struct {
@@ -112,12 +118,6 @@ type Cache struct {
 	}
 }
 
-// type InstrumentState struct {
-// 	Category broker.Category
-// 	Symbol   string
-// 	Interval cdl.Interval
-// }
-
 type BackgroundState struct {
 	IsActiveIO bool
 	Category   broker.Category
@@ -126,8 +126,6 @@ type BackgroundState struct {
 }
 
 type FooterState struct {
-	Height float32
-	Forced bool
 }
 
 type StatusLineState struct {
@@ -136,21 +134,23 @@ type StatusLineState struct {
 }
 
 type CommandLineState struct {
-	History []string
-	// TmpHistory []string
-	HistoryCur int
-	Prompt     string
-	PromptW    float32
-	Lines      []string
-	LinesH     float32
-	Color      rl.Color
+	Prompt  string
+	PromptW float32
+
+	History    []string
+	HistoryCur int // Cursor
+
+	Lines []string
+	LinesH float32
+
+	Color rl.Color
 }
 
 type ChartState struct {
 	Forced bool // Forced update
 
-	Scale rl.Vector2
-	Shift rl.Vector2
+	Scale rl.Vector2 // X: candle scale, Y: price scale
+	Shift rl.Vector2 // Pan offset (X: time, Y: price)
 
 	Price  float64 // Last price
 	PriceY float32 // Last price y coord
@@ -161,22 +161,27 @@ type ChartState struct {
 	Candles     []cdl.Candle // Candles buffer
 	SecInterval float32      // Seconds interval
 
-	Cap        int     // Canvas candles capacity
-	MinP, MaxP float64 // min, max price
-	MidP       float64 // Price center
-	RngP       float64 // Price range
+	Cap int // Number of candles that fit in canvas width
 
-	MaxVisiblePrice float64
-	PriceToPixel    float64
+	MinP, MaxP float64 // Min/max price in visible range
+	MidP       float64 // Average price
+	RngP       float64 // Price range (MaxP - MinP)
 
-	GridStepY float32
-	GridStepX float32
+	MaxVisPrice float64 // Topmost visible price value
+	PxPerPrice  float64 // Conversion factor: pixels per one price unit
 
-	ShowGrid bool
+	StartSec float32 // Unix timestamp (sec) of first visible candle
+	SecPerPx float32 // Conversion factor: seconds per one pixel
 
-	PriceBarW    float32
-	PriceBarStep float32
-	TimeLineH    float32
+	ShowGrid  bool    // Toggle grid visibility
+	GridStepY float32 // Pixels between horizontal grid lines (quantized)
+	GridStepX float32 // Pixels between vertical grid lines (quantized)
+
+	PriceBarW          float32
+	PriceBarLabelsStep float32 // Pixels between price labels (until quantized)
+
+	TimeLineH          float32
+	TimeLineLabelsStep float32 // Pixels between time labels (until quantized)
 }
 
 type OrderBookState struct {
@@ -184,6 +189,17 @@ type OrderBookState struct {
 
 	Bids [][2]float64
 	Asks [][2]float64
+
+	Cap int
+
+	MaxBidS,
+	MaxAskS float64
+
+	BidsText [][2]string
+	AsksText [][2]string
+
+	BidsPriceTextW []float32
+	AsksPriceTextW []float32
 }
 
 func InitState(c *Config) *State {
@@ -197,9 +213,10 @@ func InitState(c *Config) *State {
 			float32(c.InitWindow.Width),
 			float32(c.InitWindow.Height),
 		),
-		M:  Normal,
-		P:  palette,
-		RH: DEFAULT_ROW_HEIGHT,
+		M: Normal,
+		P: palette,
+
+		RH: c.RowHeight,
 		F:  rl.LoadFont(c.LoadFont),
 
 		StatusLine: StatusLineState{
@@ -215,9 +232,13 @@ func InitState(c *Config) *State {
 			ShowGrid: true,
 		},
 
+		OrderBook: OrderBookState{
+			Forced: true,
+		},
+
 		CommandLine: CommandLineState{
 			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
-			Color: palette.Fg[1],
+			Color:   palette.Fg[1],
 		},
 
 		Cache: Cache{
@@ -225,26 +246,30 @@ func InitState(c *Config) *State {
 		},
 	}
 
-	s.SetRH(DEFAULT_ROW_HEIGHT)
+	s.SetRH(c.RowHeight)
 
 	return s
 }
 
-// Row height lvl
 func (s *State) RHL(l int) float32 {
 	return max(2, s.RH-2*float32(l))
 }
 
+func (s *State) RHL_Scale(l int) float32 {
+	return s.RHL(l) / float32(s.F.BaseSize)
+}
+
 func (s *State) SetRH(rh float32) {
 	s.RH = max(2, rh)
+	s.RH_Dirty = true
 
-	s.Chart.TimeLineH = s.RH + TIME_LINE_LABELS_HEIGHT
-	s.Chart.PriceBarStep = s.RH * 2
-	s.Chart.PriceBarW = rl.MeasureTextEx(
-		s.F,
-		PRICE_BAR_MAX_CONTENT,
-		s.RHL(2),
-		0,
+	const NUMBERS = "1234567890"
+
+	s.TextNumSV = rl.MeasureTextEx(s.F, NUMBERS, float32(s.F.BaseSize), 0)
+	s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))
+
+	s.TextDotW = rl.MeasureTextEx(
+		s.F, ".", float32(s.F.BaseSize), 0,
 	).X
 }
 

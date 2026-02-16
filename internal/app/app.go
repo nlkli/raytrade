@@ -80,13 +80,18 @@ func Run(ctx context.Context, configPath string) error {
 	br := bybit.NewBroker(client)
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
+
 	rl.InitWindow(c.InitWindow.Width, c.InitWindow.Height, c.InitWindow.Title)
+	rl.SetTraceLogLevel(rl.LogAll)
+
 	rl.SetExitKey(0)
 
 	state := InitState(&c)
 
 	cmd := InitCMD(context.Background())
+
 	state.CMDTX = cmd.Tx
+
 	bg := InitBackground(context.Background(), br)
 	state.BTX = bg.Tx
 
@@ -96,7 +101,7 @@ func Run(ctx context.Context, configPath string) error {
 	}()
 
 	go func() {
-		ob, err := br.GetOrderBook(broker.Futures, "BTCUSDT", 20)
+		ob, err := br.GetOrderBook(broker.Futures, "BTCUSDT", 40)
 		if err != nil {
 			println(err.Error())
 			return

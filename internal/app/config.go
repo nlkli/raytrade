@@ -4,6 +4,7 @@ type Config struct {
 	InitWindow InitWindow `json:"init_window"`
 	TargetFPS  int32      `json:"target_fps"`
 	LoadFont   string     `json:"load_font"`
+	RowHeight  float32    `json:"row_height"`
 	Theme      Theme      `json:"theme"`
 }
 
