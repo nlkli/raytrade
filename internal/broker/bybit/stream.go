@@ -43,10 +43,13 @@ type StreamV2 struct {
 }
 
 func NewStreamV2(
+
 	url string,
 	tx chan []byte,
 	onConnectedFn ws.OnConnectedFn,
+
 	opts ...ws.PolicyOption,
+
 ) *StreamV2 {
 
 	s := new(StreamV2)
@@ -61,31 +64,28 @@ func NewStreamV2(
 		0,
 		ws.NewPolicy(
 			func(sendCh chan<- []byte, n int) error {
+				if n > 0 {
+					topics := s.Topics()
+					if len(topics) == 0 {
+						return nil
+					}
+
+					_, b, err := newStreamOpRequest(
+						models.StreamOpSubscribe,
+						topics,
+					)
+					if err != nil {
+						return err
+					}
+
+					sendCh <- b
+				}
+
 				if onConnectedFn != nil {
 					if err := onConnectedFn(sendCh, n); err != nil {
 						return err
 					}
 				}
-
-				if n == 0 {
-					return nil
-				}
-
-				topics := s.Topics()
-				if len(topics) == 0 {
-					return nil
-				}
-
-				_, b, err := newStreamOpRequest(
-					models.StreamOpSubscribe,
-					topics,
-				)
-
-				if err != nil {
-					return err
-				}
-
-				sendCh <- b
 
 				return nil
 			},

@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -16,6 +17,8 @@ const (
 
 // https://bybit-exchange.github.io/docs/v5/market/kline
 func (c *Client) GetKline(
+
+	ctx context.Context,
 
 	category models.Category,
 	symbol string,
@@ -50,7 +53,7 @@ func (c *Client) GetKline(
 	queryString := query.Encode()
 	fullURL := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/market/kline", queryString)
 
-	req, err := http.NewRequest("GET", fullURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +69,8 @@ func (c *Client) GetKline(
 
 // https://bybit-exchange.github.io/docs/v5/market/orderbook
 func (c *Client) GetOrderBook(
+
+	ctx context.Context,
 
 	category models.Category,
 	symbol string,
@@ -91,7 +96,7 @@ func (c *Client) GetOrderBook(
 	queryString := query.Encode()
 	fullURL := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/market/orderbook", queryString)
 
-	req, err := http.NewRequest("GET", fullURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {
 		return nil, err
 	}

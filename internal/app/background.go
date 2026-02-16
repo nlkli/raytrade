@@ -45,6 +45,7 @@ func (t *InstrumentObserverT) run(b *Background) {
 	candles := []cdl.Candle{first.Candle}
 
 	candles, err = b.broker.ExtendStartCandles(
+		context.TODO(),
 		candles,
 		t.Category,
 		t.Symbol,

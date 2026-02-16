@@ -37,8 +37,8 @@ const (
 type OrderType string
 
 const (
-	OrderTypeMarket Side = "Market"
-	OrderTypeLimit  Side = "Limit"
+	OrderTypeMarket OrderType = "Market"
+	OrderTypeLimit  OrderType = "Limit"
 )
 
 type MarketUnit string
@@ -76,6 +76,7 @@ const (
 	TriggerByLastPrice  TriggerBy = "LastPrice"
 	TriggerByIndexPrice TriggerBy = "IndexPrice"
 	TriggerByMarkPrice  TriggerBy = "MarkPrice"
+	TriggerByPrevPrice  TriggerBy = "PrevPrice"
 )
 
 type TimeInForce string
@@ -100,6 +101,7 @@ const (
 	TpSlTriggerByLastPrice  TpSlTriggerBy = "LastPrice"
 	TpSlTriggerByMarkPrice  TpSlTriggerBy = "MarkPrice"
 	TpSlTriggerByIndexPrice TpSlTriggerBy = "IndexPrice"
+	TpSlTriggerByPrevPrice  TpSlTriggerBy = "PrevPrice"
 )
 
 type SMPType string
@@ -115,6 +117,7 @@ type TpslMode string
 const (
 	TpslModeFull    TpslMode = "Full"    // entire position for TP/SL
 	TpslModePartial TpslMode = "Partial" // partial position tp/sl
+	TpslModeSpot    TpslMode = "Spot"
 )
 
 type BboSideType string
@@ -123,3 +126,9 @@ const (
 	BboSideTypeQueue        BboSideType = "Queue"        // use order price on orderbook in same direction as side
 	BboSideTypeCounterparty BboSideType = "Counterparty" // use order price on orderbook in opposite direction as side
 )
+
+// CancelTakeProfitValue
+const CancelTakeProfitValue = "0"
+
+// CancelStopLossValue
+const CancelStopLossValue = "0"

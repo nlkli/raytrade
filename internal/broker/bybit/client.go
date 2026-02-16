@@ -105,7 +105,13 @@ func (c *Client) genSignature(s string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func (c *Client) callAPI(req *http.Request, queryString string, result any) error {
+func (c *Client) callAPI(
+
+	req *http.Request,
+	queryString string,
+	result any,
+
+) error {
 
 	timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	payload := timestamp + c.apiKey + c.recvWindow + queryString
@@ -147,31 +153,41 @@ func (c *Client) callAPI(req *http.Request, queryString string, result any) erro
 	return nil
 }
 
-// func (c *Client) CreatePublicStream(category models.Category) *Stream {
-// 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
-// 	return NewStream(context.Background(), url, nil)
-// }
-
 func (c *Client) CreatePublicStreamV2(
+
 	category models.Category,
 	tx chan []byte,
+	onConnectedFn ws.OnConnectedFn,
+
 	opts ...ws.PolicyOption,
+
 ) *StreamV2 {
 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
-	return NewStreamV2(url, tx, nil, opts...)
+	return NewStreamV2(url, tx, onConnectedFn, opts...)
 }
 
 func (c *Client) CreatePrivateStreamV2(
-	category models.Category,
+
 	tx chan []byte,
+	onConnectedFn ws.OnConnectedFn,
+
 	opts ...ws.PolicyOption,
+
 ) *StreamV2 {
-	url := fmt.Sprintf("%s/v5/private/%s", STREAM_MAINNET, category)
+	url := fmt.Sprintf("%s/v5/private", STREAM_MAINNET)
 	return NewStreamV2(
 		url,
 		tx,
-		func(sendCh chan<- []byte, _ int) error {
-			expires := time.Now().UnixMilli()
+		func(sendCh chan<- []byte, n int) error {
+			recvWindow, err := strconv.Atoi(c.recvWindow)
+			if err != nil {
+				return err
+			}
+
+			expires := time.Now().Add(
+				time.Duration(recvWindow) * time.Millisecond,
+			).UnixMilli()
+
 			payload := fmt.Sprintf("GET/realtime%d", expires)
 
 			signature := c.genSignature(payload)
@@ -191,33 +207,13 @@ func (c *Client) CreatePrivateStreamV2(
 
 			sendCh <- b
 
+			if onConnectedFn != nil {
+				if err := onConnectedFn(sendCh, n); err != nil {
+					return err
+				}
+			}
+
 			return nil
 		},
 		opts...)
 }
-
-// func (c *Client) CreatePrivateStream(category models.Category) *Stream {
-// 	url := fmt.Sprintf("%s/v5/private/%s", STREAM_MAINNET, category)
-//
-// 	return NewStream(context.Background(), url, func(conn *ws.Conn) error {
-// 		expires := time.Now().UnixNano()/1e6 + 10000
-// 		val := fmt.Sprintf("GET/realtime%d", expires)
-//
-// 		signature := c.genSignature(val)
-//
-// 		opReq := &models.StreamOpRequest{
-// 			ReqID: nextReqID(),
-// 			Op:    models.StreamOpAuth,
-// 			Args: []any{
-// 				c.apiKey, expires, signature,
-// 			},
-// 		}
-//
-// 		b, err := json.Marshal(opReq)
-// 		if err != nil {
-// 			return err
-// 		}
-//
-// 		return conn.Send(b)
-// 	})
-// }

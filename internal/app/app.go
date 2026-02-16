@@ -101,7 +101,7 @@ func Run(ctx context.Context, configPath string) error {
 	}()
 
 	go func() {
-		ob, err := br.GetOrderBook(broker.Futures, "BTCUSDT", 40)
+		ob, err := br.GetOrderBook(nil, broker.Futures, "BTCUSDT", 40)
 		if err != nil {
 			println(err.Error())
 			return

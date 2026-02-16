@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"context"
 	"nlkli/raytrade/internal/cdl"
 	"nlkli/raytrade/internal/ws"
 	"sync"
@@ -15,6 +16,7 @@ const (
 
 type Broker interface {
 	GetCandles(
+		ctx context.Context,
 		category Category,
 		symbol string,
 		interval cdl.Interval,
@@ -25,6 +27,7 @@ type Broker interface {
 
 	// Create new slice
 	ExtendStartCandles(
+		ctx context.Context,
 		candles []cdl.Candle,
 		category Category,
 		symbol string,
@@ -34,6 +37,7 @@ type Broker interface {
 
 	// Create new slice
 	ExtendEndCandles(
+		ctx context.Context,
 		candles []cdl.Candle,
 		category Category,
 		symbol string,

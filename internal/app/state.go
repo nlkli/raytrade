@@ -18,9 +18,8 @@ const (
 	COMMAND_LINE_HISTORY_CAP int     = 8
 	CMD_LINE_MARGIN_BOTTOM   float32 = 4
 
-	TIME_LINE_RHL               int     = 2
-	TIME_LINE_LABELS_HEIGHT     float32 = 4
-	TIME_LINE_LABLE_MAX_CONTENT string  = "00:00"
+	TIME_LINE_RHL           int     = 2
+	TIME_LINE_LABELS_HEIGHT float32 = 4
 
 	PRICE_BAR_RHL             int     = 2
 	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
@@ -76,7 +75,6 @@ type State struct {
 	WS rl.Vector2 // Window size
 
 	M Mode
-	// E Event // Controller event
 
 	P *Palette
 
@@ -140,7 +138,7 @@ type CommandLineState struct {
 	History    []string
 	HistoryCur int // Cursor
 
-	Lines []string
+	Lines  []string
 	LinesH float32
 
 	Color rl.Color
