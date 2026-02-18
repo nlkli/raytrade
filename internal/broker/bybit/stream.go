@@ -46,7 +46,7 @@ func NewStreamV2(
 
 	url string,
 	tx chan []byte,
-	onConnectedFn ws.OnConnectedFn,
+	onConnected ws.OnConnectedFn,
 
 	opts ...ws.PolicyOption,
 
@@ -81,8 +81,8 @@ func NewStreamV2(
 					sendCh <- b
 				}
 
-				if onConnectedFn != nil {
-					if err := onConnectedFn(sendCh, n); err != nil {
+				if onConnected != nil {
+					if err := onConnected(sendCh, n); err != nil {
 						return err
 					}
 				}

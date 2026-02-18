@@ -157,19 +157,19 @@ func (c *Client) CreatePublicStreamV2(
 
 	category models.Category,
 	tx chan []byte,
-	onConnectedFn ws.OnConnectedFn,
+	onConnected ws.OnConnectedFn,
 
 	opts ...ws.PolicyOption,
 
 ) *StreamV2 {
 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
-	return NewStreamV2(url, tx, onConnectedFn, opts...)
+	return NewStreamV2(url, tx, onConnected, opts...)
 }
 
 func (c *Client) CreatePrivateStreamV2(
 
 	tx chan []byte,
-	onConnectedFn ws.OnConnectedFn,
+	onConnected ws.OnConnectedFn,
 
 	opts ...ws.PolicyOption,
 
@@ -207,13 +207,14 @@ func (c *Client) CreatePrivateStreamV2(
 
 			sendCh <- b
 
-			if onConnectedFn != nil {
-				if err := onConnectedFn(sendCh, n); err != nil {
+			if onConnected != nil {
+				if err := onConnected(sendCh, n); err != nil {
 					return err
 				}
 			}
 
 			return nil
 		},
-		opts...)
+		opts...,
+	)
 }

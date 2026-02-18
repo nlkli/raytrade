@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit"
 	"os"
 	"time"
@@ -97,18 +96,7 @@ func Run(ctx context.Context, configPath string) error {
 
 	go func() {
 		time.Sleep(time.Second * 3)
-		cmd.Tx <- "i 1 | s btcusdt"
-	}()
-
-	go func() {
-		ob, err := br.GetOrderBook(nil, broker.Futures, "BTCUSDT", 40)
-		if err != nil {
-			println(err.Error())
-			return
-		}
-
-		state.OrderBook.Bids = ob[0]
-		state.OrderBook.Asks = ob[1]
+		cmd.Tx <- "i 1 | s fartcoinusdt"
 	}()
 
 	app := &App{

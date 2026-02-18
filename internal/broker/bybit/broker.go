@@ -9,6 +9,7 @@ import (
 	"nlkli/raytrade/internal/cdl"
 	"nlkli/raytrade/internal/ws"
 	"slices"
+	"sort"
 	"strconv"
 )
 
@@ -217,7 +218,7 @@ func (b *Broker) GetOrderBook(
 func (b *Broker) CreateStream(
 
 	category broker.Category,
-	onConnectedFn ws.OnConnectedFn,
+	onConnected ws.OnConnectedFn,
 
 	opts ...ws.PolicyOption,
 
@@ -225,7 +226,7 @@ func (b *Broker) CreateStream(
 
 	lc := ToLocalCategory(category)
 	tx := make(chan []byte, 1)
-	stream := b.c.CreatePublicStreamV2(lc, tx, onConnectedFn, opts...)
+	stream := b.c.CreatePublicStreamV2(lc, tx, onConnected, opts...)
 
 	return &BrokerStream{
 		stream: stream,
@@ -238,7 +239,7 @@ type BrokerStream struct {
 	tx     chan []byte
 }
 
-func (s *BrokerStream) SubscribeCandleStream(
+func (s *BrokerStream) SubscribeCandle(
 
 	symbol string,
 	interval cdl.Interval,
@@ -297,6 +298,145 @@ func (s *BrokerStream) SubscribeCandleStream(
 					Confirm:  i.Confirm,
 				}
 			}
+		}
+	}()
+
+	return broker.NewBrokerStreamSubscription(
+		ch,
+		func() error {
+			return s.stream.Unsubscribe(topic)
+		},
+	), nil
+}
+
+// https://bybit-exchange.github.io/docs/v5/websocket/public/orderbook
+func (s *BrokerStream) SubscribeOrderBook(
+
+	symbol string, depth int,
+
+) (*broker.BrokerStreamSubscription[[2][][2]float64], error) {
+
+	switch depth {
+	case 1, 50, 200, 1000:
+	default:
+		return nil, fmt.Errorf("invalid depth: %d, must be one of: 1, 50, 200, 1000", depth)
+	}
+
+	topic := fmt.Sprintf("orderbook.%d.%s", depth, symbol)
+	subCh, err := s.stream.Subscribe(topic)
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan [2][][2]float64, 1)
+	go func() {
+		defer close(ch)
+
+		// [bids, asks][][price, size]
+		ob := [2][][2]float64{
+			make([][2]float64, 0, 100),
+			make([][2]float64, 0, 100),
+		}
+
+		for d := range subCh {
+
+			var obData models.StreamOrderBookData
+			if err := json.Unmarshal(d.Data, &obData); err != nil {
+				continue
+			}
+
+			for len(ob[0]) > 0 && len(ob[1]) > 0 && ob[0][0][0] >= ob[1][0][0] {
+				ob[0] = ob[0][1:]
+				ob[1] = ob[1][1:]
+			}
+
+			switch d.Type {
+			case "snapshot":
+				ob[0] = ob[0][:0]
+				ob[1] = ob[1][:0]
+
+				for _, bid := range obData.Bids {
+					price, _ := strconv.ParseFloat(bid[0], 64)
+					size, _ := strconv.ParseFloat(bid[1], 64)
+					ob[0] = append(ob[0], [2]float64{price, size})
+				}
+
+				for _, ask := range obData.Asks {
+					price, _ := strconv.ParseFloat(ask[0], 64)
+					size, _ := strconv.ParseFloat(ask[1], 64)
+					ob[1] = append(ob[1], [2]float64{price, size})
+				}
+
+			case "delta":
+				if bids := obData.Bids; len(bids) > 0 {
+					for _, bid := range bids {
+						price, _ := strconv.ParseFloat(bid[0], 64)
+						size, _ := strconv.ParseFloat(bid[1], 64)
+
+						n := len(ob[0])
+
+						i := sort.Search(n, func(j int) bool {
+							return ob[0][j][0] <= price
+						})
+
+						if i < n && ob[0][i][0] == price {
+							if size == 0 {
+								copy(ob[0][i:], ob[0][i+1:n])
+								ob[0] = ob[0][:n-1]
+							} else {
+								ob[0][i][1] = size
+							}
+						} else if size != 0 {
+							ob[0] = append(ob[0], [2]float64{})
+							copy(ob[0][i+1:], ob[0][i:n])
+							ob[0][i] = [2]float64{price, size}
+						}
+					}
+
+					if len(ob[0]) > depth {
+						ob[0] = ob[0][:depth]
+					}
+
+				}
+
+				if asks := obData.Asks; len(asks) > 0 {
+					for _, ask := range asks {
+						price, _ := strconv.ParseFloat(ask[0], 64)
+						size, _ := strconv.ParseFloat(ask[1], 64)
+
+						n := len(ob[1])
+
+						i := sort.Search(n, func(j int) bool {
+							return ob[1][j][0] >= price
+						})
+
+						if i < n && ob[1][i][0] == price {
+							if size == 0 {
+								copy(ob[1][i:], ob[1][i+1:n])
+								ob[1] = ob[1][:n-1]
+							} else {
+								ob[1][i][1] = size
+							}
+						} else if size != 0 {
+							ob[1] = append(ob[1], [2]float64{})
+							copy(ob[1][i+1:], ob[1][i:n])
+							ob[1][i] = [2]float64{price, size}
+						}
+					}
+
+					if len(ob[1]) > depth {
+						ob[1] = ob[1][:depth]
+					}
+				}
+			}
+
+			bidsCopy := make([][2]float64, len(ob[0]))
+			copy(bidsCopy, ob[0])
+
+			asksCopy := make([][2]float64, len(ob[1]))
+			copy(asksCopy, ob[1])
+
+			ch <- [2][][2]float64{bidsCopy, asksCopy}
 		}
 	}()
 

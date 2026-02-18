@@ -30,7 +30,7 @@ type PolicyOption func(*Policy)
 
 func NewPolicy(
 
-	onConnecteded OnConnectedFn,
+	onConnected OnConnectedFn,
 	messageHandler MessageHandlerFn,
 
 	opts ...PolicyOption,
@@ -42,7 +42,7 @@ func NewPolicy(
 			HandshakeTimeout: 7 * time.Second,
 		},
 
-		OnConnected:    onConnecteded,
+		OnConnected:    onConnected,
 		MessageHandler: messageHandler,
 		OnConnect:      nil,
 		OnDisconnect:   nil,
@@ -144,6 +144,7 @@ func NewConnV2(
 
 					case b, ok := <-tx:
 
+						// reconnect if data is nil
 						if ok && b == nil {
 							break loop
 						}
@@ -199,6 +200,11 @@ func NewConnV2(
 			conn.SetPongHandler(func(string) error {
 				conn.SetReadDeadline(time.Now().Add(policy.PingInterval * 2))
 				return nil
+			})
+
+			conn.SetPingHandler(func(string) error {
+				conn.SetWriteDeadline(time.Now().Add(policy.WriteTimeout))
+				return conn.WriteMessage(websocket.PongMessage, nil)
 			})
 
 			for {

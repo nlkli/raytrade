@@ -25,7 +25,7 @@ type Broker interface {
 		end *int,
 	) ([]cdl.Candle, error)
 
-	// Create new slice
+	// Create a new candles slice
 	ExtendStartCandles(
 		ctx context.Context,
 		candles []cdl.Candle,
@@ -35,7 +35,7 @@ type Broker interface {
 		limit int,
 	) ([]cdl.Candle, error)
 
-	// Create new slice
+	// Create a new candles slice
 	ExtendEndCandles(
 		ctx context.Context,
 		candles []cdl.Candle,
@@ -45,8 +45,17 @@ type Broker interface {
 		limit int,
 	) ([]cdl.Candle, error)
 
+	// [bids, asks][][price, size]
+	GetOrderBook(
+		ctx context.Context,
+		category Category,
+		symbol string,
+		limit int,
+	) (*[2][][2]float64, error)
+
 	CreateStream(
 		category Category,
+		onConnected ws.OnConnectedFn,
 		opts ...ws.PolicyOption,
 	) BrokerStream
 }
@@ -78,8 +87,12 @@ func (s *BrokerStreamSubscription[T]) Stop() error {
 }
 
 type BrokerStream interface {
-	SubscribeCandleStream(
+	SubscribeCandle(
 		symbol string,
 		interval cdl.Interval,
 	) (*BrokerStreamSubscription[cdl.CandleStreamData], error)
+
+	SubscribeOrderBook(
+		symbol string, depth int,
+	) (*BrokerStreamSubscription[[2][][2]float64], error)
 }

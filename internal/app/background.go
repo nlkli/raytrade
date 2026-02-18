@@ -19,12 +19,12 @@ type InstrumentObserverT struct {
 
 func (t *InstrumentObserverT) run(b *Background) {
 	if b.stream == nil {
-		b.stream = b.broker.CreateStream(t.Category)
+		b.stream = b.broker.CreateStream(t.Category, nil)
 	}
 
-	chartSub, err := b.stream.SubscribeCandleStream(t.Symbol, t.Interval)
+	chartSub, err := b.stream.SubscribeCandle(t.Symbol, t.Interval)
 	if err != nil {
-		b.push(CommitCommandLineErrorAnd(
+		b.Push(CommitCommandLineErrorAnd(
 			err.Error(),
 			func(s *State) {
 				s.StatusLine.Symbol = s.Bg.Symbol
@@ -53,7 +53,7 @@ func (t *InstrumentObserverT) run(b *Background) {
 		t.InitCandlesLimit,
 	)
 	if err != nil {
-		b.push(CommitCommandLineErrorAnd(
+		b.Push(CommitCommandLineErrorAnd(
 			err.Error(),
 			func(s *State) {
 				s.StatusLine.Symbol = s.Bg.Symbol
@@ -85,10 +85,24 @@ func (t *InstrumentObserverT) run(b *Background) {
 		s.Chart.Forced = true
 	}
 
-	b.push(f)
+	b.Push(f)
+
+	obSub, _ := b.stream.SubscribeOrderBook(t.Symbol, 200)
 
 	b.wg.Go(func() {
-		defer b.push(func(s *State) {
+		for ob := range obSub.C {
+			b.Push(
+				func(s *State) {
+					s.OrderBook.Bids = ob[0]
+					s.OrderBook.Asks = ob[1]
+					s.OrderBook.Forced = true
+				},
+			)
+		}
+	})
+
+	b.wg.Go(func() {
+		defer b.Push(func(s *State) {
 			s.Bg.IsActiveIO = false
 		})
 
@@ -108,7 +122,7 @@ func (t *InstrumentObserverT) run(b *Background) {
 					s.Chart.RngP = s.Chart.MaxP - s.Chart.MinP
 				}
 			}
-			b.push(f)
+			b.Push(f)
 		}
 	})
 }
@@ -116,9 +130,7 @@ func (t *InstrumentObserverT) run(b *Background) {
 type Background struct {
 	Tx chan Task
 
-	buff [4]CommitFn
-	head atomic.Uint32
-	tail atomic.Uint32
+	commit atomic.Pointer[CommitFn]
 
 	broker   broker.Broker
 	stream   broker.BrokerStream
@@ -154,29 +166,29 @@ func InitBackground(ctx context.Context, br broker.Broker) *Background {
 	return b
 }
 
-func (b *Background) Update(s *State) {
-	tail := b.tail.Load()
-	head := b.head.Load()
+func (b *Background) Push(f CommitFn) {
+	for {
+		current := b.commit.Load()
 
-	for tail != head {
-		b.buff[tail&3](s)
-		b.buff[tail&3] = nil
-		tail++
+		var newFn CommitFn
+		if current == nil {
+			newFn = f
+		} else {
+			oldFn := *current
+			newFn = func(s *State) {
+				oldFn(s)
+				f(s)
+			}
+		}
+
+		if b.commit.CompareAndSwap(current, &newFn) {
+			return
+		}
 	}
-
-	b.tail.Store(tail)
 }
 
-func (b *Background) push(f CommitFn) bool {
-	head := b.head.Load()
-	tail := b.tail.Load()
-
-	if head-tail == 4 {
-		return false
+func (b *Background) Update(s *State) {
+	if fn := b.commit.Swap(nil); fn != nil {
+		(*fn)(s)
 	}
-
-	b.buff[head&3] = f
-	b.head.Store(head + 1)
-
-	return true
 }

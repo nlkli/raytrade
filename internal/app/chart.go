@@ -20,17 +20,14 @@ type Chart struct {
 
 func (ch *Chart) Render(s *State) {
 	if s.WRF || s.RH_Dirty {
-		s.Chart.PriceBarW = (s.TextNumSV.X*
+		priceBarW := (s.TextNumSV.X*
 			PRICE_BAR_MAX_NUMBERS_CAP+s.TextDotW)*
 			s.RHL_Scale(PRICE_BAR_RHL) + PRICE_BAR_FILL_XPD*2
-		s.Chart.PriceBarLabelsStep = s.RH * 2.5
+		timeLineH := s.RH + TIME_LINE_LABELS_HEIGHT
 
-		s.Chart.TimeLineH = s.RH + TIME_LINE_LABELS_HEIGHT
-		s.Chart.TimeLineLabelsStep = s.RH * 6
-
-		l, r := ch.SplitV(ch.s.X - s.Chart.PriceBarW)
-		ch.c.Rect, ch.tl.Rect = l.SplitH(ch.s.Y - s.Chart.TimeLineH)
-		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - s.Chart.TimeLineH)
+		l, r := ch.SplitV(ch.s.X - priceBarW)
+		ch.c.Rect, ch.tl.Rect = l.SplitH(ch.s.Y - timeLineH)
+		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - timeLineH)
 	}
 
 	ch.c.Render(s)
@@ -45,7 +42,7 @@ func (ch *Chart) Render(s *State) {
 		6,
 		int32(ch.s.Y),
 		s.P.Bg[1],
-		rl.Color{},
+		s.P.TBg1,
 	)
 
 	if s.Chart.Forced {
@@ -98,7 +95,7 @@ func (c *Canvas) Render(s *State) {
 		s.Chart.PxPerPrice = float64(c.s.Y) / visPriceRng
 
 		priceStep := quantizePriceStep(
-			float64(s.Chart.PriceBarLabelsStep * float32(1/s.Chart.PxPerPrice)),
+			float64(s.RH * 2.5 * float32(1/s.Chart.PxPerPrice)),
 		)
 		s.Chart.GridStepY = float32(priceStep * s.Chart.PxPerPrice)
 
@@ -107,7 +104,7 @@ func (c *Canvas) Render(s *State) {
 		timeSecRng := float32(s.Chart.Cap) * s.Chart.SecInterval
 		s.Chart.SecPerPx = timeSecRng / c.s.X
 
-		timeStep := quantizeTimeStep(s.Chart.TimeLineLabelsStep * s.Chart.SecPerPx)
+		timeStep := quantizeTimeStep(s.RH * 6 * s.Chart.SecPerPx)
 		s.Chart.GridStepX = timeStep * (1 / s.Chart.SecPerPx)
 	} else {
 		if n == 0 {
@@ -139,7 +136,7 @@ func (c *Canvas) Render(s *State) {
 			)
 		}
 		// Vertical grid lines
-		for x := c.s.X - s.Chart.GridStepX; x > 0; x -= s.Chart.GridStepX {
+		for x := c.s.X - s.Chart.GridStepX*.5; x > 0; x -= s.Chart.GridStepX {
 			localX := x + c.p.X
 
 			rl.DrawLineEx(
@@ -172,8 +169,8 @@ func (c *Canvas) Render(s *State) {
 	for i := range n {
 		candle := cdls[n-i-1]
 
-		xp := c.s.X - stepX*float32(i+1)
-		if xp-stepX < 0 {
+		xPos := c.s.X - stepX*float32(i+1)
+		if xPos-stepX < 0 {
 			break
 		}
 
@@ -188,7 +185,7 @@ func (c *Canvas) Render(s *State) {
 		}
 
 		// Draw wick
-		wickX := xp + (cw * 0.5)
+		wickX := xPos + (cw * 0.5)
 		rl.DrawLineEx(
 			rl.Vector2{X: wickX, Y: yH},
 			rl.Vector2{X: wickX, Y: yL},
@@ -207,7 +204,7 @@ func (c *Canvas) Render(s *State) {
 		}
 
 		rl.DrawRectangleV(
-			rl.Vector2{X: xp, Y: bodyY},
+			rl.Vector2{X: xPos, Y: bodyY},
 			rl.Vector2{X: cw, Y: bodyH},
 			color,
 		)
@@ -236,7 +233,7 @@ func (c *Canvas) Render(s *State) {
 		// Vertical line
 		rl.DrawLineEx(
 			rl.Vector2{X: worldMouse.X, Y: 0},
-			rl.Vector2{X: worldMouse.X, Y: c.s.Y},
+			rl.Vector2{X: worldMouse.X, Y: c.s.Y + c.cam.Target.Y},
 			1,
 			s.P.Bg[4],
 		)
@@ -259,7 +256,7 @@ func (tl *TimeLine) Render(s *State) {
 
 	rowH := s.RHL(TIME_LINE_RHL)
 	// Text offset for centering
-	txtOffsetX := (s.TextNumSV.X*2 + s.TextDotW/2) * s.RHL_Scale(TIME_LINE_RHL)
+	halfText := (s.TextNumSV.X*2 + s.TextDotW/2) * s.RHL_Scale(TIME_LINE_RHL)
 
 	rl.BeginScissorMode(
 		int32(tl.p.X),
@@ -269,12 +266,12 @@ func (tl *TimeLine) Render(s *State) {
 	)
 
 	// Draw time labels at grid positions
-	for x := tl.s.X - s.Chart.GridStepX; x > 0; x -= s.Chart.GridStepX {
-		localX := x + tl.p.X - txtOffsetX
+	for x := tl.s.X - s.Chart.GridStepX*.5; x > 0; x -= s.Chart.GridStepX {
+		localX := x + tl.p.X - halfText
 
 		xSec := (x + s.Chart.Shift.X) * s.Chart.SecPerPx
-		tm := time.Unix(int64(s.Chart.StartSec+xSec), 0)
-		timeText := tm.Format("15:04")
+		tUnix := time.Unix(int64(s.Chart.StartSec+xSec), 0)
+		timeText := tUnix.Format("15:04")
 
 		rl.DrawTextEx(
 			s.F,
@@ -303,7 +300,8 @@ func (pb *PriceBar) Render(s *State) {
 
 	rowH := s.RHL(PRICE_BAR_RHL)
 	rowCenter := rowH * .5
-	xFillPos := pb.p.X + PRICE_BAR_FILL_XPD
+	// Lables offset x (padding)
+	lable_xPos := pb.p.X + PRICE_BAR_FILL_XPD
 
 	rl.BeginScissorMode(
 		int32(pb.p.X),
@@ -328,7 +326,7 @@ func (pb *PriceBar) Render(s *State) {
 		rl.DrawTextEx(
 			s.F,
 			priceText,
-			rl.Vector2{X: xFillPos, Y: localTextY},
+			rl.Vector2{X: lable_xPos, Y: localTextY},
 			rowH,
 			0,
 			s.P.Fg[3],
@@ -341,7 +339,7 @@ func (pb *PriceBar) Render(s *State) {
 		int32(localPriceY-rowH-4),
 		int32(pb.s.X),
 		int32(rowH+4),
-		rl.Color{},
+		s.P.TBg1,
 		s.P.Bg[1],
 	)
 
@@ -351,7 +349,7 @@ func (pb *PriceBar) Render(s *State) {
 		int32(pb.s.X),
 		int32(rowH+4),
 		s.P.Bg[1],
-		rl.Color{},
+		s.P.TBg1,
 	)
 
 	// Current price line
@@ -371,7 +369,7 @@ func (pb *PriceBar) Render(s *State) {
 	rl.DrawTextEx(
 		s.F,
 		priceText,
-		rl.Vector2{X: xFillPos, Y: localTextY},
+		rl.Vector2{X: lable_xPos, Y: localTextY},
 		rowH,
 		0,
 		s.P.Fg[1],
@@ -393,7 +391,7 @@ func (pb *PriceBar) Render(s *State) {
 			int32(localTextY-3),
 			int32(pb.s.X),
 			int32(rowCenter+3),
-			rl.Color{},
+			s.P.TBg1,
 			s.P.Bg[1],
 		)
 
@@ -403,13 +401,13 @@ func (pb *PriceBar) Render(s *State) {
 			int32(pb.s.X),
 			int32(rowCenter+3),
 			s.P.Bg[1],
-			rl.Color{},
+			s.P.TBg1,
 		)
 
 		rl.DrawTextEx(
 			s.F,
 			priceText,
-			rl.Vector2{X: xFillPos, Y: localTextY},
+			rl.Vector2{X: lable_xPos, Y: localTextY},
 			rowH,
 			0,
 			s.P.Base.Blue,

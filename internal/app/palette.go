@@ -10,6 +10,7 @@ import (
 
 type Palette struct {
 	Bg      [5]rl.Color
+	TBg1    rl.Color
 	Fg      [4]rl.Color
 	Sel     SelectionRlColors
 	Cur     CursorRlColors
@@ -75,6 +76,10 @@ func PaletteFromConfig(cfg *Config) *Palette {
 	for i := range p.Bg {
 		p.Bg[i] = parse(c.Background[i])
 	}
+
+	p.TBg1 = p.Bg[1]
+	p.TBg1.A = 0
+
 	for i := range p.Fg {
 		p.Fg[i] = parse(c.Foreground[i])
 	}

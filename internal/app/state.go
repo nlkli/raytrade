@@ -26,7 +26,7 @@ const (
 	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
 	PRICE_BAR_FILL_XPD        float32 = 4     // Padding
 
-	ORDER_BOOK_WIDTH    float32 = 180
+	ORDER_BOOK_WIDTH    float32 = 220
 	ORDER_BOOK_RHL      int     = 1
 	ORDER_BOOK_FILL_XPD float32 = 4 // Padding
 
@@ -174,12 +174,6 @@ type ChartState struct {
 	ShowGrid  bool    // Toggle grid visibility
 	GridStepY float32 // Pixels between horizontal grid lines (quantized)
 	GridStepX float32 // Pixels between vertical grid lines (quantized)
-
-	PriceBarW          float32
-	PriceBarLabelsStep float32 // Pixels between price labels (until quantized)
-
-	TimeLineH          float32
-	TimeLineLabelsStep float32 // Pixels between time labels (until quantized)
 }
 
 type OrderBookState struct {

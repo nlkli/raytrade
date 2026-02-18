@@ -20,7 +20,7 @@ func (ob *OrderBook) Render(s *State) {
 
 	rh := s.RHL(1)
 
-	if s.WRF || s.OrderBook.Forced {
+	if s.WRF || s.OrderBook.Forced || s.RH_Dirty {
 		ob.centerY = ob.p.Y + ob.s.Y*0.5
 
 		s.OrderBook.Cap = min(n, int(ob.s.Y*.5/rh)+1)
@@ -93,6 +93,12 @@ func (ob *OrderBook) Render(s *State) {
 				s.OrderBook.AsksText, [2]string{askPriceText, askSizeText},
 			)
 		}
+
+		if s.OrderBook.Forced {
+			s.OrderBook.Forced = false
+		}
+
+		// s.OrderBook.Forced = false
 	}
 
 	rl.BeginScissorMode(
@@ -109,7 +115,7 @@ func (ob *OrderBook) Render(s *State) {
 		s.P.Base.Orange,
 	)
 
-	xp := ob.p.X + ORDER_BOOK_FILL_XPD
+	xPos := ob.p.X + ORDER_BOOK_FILL_XPD
 
 	for i := range s.OrderBook.Cap {
 		offsetY := 2 + float32(i)*rh
@@ -119,7 +125,7 @@ func (ob *OrderBook) Render(s *State) {
 		askSizeRatio := float32(ask[1] / s.OrderBook.MaxAskS)
 		askSizeW := ob.s.X * askSizeRatio
 
-		askPos := rl.Vector2{X: xp, Y: ob.centerY - offsetY - rh}
+		askPos := rl.Vector2{X: xPos, Y: ob.centerY - offsetY - rh}
 
 		rl.DrawRectangleV(
 			askPos,
@@ -161,7 +167,7 @@ func (ob *OrderBook) Render(s *State) {
 		bidSizeRatio := float32(bid[1] / s.OrderBook.MaxBidS)
 		bidSizeW := ob.s.X * bidSizeRatio
 
-		bidPos := rl.Vector2{X: xp, Y: ob.centerY + offsetY}
+		bidPos := rl.Vector2{X: xPos, Y: ob.centerY + offsetY}
 
 		rl.DrawRectangleV(
 			bidPos,
