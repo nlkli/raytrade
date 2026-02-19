@@ -1,13 +1,34 @@
-package app
+package comps
 
 import (
 	"fmt"
 	"math"
+	"nlkli/raytrade/internal/app/core"
 	"nlkli/raytrade/internal/cdl"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
+
+const (
+	CW  float32 = 6.5 // Candle width
+	CG  float32 = 2   // Candles gap
+	CWW float32 = 1.5 // Candle wick width
+
+	TIME_LINE_RHL           int     = 2
+	TIME_LINE_LABELS_HEIGHT float32 = 4
+
+	PRICE_BAR_RHL             int     = 2
+	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
+	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
+	PRICE_BAR_LABLE_XPD       float32 = 4     // Padding
+)
+
+func CreateChartComponent(params map[string]any) Comp {
+	return &Chart{
+		Rect: &Rect{},
+	}
+}
 
 type Chart struct {
 	*Rect
@@ -18,11 +39,15 @@ type Chart struct {
 	cr Crossing
 }
 
-func (ch *Chart) Render(s *State) {
+func (ch *Chart) R() *Rect {
+	return ch.Rect
+}
+
+func (ch *Chart) Render(s *core.State) {
 	if s.WRF || s.RH_Dirty {
 		priceBarW := (s.TextNumSV.X*
 			PRICE_BAR_MAX_NUMBERS_CAP+s.TextDotW)*
-			s.RHL_Scale(PRICE_BAR_RHL) + PRICE_BAR_FILL_XPD*2
+			s.RHL_Scale(PRICE_BAR_RHL) + PRICE_BAR_LABLE_XPD*2
 		timeLineH := s.RH + TIME_LINE_LABELS_HEIGHT
 
 		l, r := ch.SplitV(ch.s.X - priceBarW)
@@ -42,7 +67,17 @@ func (ch *Chart) Render(s *State) {
 		6,
 		int32(ch.s.Y),
 		s.P.Bg[1],
-		s.P.TBg1,
+		s.P.TBg[1],
+	)
+
+	// top gradient separator
+	rl.DrawRectangleGradientV(
+		int32(ch.p.X),
+		int32(ch.p.Y),
+		int32(ch.s.X),
+		6,
+		s.P.Bg[1],
+		s.P.TBg[1],
 	)
 
 	if s.Chart.Forced {
@@ -64,7 +99,7 @@ type Canvas struct {
 	cam rl.Camera2D
 }
 
-func (c *Canvas) Render(s *State) {
+func (c *Canvas) Render(s *core.State) {
 	cdls := s.Chart.Candles
 	n := len(cdls)
 
@@ -249,7 +284,7 @@ type TimeLine struct {
 	*Rect
 }
 
-func (tl *TimeLine) Render(s *State) {
+func (tl *TimeLine) Render(s *core.State) {
 	if len(s.Chart.Candles) == 0 {
 		return
 	}
@@ -290,7 +325,7 @@ type PriceBar struct {
 	*Rect
 }
 
-func (pb *PriceBar) Render(s *State) {
+func (pb *PriceBar) Render(s *core.State) {
 	if len(s.Chart.Candles) == 0 {
 		return
 	}
@@ -301,7 +336,7 @@ func (pb *PriceBar) Render(s *State) {
 	rowH := s.RHL(PRICE_BAR_RHL)
 	rowCenter := rowH * .5
 	// Lables offset x (padding)
-	lable_xPos := pb.p.X + PRICE_BAR_FILL_XPD
+	lable_xPos := pb.p.X + PRICE_BAR_LABLE_XPD
 
 	rl.BeginScissorMode(
 		int32(pb.p.X),
@@ -339,7 +374,7 @@ func (pb *PriceBar) Render(s *State) {
 		int32(localPriceY-rowH-4),
 		int32(pb.s.X),
 		int32(rowH+4),
-		s.P.TBg1,
+		s.P.TBg[1],
 		s.P.Bg[1],
 	)
 
@@ -349,7 +384,7 @@ func (pb *PriceBar) Render(s *State) {
 		int32(pb.s.X),
 		int32(rowH+4),
 		s.P.Bg[1],
-		s.P.TBg1,
+		s.P.TBg[1],
 	)
 
 	// Current price line
@@ -391,7 +426,7 @@ func (pb *PriceBar) Render(s *State) {
 			int32(localTextY-3),
 			int32(pb.s.X),
 			int32(rowCenter+3),
-			s.P.TBg1,
+			s.P.TBg[1],
 			s.P.Bg[1],
 		)
 
@@ -401,7 +436,7 @@ func (pb *PriceBar) Render(s *State) {
 			int32(pb.s.X),
 			int32(rowCenter+3),
 			s.P.Bg[1],
-			s.P.TBg1,
+			s.P.TBg[1],
 		)
 
 		rl.DrawTextEx(
@@ -421,7 +456,7 @@ type Crossing struct {
 	*Rect
 }
 
-func (cr *Crossing) Render(s *State) {
+func (cr *Crossing) Render(s *core.State) {
 }
 
 // quantizePriceStep rounds price to nice numbers for grid labels

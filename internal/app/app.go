@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"nlkli/raytrade/internal/app/comps"
+	"nlkli/raytrade/internal/app/core"
 	"nlkli/raytrade/internal/broker/bybit"
 	"os"
 	"time"
@@ -13,13 +15,11 @@ import (
 )
 
 type App struct {
-	S    *State
-	Root *Root
-	CMD  *CMD
-	BG   *Background
-	C    *Controller
-
-	ctx context.Context
+	Root *comps.Root
+	S    *core.State
+	CMD  *core.CMD
+	BG   *core.Background
+	C    *core.Controller
 }
 
 func (a *App) Frame() {
@@ -53,7 +53,7 @@ func Run(ctx context.Context, configPath string) error {
 		return err
 	}
 
-	var c Config
+	var c core.Config
 	if err = json.Unmarshal(b, &c); err != nil {
 		return err
 	}
@@ -85,13 +85,13 @@ func Run(ctx context.Context, configPath string) error {
 
 	rl.SetExitKey(0)
 
-	state := InitState(&c)
+	state := core.InitState(&c)
 
-	cmd := InitCMD(context.Background())
+	cmd := core.InitCMD(context.Background())
 
 	state.CMDTX = cmd.Tx
 
-	bg := InitBackground(context.Background(), br)
+	bg := core.InitBackground(context.Background(), br)
 	state.BTX = bg.Tx
 
 	go func() {
@@ -99,12 +99,17 @@ func Run(ctx context.Context, configPath string) error {
 		cmd.Tx <- "i 1 | s fartcoinusdt"
 	}()
 
+	root, err := comps.RootFromConfig(&c)
+	if err != nil {
+		panic(err)
+	}
+
 	app := &App{
 		S:    state,
-		Root: InitRoot(),
+		Root: root,
 		CMD:  cmd,
 		BG:   bg,
-		C:    NewController(),
+		C:    core.NewController(),
 	}
 
 	defer rl.CloseWindow()

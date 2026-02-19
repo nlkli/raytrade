@@ -1,84 +1,112 @@
 {
-  "init_window": {
-    "width": 800,
-    "height": 600,
-    "title": "raytrade"
-  },
-  "target_fps": 111,
-  "load_font": "resources/ComicRelief-Bold.ttf",
-  "row_height": 20,
-  "theme": {
-    "name": "Retro Legends",
-    "is_light": false,
-    "colors": {
-      "background": [
-        "#020202",
-        "#0d0d0d",
-        "#1c1c1c",
-        "#2c2c2c",
-        "#484848"
-      ],
-      "foreground": [
-        "#49fa49",
-        "#45eb45",
-        "#34b034",
-        "#247b24"
-      ],
-      "selection": {
-        "bg": "#336633",
-        "fg": "#f2fff2"
-      },
-      "cursor": {
-        "bg": "#45eb45",
-        "fg": "#0d0d0d"
-      },
-      "base": {
-        "black": "#262626",
-        "red": "#de5454",
-        "green": "#45eb45",
-        "yellow": "#f7bf2b",
-        "blue": "#4066f2",
-        "magenta": "#bf4cf2",
-        "cyan": "#40d9e6",
-        "white": "#bfe6bf",
-        "orange": "#eb8a40",
-        "pink": "#cf9d8a"
-      },
-      "bright": {
-        "black": "#262626",
-        "red": "#de5454",
-        "green": "#45eb45",
-        "yellow": "#f7bf2b",
-        "blue": "#4066f2",
-        "magenta": "#bf4cf2",
-        "cyan": "#40d9e6",
-        "white": "#bfe6bf",
-        "orange": "#eb8a40",
-        "pink": "#cf9d8a"
-      },
-      "dim": {
-        "black": "#202020",
-        "red": "#bd4747",
-        "green": "#3bc83b",
-        "yellow": "#d2a225",
-        "blue": "#3657ce",
-        "magenta": "#a241ce",
-        "cyan": "#36b8c4",
-        "white": "#a2c4a2",
-        "orange": "#c77536",
-        "pink": "#b08575"
-      },
-      "diff": {
-        "add": "#33a233",
-        "delete": "#993d3d",
-        "change": "#2f49a6",
-        "text": "#783396"
-      },
-      "code_selection": [
-        "#152e15",
-        "#1a421a"
-      ],
-      "comment": "#2f922f"
+    "init_window": {
+        "width": 800,
+        "height": 600,
+        "title": "raytrade"
+    },
+    "target_fps": 111,
+    "load_font": "resources/ComicRelief-Bold.ttf",
+    "row_height": 20,
+    "layout": {
+        "type": "split",
+        "params": {
+            "axis": 1,
+            "s": 0.8,
+            "m": 2
+        },
+        "a": {
+            "type": "split",
+            "params": {
+                "axis": 0,
+                "s": 0.5,
+                "m": 2
+            },
+            "a": {
+                "type": "chart",
+                "params": {}
+            },
+            "b": {
+                "type": "chart",
+                "params": {}
+            }
+        },
+        "b": {
+            "type": "order_book",
+            "params": {}
+        }
+    },
+    "theme": {
+        "name": "Retro Legends",
+        "is_light": false,
+        "colors": {
+            "background": [
+                "#020202",
+                "#0d0d0d",
+                "#1c1c1c",
+                "#2c2c2c",
+                "#484848"
+            ],
+            "foreground": [
+                "#49fa49",
+                "#45eb45",
+                "#34b034",
+                "#247b24"
+            ],
+            "selection": {
+                "bg": "#336633",
+                "fg": "#f2fff2"
+            },
+            "cursor": {
+                "bg": "#45eb45",
+                "fg": "#0d0d0d"
+            },
+            "base": {
+                "black": "#262626",
+                "red": "#de5454",
+                "green": "#45eb45",
+                "yellow": "#f7bf2b",
+                "blue": "#4066f2",
+                "magenta": "#bf4cf2",
+                "cyan": "#40d9e6",
+                "white": "#bfe6bf",
+                "orange": "#eb8a40",
+                "pink": "#cf9d8a"
+            },
+            "bright": {
+                "black": "#262626",
+                "red": "#de5454",
+                "green": "#45eb45",
+                "yellow": "#f7bf2b",
+                "blue": "#4066f2",
+                "magenta": "#bf4cf2",
+                "cyan": "#40d9e6",
+                "white": "#bfe6bf",
+                "orange": "#eb8a40",
+                "pink": "#cf9d8a"
+            },
+            "dim": {
+                "black": "#202020",
+                "red": "#bd4747",
+                "green": "#3bc83b",
+                "yellow": "#d2a225",
+                "blue": "#3657ce",
+                "magenta": "#a241ce",
+                "cyan": "#36b8c4",
+                "white": "#a2c4a2",
+                "orange": "#c77536",
+                "pink": "#b08575"
+            },
+            "diff": {
+                "add": "#33a233",
+                "delete": "#993d3d",
+                "change": "#2f49a6",
+                "text": "#783396"
+            },
+            "code_selection": [
+                "#152e15",
+                "#1a421a"
+            ],
+            "comment": "#2f922f"
+        }
     }
-  }
 }

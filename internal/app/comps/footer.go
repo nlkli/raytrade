@@ -1,7 +1,8 @@
-package app
+package comps
 
 import (
 	"fmt"
+	"nlkli/raytrade/internal/app/core"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -14,7 +15,11 @@ type Footer struct {
 	cl CommandLine
 }
 
-func (f *Footer) Render(s *State) {
+func (f *Footer) R() *Rect {
+	return f.Rect
+}
+
+func (f *Footer) Render(s *core.State) {
 	if s.WRF || s.RH_Dirty {
 		f.sl.Rect, f.cl.Rect = f.SplitH(s.RH)
 	}
@@ -32,7 +37,7 @@ type StatusLine struct {
 	utTW float32
 }
 
-func (sl *StatusLine) Render(s *State) {
+func (sl *StatusLine) Render(s *core.State) {
 	sl.Fill(s.P.Bg[0])
 
 	if s.FN%uint64(s.TFPS/4) == 0 {
@@ -55,8 +60,8 @@ type CommandLine struct {
 	*Rect
 }
 
-func (cl *CommandLine) Render(s *State) {
-	if s.M == Input {
+func (cl *CommandLine) Render(s *core.State) {
+	if s.M == core.Input {
 		rl.DrawRectangleV(
 			rl.Vector2{
 				X: cl.p.X + s.CommandLine.PromptW + 1,
@@ -88,6 +93,4 @@ func (cl *CommandLine) Render(s *State) {
 			s.CommandLine.Color,
 		)
 	}
-
-	// cl.Outline(1, s.P.Base.Pink)
 }

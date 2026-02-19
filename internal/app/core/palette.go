@@ -1,4 +1,4 @@
-package app
+package core
 
 import (
 	"fmt"
@@ -9,8 +9,10 @@ import (
 )
 
 type Palette struct {
+	Name    string
+	IsLight bool
 	Bg      [5]rl.Color
-	TBg1    rl.Color
+	TBg     [5]rl.Color
 	Fg      [4]rl.Color
 	Sel     SelectionRlColors
 	Cur     CursorRlColors
@@ -73,12 +75,14 @@ func PaletteFromConfig(cfg *Config) *Palette {
 	c := cfg.Theme.Colors
 	var p Palette
 
+	p.Name = cfg.Theme.Name
+	p.IsLight = cfg.Theme.IsLight
+
 	for i := range p.Bg {
 		p.Bg[i] = parse(c.Background[i])
+		p.TBg[i] = p.Bg[i]
+		p.TBg[i].A = 0
 	}
-
-	p.TBg1 = p.Bg[1]
-	p.TBg1.A = 0
 
 	for i := range p.Fg {
 		p.Fg[i] = parse(c.Foreground[i])

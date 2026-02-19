@@ -1,10 +1,23 @@
-package app
+package comps
 
 import (
+	"nlkli/raytrade/internal/app/core"
 	"strconv"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
+
+const (
+	ORDER_BOOK_WIDTH    float32 = 220
+	ORDER_BOOK_RHL      int     = 1
+	ORDER_BOOK_FILL_XPD float32 = 4 // Padding
+)
+
+func CreateOrderBookComponent(params map[string]any) Comp {
+	return &OrderBook{
+		Rect: &Rect{},
+	}
+}
 
 type OrderBook struct {
 	*Rect
@@ -12,7 +25,11 @@ type OrderBook struct {
 	centerY float32
 }
 
-func (ob *OrderBook) Render(s *State) {
+func (ob *OrderBook) R() *Rect {
+	return ob.Rect
+}
+
+func (ob *OrderBook) Render(s *core.State) {
 	n := min(len(s.OrderBook.Bids), len(s.OrderBook.Asks))
 	if n == 0 {
 		return

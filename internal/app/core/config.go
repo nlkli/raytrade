@@ -1,7 +1,8 @@
-package app
+package core
 
 type Config struct {
 	InitWindow InitWindow `json:"init_window"`
+	Layout     *Component `json:"layout"`
 	TargetFPS  int32      `json:"target_fps"`
 	LoadFont   string     `json:"load_font"`
 	RowHeight  float32    `json:"row_height"`
@@ -12,6 +13,13 @@ type InitWindow struct {
 	Width  int32  `json:"width"`
 	Height int32  `json:"height"`
 	Title  string `json:"title"`
+}
+
+type Component struct {
+	Type   string         `json:"type"`
+	Params map[string]any `json:"params,omitempty"`
+	A      *Component     `json:"a,omitempty"`
+	B      *Component     `json:"b,omitempty"`
 }
 
 type Theme struct {

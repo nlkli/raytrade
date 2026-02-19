@@ -1,4 +1,4 @@
-package app
+package core
 
 import (
 	"nlkli/raytrade/internal/broker"
@@ -24,7 +24,7 @@ const (
 	PRICE_BAR_RHL             int     = 2
 	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
 	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
-	PRICE_BAR_FILL_XPD        float32 = 4     // Padding
+	PRICE_BAR_LABLE_XPD       float32 = 4     // Padding
 
 	ORDER_BOOK_WIDTH    float32 = 220
 	ORDER_BOOK_RHL      int     = 1
@@ -93,6 +93,8 @@ type State struct {
 	Footer      FooterState
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
+
+	Charts []ChartState // TODO: state chart index -> component and bg
 
 	Chart     ChartState
 	OrderBook OrderBookState
