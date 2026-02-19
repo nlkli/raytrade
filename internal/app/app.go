@@ -99,7 +99,7 @@ func Run(ctx context.Context, configPath string) error {
 		cmd.Tx <- "i 1 | s fartcoinusdt"
 	}()
 
-	root, err := comps.RootFromConfig(&c)
+	root, err := comps.InitRoot(&c, state)
 	if err != nil {
 		panic(err)
 	}

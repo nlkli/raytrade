@@ -16,7 +16,6 @@ const (
 	CWW float32 = 1.5 // Candle wick width
 
 	TIME_LINE_RHL           int     = 2
-	TIME_LINE_LABELS_HEIGHT float32 = 4
 
 	PRICE_BAR_RHL             int     = 2
 	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
@@ -24,14 +23,10 @@ const (
 	PRICE_BAR_LABLE_XPD       float32 = 4     // Padding
 )
 
-func CreateChartComponent(params map[string]any) Comp {
-	return &Chart{
-		Rect: &Rect{},
-	}
-}
-
 type Chart struct {
 	*Rect
+
+	i int
 
 	c  Canvas
 	tl TimeLine
@@ -48,17 +43,20 @@ func (ch *Chart) Render(s *core.State) {
 		priceBarW := (s.TextNumSV.X*
 			PRICE_BAR_MAX_NUMBERS_CAP+s.TextDotW)*
 			s.RHL_Scale(PRICE_BAR_RHL) + PRICE_BAR_LABLE_XPD*2
-		timeLineH := s.RH + TIME_LINE_LABELS_HEIGHT
+
+		timeLineH := s.RH
 
 		l, r := ch.SplitV(ch.s.X - priceBarW)
 		ch.c.Rect, ch.tl.Rect = l.SplitH(ch.s.Y - timeLineH)
 		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - timeLineH)
 	}
 
-	ch.c.Render(s)
-	ch.pb.Render(s)
-	ch.tl.Render(s)
-	ch.cr.Render(s)
+	cs := s.Chart[ch.i] // Chart state
+
+	ch.c.Render(s, cs)
+	ch.pb.Render(s, cs)
+	ch.tl.Render(s, cs)
+	// ch.cr.Render(s, cs)
 
 	// left gradient separator
 	rl.DrawRectangleGradientH(
@@ -80,8 +78,8 @@ func (ch *Chart) Render(s *core.State) {
 		s.P.TBg[1],
 	)
 
-	if s.Chart.Forced {
-		s.Chart.Forced = false
+	if cs.Forced {
+		cs.Forced = false
 	}
 }
 
@@ -99,17 +97,17 @@ type Canvas struct {
 	cam rl.Camera2D
 }
 
-func (c *Canvas) Render(s *core.State) {
-	cdls := s.Chart.Candles
+func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
+	cdls := cs.Candles
 	n := len(cdls)
 
-	sf := s.Chart.Scale
+	sf := cs.Scale
 	cw := CW * sf.X  // candle width * scale
 	stepX := cw + CG // total width including gap
 
-	if s.WRF || s.Chart.Forced || s.RH_Dirty {
+	if s.WRF || cs.Forced || s.RH_Dirty {
 		c.cam.Offset = rl.Vector2{X: c.p.X, Y: c.p.Y}
-		c.cam.Target = s.Chart.Shift
+		c.cam.Target = cs.Shift
 		c.cam.Zoom = 1
 
 		if n == 0 {
@@ -117,50 +115,50 @@ func (c *Canvas) Render(s *core.State) {
 		}
 
 		// Visible candles count based on canvas width
-		s.Chart.Cap = int(c.s.X / stepX)
-		visC := cdls[max(0, n-s.Chart.Cap):]
+		cs.Cap = int(c.s.X / stepX)
+		visC := cdls[max(0, n-cs.Cap):]
 
-		s.Chart.MinP, s.Chart.MaxP = cdl.MinMaxPrice(visC)
-		s.Chart.MidP = (s.Chart.MaxP + s.Chart.MinP) * .5
-		s.Chart.RngP = s.Chart.MaxP - s.Chart.MinP
+		cs.MinP, cs.MaxP = cdl.MinMaxPrice(visC)
+		cs.MidP = (cs.MaxP + cs.MinP) * .5
+		cs.RngP = cs.MaxP - cs.MinP
 
 		// Y-axis grid calculation
-		visPriceRng := s.Chart.RngP / float64(sf.Y)
-		s.Chart.MaxVisPrice = s.Chart.MidP + visPriceRng*0.5
-		s.Chart.PxPerPrice = float64(c.s.Y) / visPriceRng
+		visPriceRng := cs.RngP / float64(sf.Y)
+		cs.MaxVisPrice = cs.MidP + visPriceRng*0.5
+		cs.PxPerPrice = float64(c.s.Y) / visPriceRng
 
 		priceStep := quantizePriceStep(
-			float64(s.RH * 2.5 * float32(1/s.Chart.PxPerPrice)),
+			float64(s.RH * 2.5 * float32(1/cs.PxPerPrice)),
 		)
-		s.Chart.GridStepY = float32(priceStep * s.Chart.PxPerPrice)
+		cs.GridStepY = float32(priceStep * cs.PxPerPrice)
 
 		// X-axis grid calculation
-		s.Chart.StartSec = float32(visC[0].Time / 1000)
-		timeSecRng := float32(s.Chart.Cap) * s.Chart.SecInterval
-		s.Chart.SecPerPx = timeSecRng / c.s.X
+		cs.StartSec = float32(visC[0].Time / 1000)
+		timeSecRng := float32(cs.Cap) * cs.SecInterval
+		cs.SecPerPx = timeSecRng / c.s.X
 
-		timeStep := quantizeTimeStep(s.RH * 6 * s.Chart.SecPerPx)
-		s.Chart.GridStepX = timeStep * (1 / s.Chart.SecPerPx)
+		timeStep := quantizeTimeStep(s.RH * 6 * cs.SecPerPx)
+		cs.GridStepX = timeStep * (1 / cs.SecPerPx)
 	} else {
 		if n == 0 {
 			return
 		}
 
-		visPriceRng := s.Chart.RngP / float64(sf.Y)
-		s.Chart.MaxVisPrice = s.Chart.MidP + visPriceRng*0.5
-		s.Chart.PxPerPrice = float64(c.s.Y) / visPriceRng
+		visPriceRng := cs.RngP / float64(sf.Y)
+		cs.MaxVisPrice = cs.MidP + visPriceRng*0.5
+		cs.PxPerPrice = float64(c.s.Y) / visPriceRng
 	}
 
 	// Current price position
-	s.Chart.Price = cdls[n-1].C
-	s.Chart.PriceY = priceToWorldY(
-		s.Chart.Price, s.Chart.MaxVisPrice, s.Chart.PxPerPrice,
+	cs.Price = cdls[n-1].C
+	cs.PriceY = priceToWorldY(
+		cs.Price, cs.MaxVisPrice, cs.PxPerPrice,
 	)
 
 	// Draw grid
-	if s.Chart.ShowGrid {
+	if cs.ShowGrid {
 		// Horizontal grid lines
-		for y := c.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
+		for y := c.s.Y - cs.GridStepY*.5; y > 0; y -= cs.GridStepY {
 			localY := y + c.p.Y
 
 			rl.DrawLineEx(
@@ -171,7 +169,7 @@ func (c *Canvas) Render(s *core.State) {
 			)
 		}
 		// Vertical grid lines
-		for x := c.s.X - s.Chart.GridStepX*.5; x > 0; x -= s.Chart.GridStepX {
+		for x := c.s.X - cs.GridStepX*.5; x > 0; x -= cs.GridStepX {
 			localX := x + c.p.X
 
 			rl.DrawLineEx(
@@ -194,8 +192,8 @@ func (c *Canvas) Render(s *core.State) {
 
 	// Current price line
 	rl.DrawLineEx(
-		rl.Vector2{X: 0, Y: s.Chart.PriceY},
-		rl.Vector2{X: c.s.X + c.cam.Target.X, Y: s.Chart.PriceY},
+		rl.Vector2{X: 0, Y: cs.PriceY},
+		rl.Vector2{X: c.s.X + c.cam.Target.X, Y: cs.PriceY},
 		1,
 		s.P.Bg[4],
 	)
@@ -209,10 +207,10 @@ func (c *Canvas) Render(s *core.State) {
 			break
 		}
 
-		yO := priceToWorldY(candle.O, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
-		yH := priceToWorldY(candle.H, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
-		yL := priceToWorldY(candle.L, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
-		yC := priceToWorldY(candle.C, s.Chart.MaxVisPrice, s.Chart.PxPerPrice)
+		yO := priceToWorldY(candle.O, cs.MaxVisPrice, cs.PxPerPrice)
+		yH := priceToWorldY(candle.H, cs.MaxVisPrice, cs.PxPerPrice)
+		yL := priceToWorldY(candle.L, cs.MaxVisPrice, cs.PxPerPrice)
+		yC := priceToWorldY(candle.C, cs.MaxVisPrice, cs.PxPerPrice)
 
 		color := s.P.Base.Green
 		if candle.C < candle.O {
@@ -251,10 +249,10 @@ func (c *Canvas) Render(s *core.State) {
 
 		worldMouse := rl.GetScreenToWorld2D(s.Mouse.P, c.cam)
 
-		s.Chart.Cursor = worldMouse
+		cs.Cursor = worldMouse
 
-		s.Chart.CursorPrice = worldYToPrice(
-			s.Chart.Cursor.Y, s.Chart.MaxVisPrice, s.Chart.PxPerPrice,
+		cs.CursorPrice = worldYToPrice(
+			cs.Cursor.Y, cs.MaxVisPrice, cs.PxPerPrice,
 		)
 
 		// Horizontal line
@@ -273,7 +271,7 @@ func (c *Canvas) Render(s *core.State) {
 			s.P.Bg[4],
 		)
 	} else {
-		s.Chart.Cursor = rl.Vector2{}
+		cs.Cursor = rl.Vector2{}
 	}
 
 	rl.EndMode2D()
@@ -284,8 +282,8 @@ type TimeLine struct {
 	*Rect
 }
 
-func (tl *TimeLine) Render(s *core.State) {
-	if len(s.Chart.Candles) == 0 {
+func (tl *TimeLine) Render(s *core.State, cs *core.ChartState) {
+	if len(cs.Candles) == 0 {
 		return
 	}
 
@@ -301,11 +299,11 @@ func (tl *TimeLine) Render(s *core.State) {
 	)
 
 	// Draw time labels at grid positions
-	for x := tl.s.X - s.Chart.GridStepX*.5; x > 0; x -= s.Chart.GridStepX {
+	for x := tl.s.X - cs.GridStepX*.5; x > 0; x -= cs.GridStepX {
 		localX := x + tl.p.X - halfText
 
-		xSec := (x + s.Chart.Shift.X) * s.Chart.SecPerPx
-		tUnix := time.Unix(int64(s.Chart.StartSec+xSec), 0)
+		xSec := (x + cs.Shift.X) * cs.SecPerPx
+		tUnix := time.Unix(int64(cs.StartSec+xSec), 0)
 		timeText := tUnix.Format("15:04")
 
 		rl.DrawTextEx(
@@ -325,13 +323,13 @@ type PriceBar struct {
 	*Rect
 }
 
-func (pb *PriceBar) Render(s *core.State) {
-	if len(s.Chart.Candles) == 0 {
+func (pb *PriceBar) Render(s *core.State, cs *core.ChartState) {
+	if len(cs.Candles) == 0 {
 		return
 	}
 
 	// Current price position in local coordinates
-	localPriceY := s.Chart.PriceY + pb.p.Y - s.Chart.Shift.Y
+	localPriceY := cs.PriceY + pb.p.Y - cs.Shift.Y
 
 	rowH := s.RHL(PRICE_BAR_RHL)
 	rowCenter := rowH * .5
@@ -346,11 +344,11 @@ func (pb *PriceBar) Render(s *core.State) {
 	)
 
 	// Draw price labels at grid positions
-	for y := pb.s.Y - s.Chart.GridStepY*.5; y > 0; y -= s.Chart.GridStepY {
+	for y := pb.s.Y - cs.GridStepY*.5; y > 0; y -= cs.GridStepY {
 		localTextY := y + pb.p.Y - rowCenter
 
 		yPrice := worldYToPrice(
-			y+s.Chart.Shift.Y, s.Chart.MaxVisPrice, s.Chart.PxPerPrice,
+			y+cs.Shift.Y, cs.MaxVisPrice, cs.PxPerPrice,
 		)
 
 		priceText := fmt.Sprintf("%.5f", yPrice)
@@ -396,7 +394,7 @@ func (pb *PriceBar) Render(s *core.State) {
 	)
 
 	// Current price label
-	priceText := fmt.Sprintf("%.5f", s.Chart.Price)
+	priceText := fmt.Sprintf("%.5f", cs.Price)
 	if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
 		priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 	}
@@ -411,11 +409,11 @@ func (pb *PriceBar) Render(s *core.State) {
 	)
 
 	// Cursor price indicator
-	if s.Chart.Cursor.Y > 0 {
-		localCursorY := s.Chart.Cursor.Y + pb.p.Y - s.Chart.Shift.Y
+	if cs.Cursor.Y > 0 {
+		localCursorY := cs.Cursor.Y + pb.p.Y - cs.Shift.Y
 		localTextY := localCursorY - rowCenter
 
-		priceText := fmt.Sprintf("%.5f", s.Chart.CursorPrice)
+		priceText := fmt.Sprintf("%.5f", cs.CursorPrice)
 		if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
 			priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 		}

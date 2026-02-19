@@ -117,7 +117,7 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 				s.StatusLine.Symbol = "..."
 
-				limit := s.Chart.Cap * 2
+				limit := s.Chart[0].Cap * 2
 				if limit == 0 {
 					limit = 200
 				}
@@ -166,8 +166,8 @@ func (c *CMD) translate(prompt string) CommitFn {
 				}
 
 				command = func(s *State) {
-					s.Chart.Forced = true
-					s.Chart.Scale.X = DEFAULT_SCALE_X
+					s.Chart[0].Forced = true
+					s.Chart[0].Scale.X = DEFAULT_SCALE_X
 				}
 
 			case "scaley", "sy":
@@ -177,8 +177,8 @@ func (c *CMD) translate(prompt string) CommitFn {
 				}
 
 				command = func(s *State) {
-					s.Chart.Forced = true
-					s.Chart.Scale.Y = DEFAULT_SCALE_Y
+					s.Chart[0].Forced = true
+					s.Chart[0].Scale.Y = DEFAULT_SCALE_Y
 				}
 
 			case "targetx", "tx":
@@ -188,8 +188,8 @@ func (c *CMD) translate(prompt string) CommitFn {
 				}
 
 				command = func(s *State) {
-					s.Chart.Forced = true
-					s.Chart.Shift.X = DEFAULT_SHIFT_X
+					s.Chart[0].Forced = true
+					s.Chart[0].Shift.X = DEFAULT_SHIFT_X
 				}
 
 			case "targety", "ty":
@@ -199,8 +199,8 @@ func (c *CMD) translate(prompt string) CommitFn {
 				}
 
 				command = func(s *State) {
-					s.Chart.Forced = true
-					s.Chart.Shift.Y = DEFAULT_SHIFT_Y
+					s.Chart[0].Forced = true
+					s.Chart[0].Shift.Y = DEFAULT_SHIFT_Y
 				}
 
 			case "rowheight", "rh":
@@ -223,12 +223,12 @@ func (c *CMD) translate(prompt string) CommitFn {
 			}
 
 			command = func(s *State) {
-				f := float64(s.Chart.Scale.X)
+				f := float64(s.Chart[0].Scale.X)
 				if err := parseFloatValue(args[1], &f); err != nil {
 					CommitCommandLineError(err.Error())(s)
 				}
-				s.Chart.Scale.X = float32(f)
-				s.Chart.Forced = true
+				s.Chart[0].Scale.X = float32(f)
+				s.Chart[0].Forced = true
 			}
 
 		case "scaley", "sy":
@@ -238,12 +238,12 @@ func (c *CMD) translate(prompt string) CommitFn {
 			}
 
 			command = func(s *State) {
-				f := float64(s.Chart.Scale.Y)
+				f := float64(s.Chart[0].Scale.Y)
 				if err := parseFloatValue(args[1], &f); err != nil {
 					CommitCommandLineError(err.Error())(s)
 				}
-				s.Chart.Scale.Y = float32(f)
-				s.Chart.Forced = true
+				s.Chart[0].Scale.Y = float32(f)
+				s.Chart[0].Forced = true
 			}
 
 		case "targetx", "tx":
@@ -253,12 +253,12 @@ func (c *CMD) translate(prompt string) CommitFn {
 			}
 
 			command = func(s *State) {
-				f := float64(s.Chart.Shift.X)
+				f := float64(s.Chart[0].Shift.X)
 				if err := parseFloatValue(args[1], &f); err != nil {
 					CommitCommandLineError(err.Error())(s)
 				}
-				s.Chart.Shift.X = float32(f)
-				s.Chart.Forced = true
+				s.Chart[0].Shift.X = float32(f)
+				s.Chart[0].Forced = true
 			}
 
 		case "targety", "ty":
@@ -268,12 +268,12 @@ func (c *CMD) translate(prompt string) CommitFn {
 			}
 
 			command = func(s *State) {
-				f := float64(s.Chart.Shift.Y)
+				f := float64(s.Chart[0].Shift.Y)
 				if err := parseFloatValue(args[1], &f); err != nil {
 					CommitCommandLineError(err.Error())(s)
 				}
-				s.Chart.Shift.Y = float32(f)
-				s.Chart.Forced = true
+				s.Chart[0].Shift.Y = float32(f)
+				s.Chart[0].Forced = true
 			}
 
 		case "rowheight", "rh":

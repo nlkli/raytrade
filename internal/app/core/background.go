@@ -80,9 +80,9 @@ func (t *InstrumentObserverT) run(b *Background) {
 		s.StatusLine.Symbol = t.Symbol
 		s.StatusLine.Interval = t.Interval.AsString()
 
-		s.Chart.SecInterval = float32(t.Interval.AsSeconds())
-		s.Chart.Candles = candles
-		s.Chart.Forced = true
+		s.Chart[0].SecInterval = float32(t.Interval.AsSeconds())
+		s.Chart[0].Candles = candles
+		s.Chart[0].Forced = true
 	}
 
 	b.Push(f)
@@ -93,9 +93,9 @@ func (t *InstrumentObserverT) run(b *Background) {
 		for ob := range obSub.C {
 			b.Push(
 				func(s *State) {
-					s.OrderBook.Bids = ob[0]
-					s.OrderBook.Asks = ob[1]
-					s.OrderBook.Forced = true
+					s.OrderBook[0].Bids = ob[0]
+					s.OrderBook[0].Asks = ob[1]
+					s.OrderBook[0].Forced = true
 				},
 			)
 		}
@@ -110,16 +110,16 @@ func (t *InstrumentObserverT) run(b *Background) {
 			var f CommitFn
 			if d.Confirm {
 				f = func(s *State) {
-					s.Chart.Candles = append(s.Chart.Candles, d.Candle)
-					s.Chart.Forced = true
+					s.Chart[0].Candles = append(s.Chart[0].Candles, d.Candle)
+					s.Chart[0].Forced = true
 				}
 			} else {
 				f = func(s *State) {
-					s.Chart.Candles[len(s.Chart.Candles)-1] = d.Candle
-					s.Chart.MaxP = max(s.Chart.MaxP, d.Candle.H)
-					s.Chart.MinP = min(s.Chart.MinP, d.Candle.L)
-					s.Chart.MidP = (s.Chart.MaxP + s.Chart.MinP) * .5
-					s.Chart.RngP = s.Chart.MaxP - s.Chart.MinP
+					s.Chart[0].Candles[len(s.Chart[0].Candles)-1] = d.Candle
+					s.Chart[0].MaxP = max(s.Chart[0].MaxP, d.Candle.H)
+					s.Chart[0].MinP = min(s.Chart[0].MinP, d.Candle.L)
+					s.Chart[0].MidP = (s.Chart[0].MaxP + s.Chart[0].MinP) * .5
+					s.Chart[0].RngP = s.Chart[0].MaxP - s.Chart[0].MinP
 				}
 			}
 			b.Push(f)

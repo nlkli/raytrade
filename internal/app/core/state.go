@@ -90,14 +90,11 @@ type State struct {
 	BTX   chan<- Task   // Backgorund tx
 	CMDTX chan<- string // CMD tx
 
-	Footer      FooterState
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 
-	Charts []ChartState // TODO: state chart index -> component and bg
-
-	Chart     ChartState
-	OrderBook OrderBookState
+	Chart     []*ChartState
+	OrderBook []*OrderBookState
 
 	Bg BackgroundState
 
@@ -125,9 +122,6 @@ type BackgroundState struct {
 	Interval   cdl.Interval
 }
 
-type FooterState struct {
-}
-
 type StatusLineState struct {
 	Symbol   string
 	Interval string
@@ -148,6 +142,8 @@ type CommandLineState struct {
 
 type ChartState struct {
 	Forced bool // Forced update
+
+	RHD int
 
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
@@ -181,6 +177,8 @@ type ChartState struct {
 type OrderBookState struct {
 	Forced bool // Forced update
 
+	RHD int
+
 	Bids [][2]float64
 	Asks [][2]float64
 
@@ -198,6 +196,7 @@ type OrderBookState struct {
 
 func InitState(c *Config) *State {
 	palette := PaletteFromConfig(c)
+
 	s := &State{
 		TFPS: c.TargetFPS,
 		TFT:  time.Second / time.Duration(c.TargetFPS),
@@ -215,19 +214,6 @@ func InitState(c *Config) *State {
 
 		StatusLine: StatusLineState{
 			Interval: cdl.M1.AsString(),
-		},
-
-		Chart: ChartState{
-			Forced: true,
-
-			Scale: rl.NewVector2(DEFAULT_SCALE_X, DEFAULT_SCALE_Y),
-			Shift: rl.NewVector2(DEFAULT_SHIFT_X, DEFAULT_SHIFT_Y),
-
-			ShowGrid: true,
-		},
-
-		OrderBook: OrderBookState{
-			Forced: true,
 		},
 
 		CommandLine: CommandLineState{

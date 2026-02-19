@@ -23,7 +23,9 @@
             },
             "a": {
                 "type": "chart",
-                "params": {}
+                "params": {
+                    "tx": 200
+                }
             },
             "b": {
                 "type": "chart",

@@ -13,14 +13,10 @@ const (
 	ORDER_BOOK_FILL_XPD float32 = 4 // Padding
 )
 
-func CreateOrderBookComponent(params map[string]any) Comp {
-	return &OrderBook{
-		Rect: &Rect{},
-	}
-}
-
 type OrderBook struct {
 	*Rect
+
+	i int
 
 	centerY float32
 }
@@ -30,34 +26,36 @@ func (ob *OrderBook) R() *Rect {
 }
 
 func (ob *OrderBook) Render(s *core.State) {
-	n := min(len(s.OrderBook.Bids), len(s.OrderBook.Asks))
+	obS := s.OrderBook[ob.i]
+
+	n := min(len(obS.Bids), len(obS.Asks))
 	if n == 0 {
 		return
 	}
 
 	rh := s.RHL(1)
 
-	if s.WRF || s.OrderBook.Forced || s.RH_Dirty {
+	if s.WRF || obS.Forced || s.RH_Dirty {
 		ob.centerY = ob.p.Y + ob.s.Y*0.5
 
-		s.OrderBook.Cap = min(n, int(ob.s.Y*.5/rh)+1)
+		obS.Cap = min(n, int(ob.s.Y*.5/rh)+1)
 
-		s.OrderBook.MaxBidS = 0
-		s.OrderBook.MaxAskS = 0
+		obS.MaxBidS = 0
+		obS.MaxAskS = 0
 
-		s.OrderBook.BidsPriceTextW = s.OrderBook.BidsPriceTextW[:0]
-		s.OrderBook.AsksPriceTextW = s.OrderBook.AsksPriceTextW[:0]
+		obS.BidsPriceTextW = obS.BidsPriceTextW[:0]
+		obS.AsksPriceTextW = obS.AsksPriceTextW[:0]
 
-		s.OrderBook.BidsText = s.OrderBook.BidsText[:0]
-		s.OrderBook.AsksText = s.OrderBook.AsksText[:0]
+		obS.BidsText = obS.BidsText[:0]
+		obS.AsksText = obS.AsksText[:0]
 
 		rhlScale := s.RHL_Scale(ORDER_BOOK_RHL)
 
-		for i := range s.OrderBook.Cap {
-			bid := s.OrderBook.Bids[i]
+		for i := range obS.Cap {
+			bid := obS.Bids[i]
 
-			if bid[1] > s.OrderBook.MaxBidS {
-				s.OrderBook.MaxBidS = bid[1]
+			if bid[1] > obS.MaxBidS {
+				obS.MaxBidS = bid[1]
 			}
 
 			bidPriceText := strconv.FormatFloat(bid[0], 'f', -1, 64)
@@ -72,20 +70,20 @@ func (ob *OrderBook) Render(s *core.State) {
 					float32(len(bidPriceText)) * rhlScale
 			}
 
-			s.OrderBook.BidsPriceTextW = append(
-				s.OrderBook.BidsPriceTextW, bidPriceTextW,
+			obS.BidsPriceTextW = append(
+				obS.BidsPriceTextW, bidPriceTextW,
 			)
 
 			bidSizeText := strconv.FormatFloat(bid[1], 'f', -1, 64)
 
-			s.OrderBook.BidsText = append(
-				s.OrderBook.BidsText, [2]string{bidPriceText, bidSizeText},
+			obS.BidsText = append(
+				obS.BidsText, [2]string{bidPriceText, bidSizeText},
 			)
 
-			ask := s.OrderBook.Asks[i]
+			ask := obS.Asks[i]
 
-			if ask[1] > s.OrderBook.MaxAskS {
-				s.OrderBook.MaxAskS = ask[1]
+			if ask[1] > obS.MaxAskS {
+				obS.MaxAskS = ask[1]
 			}
 
 			askPriceText := strconv.FormatFloat(ask[0], 'f', -1, 64)
@@ -100,22 +98,22 @@ func (ob *OrderBook) Render(s *core.State) {
 					float32(len(askPriceText)) * rhlScale
 			}
 
-			s.OrderBook.AsksPriceTextW = append(
-				s.OrderBook.AsksPriceTextW, askPriceTextW,
+			obS.AsksPriceTextW = append(
+				obS.AsksPriceTextW, askPriceTextW,
 			)
 
 			askSizeText := strconv.FormatFloat(ask[1], 'f', -1, 64)
 
-			s.OrderBook.AsksText = append(
-				s.OrderBook.AsksText, [2]string{askPriceText, askSizeText},
+			obS.AsksText = append(
+				obS.AsksText, [2]string{askPriceText, askSizeText},
 			)
 		}
 
-		if s.OrderBook.Forced {
-			s.OrderBook.Forced = false
+		if obS.Forced {
+			obS.Forced = false
 		}
 
-		// s.OrderBook.Forced = false
+		// obS.Forced = false
 	}
 
 	rl.BeginScissorMode(
@@ -134,12 +132,12 @@ func (ob *OrderBook) Render(s *core.State) {
 
 	xPos := ob.p.X + ORDER_BOOK_FILL_XPD
 
-	for i := range s.OrderBook.Cap {
+	for i := range obS.Cap {
 		offsetY := 2 + float32(i)*rh
 
-		ask := s.OrderBook.Asks[i]
+		ask := obS.Asks[i]
 
-		askSizeRatio := float32(ask[1] / s.OrderBook.MaxAskS)
+		askSizeRatio := float32(ask[1] / obS.MaxAskS)
 		askSizeW := ob.s.X * askSizeRatio
 
 		askPos := rl.Vector2{X: xPos, Y: ob.centerY - offsetY - rh}
@@ -152,7 +150,7 @@ func (ob *OrderBook) Render(s *core.State) {
 
 		rl.DrawTextEx(
 			s.F,
-			s.OrderBook.AsksText[i][1],
+			obS.AsksText[i][1],
 			askPos,
 			rh,
 			0,
@@ -161,10 +159,10 @@ func (ob *OrderBook) Render(s *core.State) {
 
 		rl.DrawTextEx(
 			s.F,
-			s.OrderBook.AsksText[i][0],
+			obS.AsksText[i][0],
 			rl.Vector2{
 				X: ob.p.X + ob.s.X -
-					ORDER_BOOK_FILL_XPD - s.OrderBook.AsksPriceTextW[i],
+					ORDER_BOOK_FILL_XPD - obS.AsksPriceTextW[i],
 				Y: askPos.Y,
 			},
 			rh,
@@ -179,9 +177,9 @@ func (ob *OrderBook) Render(s *core.State) {
 			s.P.Bg[0],
 		)
 
-		bid := s.OrderBook.Bids[i]
+		bid := obS.Bids[i]
 
-		bidSizeRatio := float32(bid[1] / s.OrderBook.MaxBidS)
+		bidSizeRatio := float32(bid[1] / obS.MaxBidS)
 		bidSizeW := ob.s.X * bidSizeRatio
 
 		bidPos := rl.Vector2{X: xPos, Y: ob.centerY + offsetY}
@@ -194,7 +192,7 @@ func (ob *OrderBook) Render(s *core.State) {
 
 		rl.DrawTextEx(
 			s.F,
-			s.OrderBook.BidsText[i][1],
+			obS.BidsText[i][1],
 			bidPos,
 			rh,
 			0,
@@ -203,10 +201,10 @@ func (ob *OrderBook) Render(s *core.State) {
 
 		rl.DrawTextEx(
 			s.F,
-			s.OrderBook.BidsText[i][0],
+			obS.BidsText[i][0],
 			rl.Vector2{
 				X: ob.p.X + ob.s.X -
-					ORDER_BOOK_FILL_XPD - s.OrderBook.BidsPriceTextW[i],
+					ORDER_BOOK_FILL_XPD - obS.BidsPriceTextW[i],
 				Y: bidPos.Y,
 			},
 			rh,
