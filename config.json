@@ -4,111 +4,111 @@
         "height": 600,
         "title": "raytrade"
     },
-    "target_fps": 111,
+    "target_fps": 90,
     "load_font": "resources/ComicRelief-Bold.ttf",
     "row_height": 20,
     "layout": {
         "type": "split",
         "params": {
             "axis": 1,
-            "s": 0.8,
+            "s": 0.75,
             "m": 2
         },
         "a": {
-            "type": "split",
-            "params": {
-                "axis": 0,
-                "s": 0.5,
-                "m": 2
-            },
+            "type": "chart",
+            "params": {}
+        },
+        "b": {
+            "type": "orderbook_plus",
+            "params": {},
             "a": {
-                "type": "chart",
+                "type": "orderbook",
                 "params": {
-                    "tx": 200
+                    "vm": 1,
+                    "rhd": 4
                 }
             },
             "b": {
-                "type": "chart",
-                "params": {}
+                "type": "orderbook",
+                "params": {
+                    "vm": 0,
+                    "rhd": 4
+                }
             }
-        },
-        "b": {
-            "type": "order_book",
-            "params": {}
         }
     },
     "theme": {
-        "name": "Retro Legends",
-        "is_light": false,
+        "name": "Terminal Basic",
+        "is_light": true,
         "colors": {
             "background": [
-                "#020202",
-                "#0d0d0d",
-                "#1c1c1c",
-                "#2c2c2c",
-                "#484848"
+                "#f4f4f4",
+                "#ffffff",
+                "#f0f0f0",
+                "#e0e0e0",
+                "#c4c4c4"
             ],
             "foreground": [
-                "#49fa49",
-                "#45eb45",
-                "#34b034",
-                "#247b24"
+                "#0f0f0f",
+                "#000000",
+                "#3b3b3b",
+                "#707070"
             ],
             "selection": {
-                "bg": "#336633",
-                "fg": "#f2fff2"
+                "bg": "#a4c9ff",
+                "fg": "#000000"
             },
             "cursor": {
-                "bg": "#45eb45",
-                "fg": "#0d0d0d"
+                "bg": "#7f7f7f",
+                "fg": "#000000"
             },
             "base": {
-                "black": "#262626",
-                "red": "#de5454",
-                "green": "#45eb45",
-                "yellow": "#f7bf2b",
-                "blue": "#4066f2",
-                "magenta": "#bf4cf2",
-                "cyan": "#40d9e6",
-                "white": "#bfe6bf",
-                "orange": "#eb8a40",
-                "pink": "#cf9d8a"
+                "black": "#000000",
+                "red": "#990000",
+                "green": "#00a600",
+                "yellow": "#999900",
+                "blue": "#0000b2",
+                "magenta": "#b200b2",
+                "cyan": "#00a6b2",
+                "white": "#bfbfbf",
+                "orange": "#994d00",
+                "pink": "#ac6060"
             },
             "bright": {
-                "black": "#262626",
-                "red": "#de5454",
-                "green": "#45eb45",
-                "yellow": "#f7bf2b",
-                "blue": "#4066f2",
-                "magenta": "#bf4cf2",
-                "cyan": "#40d9e6",
-                "white": "#bfe6bf",
-                "orange": "#eb8a40",
-                "pink": "#cf9d8a"
+                "black": "#000000",
+                "red": "#990000",
+                "green": "#00a600",
+                "yellow": "#999900",
+                "blue": "#0000b2",
+                "magenta": "#b200b2",
+                "cyan": "#00a6b2",
+                "white": "#bfbfbf",
+                "orange": "#994d00",
+                "pink": "#ac6060"
             },
             "dim": {
-                "black": "#202020",
-                "red": "#bd4747",
-                "green": "#3bc83b",
-                "yellow": "#d2a225",
-                "blue": "#3657ce",
-                "magenta": "#a241ce",
-                "cyan": "#36b8c4",
-                "white": "#a2c4a2",
-                "orange": "#c77536",
-                "pink": "#b08575"
+                "black": "#000000",
+                "red": "#820000",
+                "green": "#008d00",
+                "yellow": "#828200",
+                "blue": "#000097",
+                "magenta": "#970097",
+                "cyan": "#008d97",
+                "white": "#a2a2a2",
+                "orange": "#824100",
+                "pink": "#925151"
             },
             "diff": {
-                "add": "#33a233",
-                "delete": "#993d3d",
-                "change": "#2f49a6",
-                "text": "#783396"
+                "add": "#54c354",
+                "delete": "#bb5454",
+                "change": "#5454cb",
+                "text": "#d166d1"
             },
             "code_selection": [
-                "#152e15",
-                "#1a421a"
+                "#d9d9d9",
+                "#e0e0e0"
             ],
-            "comment": "#2f922f"
+            "comment": "#666666"
         }
     }
 }

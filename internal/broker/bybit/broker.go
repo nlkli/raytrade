@@ -222,7 +222,7 @@ func (b *Broker) CreateStream(
 
 	opts ...ws.PolicyOption,
 
-) broker.BrokerStream {
+) broker.Stream {
 
 	lc := ToLocalCategory(category)
 	tx := make(chan []byte, 1)
@@ -232,6 +232,27 @@ func (b *Broker) CreateStream(
 		stream: stream,
 		tx:     tx,
 	}
+}
+
+func (b *Broker) CreatePrivateStream(
+
+	onConnected ws.OnConnectedFn,
+	opts ...ws.PolicyOption,
+
+) broker.Stream {
+
+	tx := make(chan []byte, 1)
+	stream := b.c.CreatePrivateStreamV2(tx, onConnected, opts...)
+
+	return &BrokerPrivateStream{
+		stream: stream,
+		tx:     tx,
+	}
+}
+
+type BrokerPrivateStream struct {
+	stream *StreamV2
+	tx     chan []byte
 }
 
 type BrokerStream struct {
@@ -244,7 +265,7 @@ func (s *BrokerStream) SubscribeCandle(
 	symbol string,
 	interval cdl.Interval,
 
-) (*broker.BrokerStreamSubscription[cdl.CandleStreamData], error) {
+) (*broker.Subscription[cdl.CandleStreamData], error) {
 
 	li, err := TryToLocalInterval(interval)
 	if err != nil {
@@ -314,7 +335,7 @@ func (s *BrokerStream) SubscribeOrderBook(
 
 	symbol string, depth int,
 
-) (*broker.BrokerStreamSubscription[[2][][2]float64], error) {
+) (*broker.Subscription[[2][][2]float64], error) {
 
 	switch depth {
 	case 1, 50, 200, 1000:

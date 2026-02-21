@@ -62,3 +62,47 @@ type StreamOrderBookData struct {
 	Seq      int64       `json:"seq"` // Cross sequence
 	CTS      int64       `json:"cts"` // Matching engine timestamp
 }
+
+type StreamPositionInfo struct {
+	Category               string `json:"category"`
+	Symbol                 string `json:"symbol"`
+	Side                   string `json:"side"`
+	Size                   string `json:"size"`
+	PositionIdx            int    `json:"positionIdx"`
+	PositionValue          string `json:"positionValue"`
+	RiskID                 int    `json:"riskId"`
+	RiskLimitValue         string `json:"riskLimitValue"`
+	EntryPrice             string `json:"entryPrice"`
+	MarkPrice              string `json:"markPrice"`
+	Leverage               string `json:"leverage"`
+	BreakEvenPrice         string `json:"breakEvenPrice"`
+	AutoAddMargin          int    `json:"autoAddMargin"`
+	PositionIM             string `json:"positionIM"`
+	PositionMM             string `json:"positionMM"`
+	LiqPrice               string `json:"liqPrice"`
+	TakeProfit             string `json:"takeProfit"`
+	StopLoss               string `json:"stopLoss"`
+	TrailingStop           string `json:"trailingStop"`
+	UnrealisedPnl          string `json:"unrealisedPnl"`
+	CurRealisedPnl         string `json:"curRealisedPnl"`
+	SessionAvgPrice        string `json:"sessionAvgPrice"`
+	Delta                  string `json:"delta"`
+	Gamma                  string `json:"gamma"`
+	Vega                   string `json:"vega"`
+	Theta                  string `json:"theta"`
+	CumRealisedPnl         string `json:"cumRealisedPnl"`
+	PositionStatus         string `json:"positionStatus"`
+	AdlRankIndicator       int    `json:"adlRankIndicator"`
+	IsReduceOnly           bool   `json:"isReduceOnly"`
+	CreatedTime            string `json:"createdTime"`
+	UpdatedTime            string `json:"updatedTime"`
+	Seq                    string `json:"seq"`
+	MmrSysUpdatedTime      string `json:"mmrSysUpdatedTime"`
+	LeverageSysUpdatedTime string `json:"leverageSysUpdatedTime"`
+	PositionIMByMp         string `json:"positionIMByMp"`
+	PositionMMByMp         string `json:"positionMMByMp"`
+	TpslMode               string `json:"tpslMode"`
+	BustPrice              string `json:"bustPrice"`
+	PositionBalance        string `json:"positionBalance"`
+	TradeMode              int    `json:"tradeMode"` // Deprecated
+}

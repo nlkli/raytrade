@@ -96,7 +96,22 @@ func Run(ctx context.Context, configPath string) error {
 
 	go func() {
 		time.Sleep(time.Second * 3)
-		cmd.Tx <- "i 1 | s fartcoinusdt"
+		cmd.Tx <- "sub chart 0 F.BTCUSDT.1"
+		// time.Sleep(time.Second * 1)
+		// cmd.Tx <- "sub chart 1 F.FARTCOINUSDT.1"
+		// time.Sleep(time.Second * 1)
+		// cmd.Tx <- "sub chart 2 F.TONUSDT.1"
+		// time.Sleep(time.Second * 1)
+		// cmd.Tx <- "sub chart 3 F.DOGEUSDT.1"
+		// time.Sleep(time.Second * 1)
+		// cmd.Tx <- "sub chart 4 F.ADAUSDT.1"
+		// time.Sleep(time.Second * 1)
+		// cmd.Tx <- "sub chart 5 F.ETHUSDT.1"
+		time.Sleep(time.Second * 1)
+		cmd.Tx <- "sub orderbook 0 F.DOGEUSDT.200"
+		// time.Sleep(time.Second * 1)
+		// cmd.Tx <- "sub orderbook 1 F.BTCUSDT.200"
+		// time.Sleep(time.Second * 1)
 	}()
 
 	root, err := comps.InitRoot(&c, state)
@@ -122,3 +137,93 @@ func Run(ctx context.Context, configPath string) error {
 
 	return nil
 }
+
+
+//   "layout": {
+//     "type": "split",
+//     "params": {
+//       "axis": 1,
+//       "s": 0.7,
+//       "m": 2
+//     },
+//     "a": {
+//       "type": "split",
+//       "params": {
+//         "axis": 1,
+//         "s": 0.67,
+//         "m": 2
+//       },
+//       "a": {
+//         "type": "split",
+//         "params": {
+//           "axis": 1,
+//           "s": 0.5,
+//           "m": 2
+//         },
+//         "a": {
+//           "type": "split",
+//           "params": {
+//             "axis": 0,
+//             "s": 0.5,
+//             "m": 2
+//           },
+//           "a": {
+//             "type": "chart",
+//             "params": {}
+//           },
+//           "b": {
+//             "type": "chart",
+//             "params": {}
+//           }
+//         },
+//         "b": {
+//           "type": "split",
+//           "params": {
+//             "axis": 0,
+//             "s": 0.5,
+//             "m": 2
+//           },
+//           "a": {
+//             "type": "chart",
+//             "params": {}
+//           },
+//           "b": {
+//             "type": "chart",
+//             "params": {}
+//           }
+//         }
+//       },
+//       "b": {
+//         "type": "split",
+//         "params": {
+//           "axis": 0,
+//           "s": 0.5,
+//           "m": 2
+//         },
+//         "a": {
+//           "type": "chart",
+//           "params": {}
+//         },
+//         "b": {
+//           "type": "chart",
+//           "params": {}
+//         }
+//       }
+//     },
+//     "b": {
+//       "type": "split",
+//       "params": {
+//         "axis": 1,
+//         "s": 0.5,
+//         "m": 2
+//       },
+//       "a": {
+//         "type": "order_book",
+//         "params": {}
+//       },
+//       "b": {
+//         "type": "order_book",
+//         "params": {}
+//       }
+//     }
+//   },

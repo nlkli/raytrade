@@ -8,36 +8,6 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-const (
-	RPD float32 = 4 // Root padding
-
-	CW  float32 = 6.5 // Candle width
-	CG  float32 = 2   // Candles gap
-	CWW float32 = 1.5 // Candle wick width
-
-	COMMAND_LINE_HISTORY_CAP int     = 8
-	CMD_LINE_MARGIN_BOTTOM   float32 = 4
-
-	TIME_LINE_RHL           int     = 2
-	TIME_LINE_LABELS_HEIGHT float32 = 4
-
-	PRICE_BAR_RHL             int     = 2
-	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
-	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
-	PRICE_BAR_LABLE_XPD       float32 = 4     // Padding
-
-	ORDER_BOOK_WIDTH    float32 = 220
-	ORDER_BOOK_RHL      int     = 1
-	ORDER_BOOK_FILL_XPD float32 = 4 // Padding
-
-	PRICE_GRID_STEP_PX float64 = 40
-
-	DEFAULT_SCALE_X float32 = 1
-	DEFAULT_SCALE_Y float32 = .9
-	DEFAULT_SHIFT_X float32 = 40
-	DEFAULT_SHIFT_Y float32 = 0
-)
-
 type Mode int
 
 const (
@@ -105,7 +75,14 @@ type State struct {
 }
 
 type MouseState struct {
-	P        rl.Vector2
+	P        rl.Vector2 // Position
+	D        rl.Vector2 // Delta
+	PL       bool       // Pressed left
+	PR       bool       // Pressed right
+	DL       bool       // Double left
+	DR       bool       // Double right
+	HL       bool       // Hold left
+	HR       bool       // Hold right
 	Captured bool
 }
 
@@ -143,7 +120,7 @@ type CommandLineState struct {
 type ChartState struct {
 	Forced bool // Forced update
 
-	RHD int
+	RHD float32
 
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
@@ -172,26 +149,22 @@ type ChartState struct {
 	ShowGrid  bool    // Toggle grid visibility
 	GridStepY float32 // Pixels between horizontal grid lines (quantized)
 	GridStepX float32 // Pixels between vertical grid lines (quantized)
+
+	Levels []float64 // Price levels
+}
+
+type ChartLine struct {
+	X     rl.Vector2 // X, Price
+	Y     rl.Vector2 // X, Price
+	Color rl.Color
 }
 
 type OrderBookState struct {
-	Forced bool // Forced update
-
-	RHD int
+	Forced    bool // Forced update
+	PlusCompI int
 
 	Bids [][2]float64
 	Asks [][2]float64
-
-	Cap int
-
-	MaxBidS,
-	MaxAskS float64
-
-	BidsText [][2]string
-	AsksText [][2]string
-
-	BidsPriceTextW []float32
-	AsksPriceTextW []float32
 }
 
 func InitState(c *Config) *State {
@@ -217,7 +190,7 @@ func InitState(c *Config) *State {
 		},
 
 		CommandLine: CommandLineState{
-			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
+			History: make([]string, 0, 8),
 			Color:   palette.Fg[1],
 		},
 
@@ -229,14 +202,6 @@ func InitState(c *Config) *State {
 	s.SetRH(c.RowHeight)
 
 	return s
-}
-
-func (s *State) RHL(l int) float32 {
-	return max(2, s.RH-2*float32(l))
-}
-
-func (s *State) RHL_Scale(l int) float32 {
-	return s.RHL(l) / float32(s.F.BaseSize)
 }
 
 func (s *State) SetRH(rh float32) {

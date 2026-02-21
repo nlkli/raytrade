@@ -132,3 +132,4 @@ const CancelTakeProfitValue = "0"
 
 // CancelStopLossValue
 const CancelStopLossValue = "0"
+

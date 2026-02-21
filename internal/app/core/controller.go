@@ -23,6 +23,14 @@ const (
 
 type Controller struct {
 	LastEvent     Event
+	MouseHoldTime struct {
+		LB time.Duration
+		RB time.Duration
+	}
+	MousePressFrame struct {
+		LB uint64
+		RB uint64
+	}
 	CharLastPress struct {
 		C  rune
 		FN uint64
@@ -46,12 +54,56 @@ func (c *Controller) Event(s *State) {
 }
 
 func (c *Controller) mouseEvent(s *State) {
+	const HOLDTIME = time.Duration(555) * time.Millisecond
+	// const DOUBLEPRESS = time.Duration(333) * time.Microsecond
+
 	if s.WHF || !s.WFF {
 		s.Mouse.Captured = true
 		return
 	}
-	s.Mouse.Captured = false
+
 	s.Mouse.P = rl.GetMousePosition()
+	s.Mouse.D = rl.GetMouseDelta()
+
+	s.Mouse.PL = rl.IsMouseButtonPressed(rl.MouseButtonLeft)
+	s.Mouse.DL = false
+	if s.Mouse.PL {
+		if s.FN-c.MousePressFrame.LB < 30 {
+			s.Mouse.DL = true
+		}
+		c.MousePressFrame.LB = s.FN
+	}
+
+	s.Mouse.PR = rl.IsMouseButtonPressed(rl.MouseButtonRight)
+	s.Mouse.DR = false
+	if s.Mouse.PR {
+		if s.FN-c.MousePressFrame.RB < 30 {
+			s.Mouse.DR = true
+		}
+		c.MousePressFrame.RB = s.FN
+	}
+
+	if rl.IsMouseButtonDown(rl.MouseButtonLeft) {
+		c.MouseHoldTime.LB += s.TFT
+		if c.MouseHoldTime.LB > HOLDTIME {
+			s.Mouse.HL = true
+		}
+	} else {
+		s.Mouse.HL = false
+		c.MouseHoldTime.LB = time.Duration(0)
+	}
+
+	if rl.IsMouseButtonDown(rl.MouseButtonRight) {
+		c.MouseHoldTime.RB += s.TFT
+		if c.MouseHoldTime.RB > HOLDTIME {
+			s.Mouse.HR = true
+		}
+	} else {
+		s.Mouse.HR = false
+		c.MouseHoldTime.RB = time.Duration(0)
+	}
+
+	s.Mouse.Captured = false
 }
 
 func (c *Controller) handleInputMode(s *State) {

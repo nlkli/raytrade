@@ -15,9 +15,6 @@ const (
 	CG  float32 = 2   // Candles gap
 	CWW float32 = 1.5 // Candle wick width
 
-	TIME_LINE_RHL           int     = 2
-
-	PRICE_BAR_RHL             int     = 2
 	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
 	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
 	PRICE_BAR_LABLE_XPD       float32 = 4     // Padding
@@ -39,23 +36,26 @@ func (ch *Chart) R() *Rect {
 }
 
 func (ch *Chart) Render(s *core.State) {
-	if s.WRF || s.RH_Dirty {
-		priceBarW := (s.TextNumSV.X*
-			PRICE_BAR_MAX_NUMBERS_CAP+s.TextDotW)*
-			s.RHL_Scale(PRICE_BAR_RHL) + PRICE_BAR_LABLE_XPD*2
+	cs := s.Chart[ch.i] // Chart state
+	rh := s.RH - cs.RHD
 
-		timeLineH := s.RH
+	if s.WRF {
+		priceBarW := (s.TextNumSV.X*PRICE_BAR_MAX_NUMBERS_CAP+s.TextDotW)*
+			((s.RH-cs.RHD)/float32(s.F.BaseSize)) +
+			PRICE_BAR_LABLE_XPD*2
 
 		l, r := ch.SplitV(ch.s.X - priceBarW)
-		ch.c.Rect, ch.tl.Rect = l.SplitH(ch.s.Y - timeLineH)
-		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - timeLineH)
+		ch.c.Rect, ch.tl.Rect = l.SplitH(ch.s.Y - rh)
+		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - rh)
 	}
 
-	cs := s.Chart[ch.i] // Chart state
+	if len(cs.Candles) == 0 {
+		return
+	}
 
 	ch.c.Render(s, cs)
-	ch.pb.Render(s, cs)
-	ch.tl.Render(s, cs)
+	ch.pb.Render(s, cs, rh)
+	ch.tl.Render(s, cs, rh)
 	// ch.cr.Render(s, cs)
 
 	// left gradient separator
@@ -98,25 +98,20 @@ type Canvas struct {
 }
 
 func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
-	cdls := cs.Candles
-	n := len(cdls)
+	candles := cs.Candles
+	n := len(candles)
 
 	sf := cs.Scale
 	cw := CW * sf.X  // candle width * scale
 	stepX := cw + CG // total width including gap
 
-	if s.WRF || cs.Forced || s.RH_Dirty {
-		c.cam.Offset = rl.Vector2{X: c.p.X, Y: c.p.Y}
-		c.cam.Target = cs.Shift
-		c.cam.Zoom = 1
+	c.cam.Offset = c.p
+	c.cam.Target = cs.Shift
 
-		if n == 0 {
-			return
-		}
-
+	if s.WRF || cs.Forced {
 		// Visible candles count based on canvas width
 		cs.Cap = int(c.s.X / stepX)
-		visC := cdls[max(0, n-cs.Cap):]
+		visC := candles[max(0, n-cs.Cap):]
 
 		cs.MinP, cs.MaxP = cdl.MinMaxPrice(visC)
 		cs.MidP = (cs.MaxP + cs.MinP) * .5
@@ -140,17 +135,13 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 		timeStep := quantizeTimeStep(s.RH * 6 * cs.SecPerPx)
 		cs.GridStepX = timeStep * (1 / cs.SecPerPx)
 	} else {
-		if n == 0 {
-			return
-		}
-
 		visPriceRng := cs.RngP / float64(sf.Y)
 		cs.MaxVisPrice = cs.MidP + visPriceRng*0.5
 		cs.PxPerPrice = float64(c.s.Y) / visPriceRng
 	}
 
 	// Current price position
-	cs.Price = cdls[n-1].C
+	cs.Price = candles[n-1].C
 	cs.PriceY = priceToWorldY(
 		cs.Price, cs.MaxVisPrice, cs.PxPerPrice,
 	)
@@ -190,22 +181,39 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	)
 	rl.BeginMode2D(c.cam)
 
+	if len(cs.Levels) > 0 {
+		for _, l := range cs.Levels {
+			levelY := priceToWorldY(
+				l, cs.MaxVisPrice, cs.PxPerPrice,
+			)
+			rl.DrawLineEx(
+				rl.Vector2{X: cs.Shift.X, Y: levelY},
+				rl.Vector2{X: c.s.X + cs.Shift.X, Y: levelY},
+				1,
+				s.P.Cur.Bg,
+			)
+		}
+	}
+
 	// Current price line
 	rl.DrawLineEx(
-		rl.Vector2{X: 0, Y: cs.PriceY},
-		rl.Vector2{X: c.s.X + c.cam.Target.X, Y: cs.PriceY},
+		rl.Vector2{X: cs.Shift.X, Y: cs.PriceY},
+		rl.Vector2{X: c.s.X + cs.Shift.X, Y: cs.PriceY},
 		1,
 		s.P.Bg[4],
 	)
 
-	// Draw candles from right to left (newest to oldest)
-	for i := range n {
-		candle := cdls[n-i-1]
+	start := 1
+	if cs.Shift.X < 0 {
+		start -= int(cs.Shift.X / stepX)
+	}
+	end := min(n, cs.Cap+start+2)
 
-		xPos := c.s.X - stepX*float32(i+1)
-		if xPos-stepX < 0 {
-			break
-		}
+	// Draw candles from right to left (newest to oldest)
+	for i := start; i < end; i++ {
+		candle := candles[n-i]
+
+		xPos := c.s.X - stepX*float32(i)
 
 		yO := priceToWorldY(candle.O, cs.MaxVisPrice, cs.PxPerPrice)
 		yH := priceToWorldY(candle.H, cs.MaxVisPrice, cs.PxPerPrice)
@@ -245,7 +253,9 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 
 	// Mouse crosshair
 	if !s.Mouse.Captured && c.ContainsV(s.Mouse.P) {
-		s.Mouse.Captured = true
+		if s.Mouse.HL {
+			cs.Shift.X -= s.Mouse.D.X
+		}
 
 		worldMouse := rl.GetScreenToWorld2D(s.Mouse.P, c.cam)
 
@@ -257,8 +267,8 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 
 		// Horizontal line
 		rl.DrawLineEx(
-			rl.Vector2{X: 0, Y: worldMouse.Y},
-			rl.Vector2{X: c.s.X + c.cam.Target.X, Y: worldMouse.Y},
+			rl.Vector2{X: cs.Shift.X, Y: worldMouse.Y},
+			rl.Vector2{X: c.s.X + cs.Shift.X, Y: worldMouse.Y},
 			1,
 			s.P.Bg[4],
 		)
@@ -266,10 +276,12 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 		// Vertical line
 		rl.DrawLineEx(
 			rl.Vector2{X: worldMouse.X, Y: 0},
-			rl.Vector2{X: worldMouse.X, Y: c.s.Y + c.cam.Target.Y},
+			rl.Vector2{X: worldMouse.X, Y: c.s.Y + cs.Shift.Y},
 			1,
 			s.P.Bg[4],
 		)
+
+		s.Mouse.Captured = true
 	} else {
 		cs.Cursor = rl.Vector2{}
 	}
@@ -282,14 +294,9 @@ type TimeLine struct {
 	*Rect
 }
 
-func (tl *TimeLine) Render(s *core.State, cs *core.ChartState) {
-	if len(cs.Candles) == 0 {
-		return
-	}
-
-	rowH := s.RHL(TIME_LINE_RHL)
+func (tl *TimeLine) Render(s *core.State, cs *core.ChartState, rh float32) {
 	// Text offset for centering
-	halfText := (s.TextNumSV.X*2 + s.TextDotW/2) * s.RHL_Scale(TIME_LINE_RHL)
+	halfText := (s.TextNumSV.X*2 + s.TextDotW/2) * (rh / float32(s.F.BaseSize))
 
 	rl.BeginScissorMode(
 		int32(tl.p.X),
@@ -310,7 +317,7 @@ func (tl *TimeLine) Render(s *core.State, cs *core.ChartState) {
 			s.F,
 			timeText,
 			rl.Vector2{X: localX, Y: tl.p.Y},
-			rowH,
+			rh,
 			0,
 			s.P.Fg[3],
 		)
@@ -323,16 +330,11 @@ type PriceBar struct {
 	*Rect
 }
 
-func (pb *PriceBar) Render(s *core.State, cs *core.ChartState) {
-	if len(cs.Candles) == 0 {
-		return
-	}
-
+func (pb *PriceBar) Render(s *core.State, cs *core.ChartState, rh float32) {
 	// Current price position in local coordinates
 	localPriceY := cs.PriceY + pb.p.Y - cs.Shift.Y
 
-	rowH := s.RHL(PRICE_BAR_RHL)
-	rowCenter := rowH * .5
+	rowCenter := rh * .5
 	// Lables offset x (padding)
 	lable_xPos := pb.p.X + PRICE_BAR_LABLE_XPD
 
@@ -360,7 +362,7 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState) {
 			s.F,
 			priceText,
 			rl.Vector2{X: lable_xPos, Y: localTextY},
-			rowH,
+			rh,
 			0,
 			s.P.Fg[3],
 		)
@@ -369,9 +371,9 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState) {
 	// Gradient highlights around current price line
 	rl.DrawRectangleGradientV(
 		int32(pb.p.X),
-		int32(localPriceY-rowH-4),
+		int32(localPriceY-rh-4),
 		int32(pb.s.X),
-		int32(rowH+4),
+		int32(rh+4),
 		s.P.TBg[1],
 		s.P.Bg[1],
 	)
@@ -380,7 +382,7 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState) {
 		int32(pb.p.X),
 		int32(localPriceY+2),
 		int32(pb.s.X),
-		int32(rowH+4),
+		int32(rh+4),
 		s.P.Bg[1],
 		s.P.TBg[1],
 	)
@@ -398,12 +400,13 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState) {
 	if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
 		priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 	}
-	localTextY := localPriceY - rowH
+
+	localTextY := localPriceY - rh
 	rl.DrawTextEx(
 		s.F,
 		priceText,
 		rl.Vector2{X: lable_xPos, Y: localTextY},
-		rowH,
+		rh,
 		0,
 		s.P.Fg[1],
 	)
@@ -441,7 +444,7 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState) {
 			s.F,
 			priceText,
 			rl.Vector2{X: lable_xPos, Y: localTextY},
-			rowH,
+			rh,
 			0,
 			s.P.Base.Blue,
 		)

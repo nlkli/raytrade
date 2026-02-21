@@ -11,8 +11,8 @@ import (
 const (
 	ROOT_PADDING float32 = 4
 
-	DEFAULT_CHART_RHD      int = 4
-	DEFAULT_ORDER_BOOK_RHD int = 2
+	DEFAULT_CHART_RHD      float32 = 4
+	DEFAULT_ORDER_BOOK_RHD float32 = 2
 
 	DEFAULT_SCALE_X float32 = 1
 	DEFAULT_SCALE_Y float32 = .9
@@ -72,60 +72,46 @@ func (s *Splitter) R() *Rect {
 	return s.Rect
 }
 
+func getNumberParam[T ~float32 | ~float64 | ~int](params map[string]any, key string, defaultValue T) T {
+	if val, ok := params[key]; ok {
+		if f, ok := val.(float64); ok {
+			return T(f)
+		}
+	}
+	return defaultValue
+}
+
+func parseSplitter(c *core.Component, s *core.State) (Comp, error) {
+	axis := getNumberParam(c.Params, "axis", 1)
+	size := getNumberParam(c.Params, "s", .5)
+	mode := getNumberParam(c.Params, "m", 2)
+
+	splitter := &Splitter{
+		Rect: &Rect{},
+		Axis: int(axis),
+		S:    float32(size),
+		M:    int(mode),
+	}
+
+	sA, err := parseComponentFromLayuotConfig(c.A, s)
+	if err != nil {
+		return nil, err
+	}
+	splitter.A = sA
+
+	sB, err := parseComponentFromLayuotConfig(c.B, s)
+	if err != nil {
+		return nil, err
+	}
+	splitter.B = sB
+
+	return splitter, nil
+}
+
 func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, error) {
 	switch c.Type {
 	case "split":
-		axisV, ok := c.Params["axis"]
-		if !ok {
-			return nil, errors.New("missing required field: axis")
-		}
-		axis, ok := axisV.(float64)
-		if !ok {
-			return nil, errors.New("field 'axis' must be a number")
-		}
-
-		sizeV, ok := c.Params["s"]
-		if !ok {
-			return nil, errors.New("missing required field: s")
-		}
-		size, ok := sizeV.(float64)
-		if !ok {
-			return nil, errors.New("field 's' must be a number")
-		}
-
-		modeV, ok := c.Params["m"]
-		if !ok {
-			return nil, errors.New("missing required field: m")
-		}
-		mode, ok := modeV.(float64)
-		if !ok {
-			return nil, errors.New("field 'm' must be a number")
-		}
-
-		if c.A == nil || c.B == nil {
-			return nil, errors.New("split component requires both A and B children")
-		}
-
-		splitter := &Splitter{
-			Rect: &Rect{},
-			Axis: int(axis),
-			S:    float32(size),
-			M:    int(mode),
-		}
-
-		sA, err := parseComponentFromLayuotConfig(c.A, s)
-		if err != nil {
-			return nil, err
-		}
-		splitter.A = sA
-
-		sB, err := parseComponentFromLayuotConfig(c.B, s)
-		if err != nil {
-			return nil, err
-		}
-		splitter.B = sB
-
-		return splitter, nil
+		return parseSplitter(c, s)
 	case "chart":
 		chart := &Chart{
 			Rect: &Rect{},
@@ -134,40 +120,11 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 		chart.c.cam.Zoom = 1
 
-		rhd := DEFAULT_CHART_RHD
-		if rhdV, ok := c.Params["rhd"]; ok {
-			if rhdF, ok := rhdV.(float64); ok {
-				rhd = int(rhdF)
-			}
-		}
-
-		sx := DEFAULT_SCALE_X
-		if sxV, ok := c.Params["sx"]; ok {
-			if sxF, ok := sxV.(float64); ok {
-				sx = float32(sxF)
-			}
-		}
-
-		sy := DEFAULT_SCALE_Y
-		if syV, ok := c.Params["sy"]; ok {
-			if syF, ok := syV.(float64); ok {
-				sy = float32(syF)
-			}
-		}
-
-		tx := DEFAULT_SHIFT_X
-		if txV, ok := c.Params["tx"]; ok {
-			if txF, ok := txV.(float64); ok {
-				tx = float32(txF)
-			}
-		}
-
-		ty := DEFAULT_SHIFT_Y
-		if tyV, ok := c.Params["ty"]; ok {
-			if tyF, ok := tyV.(float64); ok {
-				ty = float32(tyF)
-			}
-		}
+		rhd := getNumberParam(c.Params, "rhd", DEFAULT_CHART_RHD)
+		sx := getNumberParam(c.Params, "sx", DEFAULT_SCALE_X)
+		sy := getNumberParam(c.Params, "sy", DEFAULT_SCALE_Y)
+		tx := getNumberParam(c.Params, "tx", DEFAULT_SHIFT_X)
+		ty := getNumberParam(c.Params, "ty", DEFAULT_SHIFT_Y)
 
 		showGrid := true
 		if sgV, ok := c.Params["show_grid"]; ok {
@@ -188,26 +145,62 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 		})
 
 		return chart, nil
-	case "order_book":
-		orderBook := &OrderBook{
-			Rect: &Rect{},
-			i:    len(s.OrderBook),
+
+	case "orderbook":
+
+		rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_BOOK_RHD)
+		vm := getNumberParam(c.Params, "vm", 0)
+
+		showText := true
+		if stV, ok := c.Params["show_text"]; ok {
+			if stB, ok := stV.(bool); ok {
+				showText = stB
+			}
 		}
 
-		rhd := DEFAULT_ORDER_BOOK_RHD
-		if rhdV, ok := c.Params["rhd"]; ok {
-			if rhdF, ok := rhdV.(float64); ok {
-				rhd = int(rhdF)
-			}
+		orderBook := &OrderBook{
+			Rect:     &Rect{},
+			I:        len(s.OrderBook),
+			RHD:      rhd,
+			VM:       vm,
+			ShowText: showText,
 		}
 
 		s.OrderBook = append(s.OrderBook, &core.OrderBookState{
 			Forced: true,
-
-			RHD: rhd,
 		})
 
 		return orderBook, nil
+
+	case "orderbook_plus":
+
+		comp, err := parseSplitter(c, s)
+		if err != nil {
+			return nil, err
+		}
+
+		splitter := comp.(*Splitter)
+
+		obA, ok := splitter.A.(*OrderBook)
+		if !ok {
+			return nil, errors.New("TODO")
+		}
+
+		obB, ok := splitter.B.(*OrderBook)
+		if !ok {
+			return nil, errors.New("TODO")
+		}
+
+		obB.I = obA.I
+		s.OrderBook = s.OrderBook[:len(s.OrderBook)-1]
+		s.OrderBook[len(s.OrderBook)-1].PlusCompI = 1
+
+		orderBookPlus := &OrderBookPlus{
+			splitter: splitter,
+		}
+
+		return orderBookPlus, nil
+
 	default:
 		return nil, errors.New("unknow component type")
 
@@ -243,7 +236,7 @@ func (r *Root) Render(s *core.State) {
 		r.MoveTo(ROOT_PADDING, ROOT_PADDING)
 		r.SetSize(s.WS.X-ROOT_PADDING*2, s.WS.Y-ROOT_PADDING*2)
 
-		footerH := s.RH*2.5 + s.RH*float32(len(s.CommandLine.Lines))
+		footerH := s.RH*2.2 + s.RH*float32(len(s.CommandLine.Lines))
 
 		cr, fr := r.SplitH(r.s.Y - footerH)
 

@@ -73,7 +73,7 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 	parts := strings.SplitSeq(prompt, "|")
 
-	var intervalArg *cdl.Interval
+	// var intervalArg *cdl.Interval
 
 	for part := range parts {
 
@@ -86,62 +86,133 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 		switch args[0] {
 
-		case "symbol", "s":
+		case "sub":
 
-			var symbol string
-			if n > 1 {
-				symbol = strings.ToUpper(args[1])
-			}
-
-			command = func(s *State) {
-				if s.StatusLine.Symbol == "..." {
-					CommitCommandLineError("TODO")(s)
-				}
-
-				interval := intervalArg
-				if interval == nil {
-					res, err := cdl.IntervalFromString(s.StatusLine.Interval)
-					if err != nil {
-						CommitCommandLineError(err.Error())(s)
-					}
-					interval = &res
-				}
-
-				if len(symbol) == 0 {
-					symbol = s.StatusLine.Symbol
-				}
-
-				if len(symbol) == 0 {
-					CommitCommandLineError("TODO")(s)
-				}
-
-				s.StatusLine.Symbol = "..."
-
-				limit := s.Chart[0].Cap * 2
-				if limit == 0 {
-					limit = 200
-				}
-
-				s.BTX <- InstrumentObserverT{
-					Category:         broker.Futures,
-					Symbol:           symbol,
-					Interval:         *interval,
-					InitCandlesLimit: limit,
-				}
-			}
-
-		case "interval", "i":
-
-			if n == 1 {
+			if n <= 3 {
 				break
 			}
 
-			res, err := cdl.IntervalFromString(args[1])
+			comp := args[1]
+			idx, err := strconv.Atoi(args[2])
 			if err != nil {
-				return CommitCommandLineError(err.Error())
+				break
+			}
+			params := strings.Split(args[3], ".")
+
+			switch comp {
+			case "chart":
+				if len(params) < 3 {
+					break
+				}
+
+				category, err := broker.CategoryFromString(params[0])
+
+				if err != nil {
+					break
+				}
+
+				symbol := params[1]
+
+				interval, err := cdl.IntervalFromString(params[2])
+
+				if err != nil {
+					break
+				}
+
+				command = func(s *State) {
+					s.BTX <- SubChart{
+						Idx:      idx,
+						Category: category,
+						Symbol:   symbol,
+						Interval: interval,
+						Limit:    200,
+					}
+				}
+			case "orderbook":
+				if len(params) < 3 {
+					break
+				}
+
+				category, err := broker.CategoryFromString(params[0])
+
+				if err != nil {
+					break
+				}
+
+				symbol := params[1]
+
+				depth, err := strconv.Atoi(params[2])
+
+				if err != nil {
+					break
+				}
+
+				command = func(s *State) {
+					s.BTX <- SubOrderBook{
+						Idx:      idx,
+						Category: category,
+						Symbol:   symbol,
+						Depth:    depth,
+					}
+				}
 			}
 
-			intervalArg = &res
+			// 	case "symbol", "s":
+
+			// 		var symbol string
+			// 		if n > 1 {
+			// 			symbol = strings.ToUpper(args[1])
+			// 		}
+
+			// 		command = func(s *State) {
+			// 			if s.StatusLine.Symbol == "..." {
+			// 				CommitCommandLineError("TODO")(s)
+			// 			}
+
+			// 			interval := intervalArg
+			// 			if interval == nil {
+			// 				res, err := cdl.IntervalFromString(s.StatusLine.Interval)
+			// 				if err != nil {
+			// 					CommitCommandLineError(err.Error())(s)
+			// 				}
+			// 				interval = &res
+			// 			}
+
+			// 			if len(symbol) == 0 {
+			// 				symbol = s.StatusLine.Symbol
+			// 			}
+
+			// 			if len(symbol) == 0 {
+			// 				CommitCommandLineError("TODO")(s)
+			// 			}
+
+			// 			s.StatusLine.Symbol = "..."
+
+			// 			limit := s.Chart[0].Cap * 2
+			// 			if limit == 0 {
+			// 				limit = 200
+			// 			}
+
+			// 			s.BTX <- InstrumentObserverT{
+			// 				Category:         broker.Futures,
+			// 				Symbol:           symbol,
+			// 				Interval:         *interval,
+			// 				InitCandlesLimit: limit,
+			// 			}
+			// 		}
+
+		// case "interval", "i":
+
+		// 	if n == 1 {
+		// 		break
+		// 	}
+
+		// 	res, err := cdl.IntervalFromString(args[1])
+		// 	if err != nil {
+		// 		return CommitCommandLineError(err.Error())
+		// 	}
+
+		// 	// intervalArg = &res
 
 		case "reset", "r":
 
