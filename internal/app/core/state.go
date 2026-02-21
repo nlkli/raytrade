@@ -15,6 +15,10 @@ const (
 	Input
 )
 
+const (
+	COMMAND_LINE_HISTORY_CAP = 8
+)
+
 type CommitFn func(*State)
 
 func CommitCommandLineError(text string) CommitFn {
@@ -190,7 +194,7 @@ func InitState(c *Config) *State {
 		},
 
 		CommandLine: CommandLineState{
-			History: make([]string, 0, 8),
+			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
 			Color:   palette.Fg[1],
 		},
 

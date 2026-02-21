@@ -76,7 +76,7 @@ const (
 	TriggerByLastPrice  TriggerBy = "LastPrice"
 	TriggerByIndexPrice TriggerBy = "IndexPrice"
 	TriggerByMarkPrice  TriggerBy = "MarkPrice"
-	TriggerByPrevPrice  TriggerBy = "PrevPrice"
+	// TriggerByPrevPrice  TriggerBy = "PrevPrice"
 )
 
 type TimeInForce string
@@ -101,15 +101,16 @@ const (
 	TpSlTriggerByLastPrice  TpSlTriggerBy = "LastPrice"
 	TpSlTriggerByMarkPrice  TpSlTriggerBy = "MarkPrice"
 	TpSlTriggerByIndexPrice TpSlTriggerBy = "IndexPrice"
-	TpSlTriggerByPrevPrice  TpSlTriggerBy = "PrevPrice"
+	// TpSlTriggerByPrevPrice  TpSlTriggerBy = "PrevPrice"
 )
 
 type SMPType string
 
 const (
-	// Add SMP types based on documentation
-	// These are placeholder values - please refer to Bybit docs for actual values
-	SMPTypeNone SMPType = ""
+	SMPTypeNone        SMPType = "None"
+	SMPTypeCancelMaker SMPType = "CancelMaker"
+	SMPTypeCancelTaker SMPType = "CancelTaker"
+	SMPTypeCancelBoth  SMPType = "CancelBoth"
 )
 
 type TpslMode string
@@ -133,3 +134,41 @@ const CancelTakeProfitValue = "0"
 // CancelStopLossValue
 const CancelStopLossValue = "0"
 
+type OrderStatus string
+
+const (
+	OrderStatusNew                     OrderStatus = "New"
+	OrderStatusPartiallyFilled         OrderStatus = "PartiallyFilled"
+	OrderStatusUntriggered             OrderStatus = "Untriggered"
+	OrderStatusActive                  OrderStatus = "Active"
+	OrderStatusCreated                 OrderStatus = "Created"
+	OrderStatusRejected                OrderStatus = "Rejected"
+	OrderStatusPartiallyFilledCanceled OrderStatus = "PartiallyFilledCanceled"
+	OrderStatusFilled                  OrderStatus = "Filled"
+	OrderStatusCancelled               OrderStatus = "Cancelled"
+	OrderStatusTriggered               OrderStatus = "Triggered"
+	OrderStatusDeactivated             OrderStatus = "Deactivated"
+)
+
+type StopOrderType string
+
+const (
+	StopOrderTypeTakeProfit             StopOrderType = "TakeProfit"
+	StopOrderTypeStopLoss               StopOrderType = "StopLoss"
+	StopOrderTypeTrailingStop           StopOrderType = "TrailingStop"
+	StopOrderTypeStop                   StopOrderType = "Stop"
+	StopOrderTypePartialTakeProfit      StopOrderType = "PartialTakeProfit"
+	StopOrderTypePartialStopLoss        StopOrderType = "PartialStopLoss"
+	StopOrderTypeTpslOrder              StopOrderType = "tpslOrder"
+	StopOrderTypeOcoOrder               StopOrderType = "OcoOrder"
+	StopOrderTypeMmRateClose            StopOrderType = "MmRateClose"
+	StopOrderTypeBidirectionalTpslOrder StopOrderType = "BidirectionalTpslOrder"
+)
+
+type PositionStatus string
+
+const (
+	PositionStatusNormal PositionStatus = "Normal"
+	PositionStatusLiq    PositionStatus = "Liq"
+	PositionStatusAdl    PositionStatus = "Adl"
+)

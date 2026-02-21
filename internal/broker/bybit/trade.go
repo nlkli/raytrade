@@ -7,8 +7,82 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"nlkli/raytrade/internal/broker/bybit/models"
+	"strconv"
 )
+
+const MAX_LIST_LIMIT = 50
+
+// https://bybit-exchange.github.io/docs/v5/order/realtime
+func (c *Client) GetOrderList(
+
+	ctx context.Context,
+
+	category models.Category,
+	p *GetOrderListRequestParas,
+
+) (*models.OrderListResult, error) {
+
+	query := make(url.Values)
+	query.Set("category", string(category))
+
+	if p != nil {
+		if p.Symbol != nil {
+			query.Set("symbol", *p.Symbol)
+		}
+		if p.BaseCoin != nil {
+			query.Set("baseCoin", *p.BaseCoin)
+		}
+		if p.SettleCoin != nil {
+			query.Set("settleCoin", *p.SettleCoin)
+		}
+		if p.OrderId != nil {
+			query.Set("orderId", *p.OrderId)
+		}
+		if p.OrderLinkId != nil {
+			query.Set("orderLinkId", *p.OrderLinkId)
+		}
+		if p.OpenOnly != nil {
+			query.Set("openOnly", strconv.Itoa(*p.OpenOnly))
+		}
+		if p.OrderFilter != nil {
+			query.Set("orderFilter", string(*p.OrderFilter))
+		}
+		if p.Limit != nil {
+			query.Set("limit", strconv.Itoa(min(max(*p.Limit, 1), MAX_LIST_LIMIT)))
+		}
+		if p.Cursor != nil {
+			query.Set("cursor", *p.Cursor)
+		}
+	}
+
+	fullURL := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/order/realtime", query)
+	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var orderListRes models.OrderListResult
+	err = c.callAPI(req, "", &orderListRes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orderListRes, nil
+}
+
+type GetOrderListRequestParas struct {
+	Symbol      *string
+	BaseCoin    *string
+	SettleCoin  *string
+	OrderId     *string
+	OrderLinkId *string
+	OpenOnly    *int
+	OrderFilter *models.OrderFilter
+	Limit       *int
+	Cursor      *string
+}
 
 // https://bybit-exchange.github.io/docs/v5/order/create-order
 func (c *Client) PlaceOrder(
@@ -612,5 +686,92 @@ func WithCancelOrderLinkID(id string) CancelOrderOption {
 func WithCancelOrderFilter(filter models.OrderFilter) CancelOrderOption {
 	return func(r *CancelOrderRequestParams) {
 		r.OrderFilter = &filter
+	}
+}
+
+// https://bybit-exchange.github.io/docs/v5/order/cancel-all
+func (c *Client) CancelAllOrders(
+
+	ctx context.Context,
+
+	category models.Category,
+
+	opts ...CancelAllOrderOption,
+
+) (*models.CancelAllOrdersResult, error) {
+
+	params := &CancelAllOrdersRequestParams{
+		Category: category,
+	}
+
+	for _, opt := range opts {
+		opt(params)
+	}
+
+	// symbol/baseCoin/settleCoin
+	if (category == models.CategoryLinear || category == models.CategoryInverse) &&
+		params.Symbol == nil && params.BaseCoin == nil && params.SettleCoin == nil {
+		return nil, errors.New("for linear and inverse, one of symbol, baseCoin, or settleCoin is required")
+	}
+
+	jsonParams, err := json.Marshal(params)
+	if err != nil {
+		return nil, err
+	}
+
+	fullURL := fmt.Sprintf("%s%s", c.baseURL, "/v5/order/cancel-all")
+	req, err := http.NewRequestWithContext(ctx, "POST", fullURL, bytes.NewReader(jsonParams))
+	if err != nil {
+		return nil, err
+	}
+
+	var cancelAllRes models.CancelAllOrdersResult
+	err = c.callAPI(req, string(jsonParams), &cancelAllRes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cancelAllRes, nil
+}
+
+type CancelAllOrdersRequestParams struct {
+	Category models.Category `json:"category"`
+
+	Symbol        *string             `json:"symbol,omitempty"`
+	BaseCoin      *string             `json:"baseCoin,omitempty"`
+	SettleCoin    *string             `json:"settleCoin,omitempty"`
+	OrderFilter   *models.OrderFilter `json:"orderFilter,omitempty"`
+	StopOrderType *string             `json:"stopOrderType,omitempty"`
+}
+
+type CancelAllOrderOption func(*CancelAllOrdersRequestParams)
+
+func WithCancelAllSymbol(symbol string) CancelAllOrderOption {
+	return func(r *CancelAllOrdersRequestParams) {
+		r.Symbol = &symbol
+	}
+}
+
+func WithCancelAllBaseCoin(baseCoin string) CancelAllOrderOption {
+	return func(r *CancelAllOrdersRequestParams) {
+		r.BaseCoin = &baseCoin
+	}
+}
+
+func WithCancelAllSettleCoin(settleCoin string) CancelAllOrderOption {
+	return func(r *CancelAllOrdersRequestParams) {
+		r.SettleCoin = &settleCoin
+	}
+}
+
+func WithCancelAllOrderFilter(filter models.OrderFilter) CancelAllOrderOption {
+	return func(r *CancelAllOrdersRequestParams) {
+		r.OrderFilter = &filter
+	}
+}
+
+func WithCancelAllStopOrderType(stopOrderType string) CancelAllOrderOption {
+	return func(r *CancelAllOrdersRequestParams) {
+		r.StopOrderType = &stopOrderType
 	}
 }

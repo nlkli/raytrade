@@ -7,6 +7,7 @@ import (
 	"nlkli/raytrade/internal/ws"
 	"strings"
 	"sync"
+	"time"
 )
 
 type OrderBookDT [2][][2]float64
@@ -18,42 +19,38 @@ const (
 	Futures
 )
 
+type Side string
+
+const (
+	Long  Side = "Long"
+	Short Side = "Short"
+)
+
+type OrderStatus string
+
+const (
+	Open   OrderStatus = "Open"
+	Closed OrderStatus = "Closed"
+)
+
+type Order struct {
+	Symbol     string
+	Side       Side
+	Status     OrderStatus
+	Price      float64
+	Qty        float64
+	ExecQty    float64
+	ExecValue  float64
+	EntryPrice *float64
+	CreatedAt  time.Time
+}
+
 type Position struct {
-	// Идентификация
-	Symbol      string `json:"symbol"`      // Тикер
-	Side        string `json:"side"`        // "Buy" или "Sell"
-	PositionIdx int    `json:"positionIdx"` // 0: One-Way, 1: Buy side, 2: Sell side
-
-	// Размер и цена
-	Size       float64 `json:"size"`       // Размер позиции (положительное число)
-	EntryPrice float64 `json:"entryPrice"` // Средняя цена входа
-	MarkPrice  float64 `json:"markPrice"`  // Текущая рыночная цена
-	Leverage   float64 `json:"leverage"`   // Кредитное плечо
-
-	// P&L
-	UnrealisedPnl  float64 `json:"unrealisedPnl"`  // Нереализованная прибыль/убыток
-	CumRealisedPnl float64 `json:"cumRealisedPnl"` // Накопленная реализованная прибыль
-
-	// Риски
-	LiqPrice   float64 `json:"liqPrice"`   // Цена ликвидации
-	PositionIM float64 `json:"positionIM"` // Начальная маржа
-	PositionMM float64 `json:"positionMM"` // Поддерживающая маржа
-
-	// Стоп-ордера
-	TakeProfit float64 `json:"takeProfit"` // Цена тейк-профита
-	StopLoss   float64 `json:"stopLoss"`   // Цена стоп-лосса
-
-	// Статус
-	PositionStatus string `json:"positionStatus"` // "Normal", "Liq", "Adl"
-	IsReduceOnly   bool   `json:"isReduceOnly"`   // Только уменьшение позиции
-	AutoAddMargin  bool   `json:"autoAddMargin"`  // Автодобавление маржи
-
-	// Временные метки
-	CreatedAt int64 `json:"createdAt"` // Время создания позиции
-	UpdatedAt int64 `json:"updatedAt"` // Время последнего обновления
-
-	// Категория продукта (для различения типов)
-	Category string `json:"category"` // "linear", "inverse", "option"
+	Symbol     string
+	Side       Side
+	Size       float64
+	EntryPrice float64
+	CreatedAt  time.Time
 }
 
 func CategoryFromString(s string) (Category, error) {
@@ -125,6 +122,19 @@ type Broker interface {
 		limit int,
 	) (*[2][][2]float64, error)
 
+	GetPosition(
+		ctx context.Context,
+		category Category,
+		symbol string,
+	) (*Position, error)
+
+	GetOpenOrders(
+		ctx context.Context,
+		category Category,
+		symbol string,
+		limit int,
+	) ([]Order, string, error)
+
 	CreateStream(
 		category Category,
 		onConnected ws.OnConnectedFn,
@@ -170,4 +180,5 @@ type Stream interface {
 }
 
 type PrivateStream interface {
+	SubscribePosition() (*Subscription[Position], error)
 }

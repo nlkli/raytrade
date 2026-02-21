@@ -3,6 +3,7 @@ package bybit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit/models"
@@ -11,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"time"
 )
 
 type Broker struct {
@@ -158,11 +160,155 @@ func (b *Broker) ExtendEndCandles(
 	return res, nil
 }
 
+func (b *Broker) GetOpenOrders(
+
+	ctx context.Context,
+	category broker.Category,
+	symbol string,
+	limit int,
+
+) ([]broker.Order, string, error) {
+	res, err := b.c.GetOrderList(
+		ctx,
+		ToLocalCategory(category),
+		&GetOrderListRequestParas{
+			Symbol: &symbol,
+			Limit:  &limit,
+			// OpenOnly is default
+		},
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	orderList := make([]broker.Order, len(res.List))
+
+	if len(res.List) == 0 {
+		return orderList, "", nil
+	}
+
+	for i, o := range res.List {
+		order := &orderList[i]
+
+		order.Symbol = o.Symbol
+
+		switch o.Side {
+		case "Buy":
+			order.Side = broker.Long
+		case "Sell":
+			order.Side = broker.Short
+		}
+
+		switch o.OrderStatus {
+		case models.OrderStatusNew,
+			models.OrderStatusPartiallyFilled,
+			models.OrderStatusUntriggered:
+			order.Status = broker.Open
+		default:
+			order.Status = broker.Closed
+		}
+
+		order.Price, err = strconv.ParseFloat(o.Price, 64)
+		if err != nil {
+			return nil, "", err
+		}
+
+		order.Qty, err = strconv.ParseFloat(o.Qty, 64)
+		if err != nil {
+			return nil, "", err
+		}
+
+		order.ExecQty, err = strconv.ParseFloat(o.CumExecQty, 64)
+		if err != nil {
+			return nil, "", err
+		}
+
+		order.ExecValue, err = strconv.ParseFloat(o.CumExecValue, 64)
+		if err != nil {
+			return nil, "", err
+		}
+
+		if len(o.AvgPrice) != 0 {
+			ep, err := strconv.ParseFloat(o.AvgPrice, 64)
+			if err != nil {
+				return nil, "", err
+			}
+			order.EntryPrice = &ep
+		}
+
+		createdAtUnix, err := strconv.ParseInt(o.CreatedTime, 0, 64)
+		if err != nil {
+			return nil, "", err
+		}
+
+		order.CreatedAt = time.UnixMilli(createdAtUnix)
+	}
+
+	return orderList, res.NextPageCursor, nil
+}
+
+func (b *Broker) GetPosition(
+
+	ctx context.Context,
+	category broker.Category,
+	symbol string,
+
+) (*broker.Position, error) {
+
+	res, err := b.c.GetPositionInfo(
+		ctx,
+		ToLocalCategory(category),
+		&symbol,
+		nil,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.List) == 0 {
+		return nil, errors.New("position not found")
+	}
+
+	pi := res.List[0]
+
+	var side broker.Side
+	switch pi.Side {
+	case "Buy":
+		side = broker.Long
+	case "Sell":
+		side = broker.Short
+	}
+
+	size, err := strconv.ParseFloat(pi.Size, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	entryPrice, err := strconv.ParseFloat(pi.AvgPrice, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
+	if err != nil {
+		return nil, err
+	}
+	createdAt := time.UnixMilli(createdAtUnix)
+
+	return &broker.Position{
+		Symbol:     pi.Symbol,
+		Side:       side,
+		Size:       size,
+		EntryPrice: entryPrice,
+		CreatedAt:  createdAt,
+	}, nil
+}
+
 // [bids, asks][][price, size]
 func (b *Broker) GetOrderBook(
 
 	ctx context.Context,
-
 	category broker.Category,
 	symbol string,
 	limit int,
@@ -239,7 +385,7 @@ func (b *Broker) CreatePrivateStream(
 	onConnected ws.OnConnectedFn,
 	opts ...ws.PolicyOption,
 
-) broker.Stream {
+) broker.PrivateStream {
 
 	tx := make(chan []byte, 1)
 	stream := b.c.CreatePrivateStreamV2(tx, onConnected, opts...)
@@ -253,6 +399,54 @@ func (b *Broker) CreatePrivateStream(
 type BrokerPrivateStream struct {
 	stream *StreamV2
 	tx     chan []byte
+}
+
+func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.Position], error) {
+	subCh, err := s.stream.Subscribe("position") // All-In-One Topic
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan broker.Position, 1)
+	go func() {
+		defer close(ch)
+
+		for d := range subCh {
+
+			var pi models.StreamPositionInfo
+			if err := json.Unmarshal(d.Data, &pi); err != nil {
+				continue
+			}
+
+			var pos broker.Position
+
+			switch pi.Side {
+			case "Buy":
+				pos.Side = broker.Long
+			case "Sell":
+				pos.Side = broker.Short
+			}
+
+			pos.Size, err = strconv.ParseFloat(pi.Size, 64)
+			if err != nil {
+				continue
+			}
+
+			pos.EntryPrice, err = strconv.ParseFloat(pi.EntryPrice, 64)
+			if err != nil {
+				continue
+			}
+
+			createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
+			if err != nil {
+				continue
+			}
+			pos.CreatedAt = time.UnixMilli(createdAtUnix)
+
+			ch <- pos
+		}
+	}()
+	return nil, nil
 }
 
 type BrokerStream struct {

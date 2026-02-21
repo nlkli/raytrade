@@ -238,7 +238,7 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 				command = func(s *State) {
 					s.Chart[0].Forced = true
-					s.Chart[0].Scale.X = DEFAULT_SCALE_X
+					s.Chart[0].Scale.X = 1
 				}
 
 			case "scaley", "sy":
@@ -249,7 +249,7 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 				command = func(s *State) {
 					s.Chart[0].Forced = true
-					s.Chart[0].Scale.Y = DEFAULT_SCALE_Y
+					s.Chart[0].Scale.Y = 1
 				}
 
 			case "targetx", "tx":
@@ -260,7 +260,7 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 				command = func(s *State) {
 					s.Chart[0].Forced = true
-					s.Chart[0].Shift.X = DEFAULT_SHIFT_X
+					s.Chart[0].Shift.X = 1
 				}
 
 			case "targety", "ty":
@@ -271,7 +271,7 @@ func (c *CMD) translate(prompt string) CommitFn {
 
 				command = func(s *State) {
 					s.Chart[0].Forced = true
-					s.Chart[0].Shift.Y = DEFAULT_SHIFT_Y
+					s.Chart[0].Shift.Y = 1
 				}
 
 			case "rowheight", "rh":
