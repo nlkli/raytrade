@@ -26,7 +26,7 @@ func (ob *OrderBookPlus) Render(s *core.State) {
 type OrderBook struct {
 	*Rect
 
-	I int
+	StateIdx int
 
 	RHD      float32
 	VM       int
@@ -54,7 +54,7 @@ func (ob *OrderBook) R() *Rect {
 }
 
 func (ob *OrderBook) Render(s *core.State) {
-	obS := s.OrderBook[ob.I]
+	obS := s.OrderBook[ob.StateIdx]
 
 	switch ob.VM {
 	case 0:

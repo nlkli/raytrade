@@ -1,2 +1,3 @@
 .env
-BTCUSDT-15m-2025-12.csv
+./bin
+.DS_Store

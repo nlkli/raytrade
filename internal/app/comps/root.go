@@ -20,19 +20,38 @@ const (
 	DEFAULT_SHIFT_Y float32 = 0
 )
 
-const ()
+type CompType string
+
+const (
+	SplitterCompType      CompType = "split"
+	ChartCompType         CompType = "chart"
+	OrderBookCompType     CompType = "orderbook"
+	OrderBookPlusCompType CompType = "orderbook_plus"
+	VoidCompType          CompType = "void"
+)
 
 type Comp interface {
 	R() *Rect
 	Render(*core.State)
 }
 
+type Void struct {
+	*Rect
+}
+
+func (v *Void) Render(s *core.State) {
+}
+
+func (v *Void) R() *Rect {
+	return v.Rect
+}
+
 type Splitter struct {
 	*Rect
 
 	Axis int
-	S    float32
-	M    int
+	S    float32 // Size
+	M    int     // Split mode
 
 	A Comp
 	B Comp
@@ -81,6 +100,15 @@ func getNumberParam[T ~float32 | ~float64 | ~int](params map[string]any, key str
 	return defaultValue
 }
 
+func getBooleanParam(params map[string]any, key string, defaultValue bool) bool {
+	if val, ok := params[key]; ok {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return defaultValue
+}
+
 func parseSplitter(c *core.Component, s *core.State) (Comp, error) {
 	axis := getNumberParam(c.Params, "axis", 1)
 	size := getNumberParam(c.Params, "s", .5)
@@ -110,12 +138,14 @@ func parseSplitter(c *core.Component, s *core.State) (Comp, error) {
 
 func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, error) {
 	switch c.Type {
+
 	case "split":
 		return parseSplitter(c, s)
+
 	case "chart":
 		chart := &Chart{
 			Rect: &Rect{},
-			i:    len(s.Chart),
+			I:    len(s.Chart),
 		}
 
 		chart.c.cam.Zoom = 1
@@ -126,12 +156,7 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 		tx := getNumberParam(c.Params, "tx", DEFAULT_SHIFT_X)
 		ty := getNumberParam(c.Params, "ty", DEFAULT_SHIFT_Y)
 
-		showGrid := true
-		if sgV, ok := c.Params["show_grid"]; ok {
-			if sgB, ok := sgV.(bool); ok {
-				showGrid = sgB
-			}
-		}
+		showGrid := getBooleanParam(c.Params, "show_grid", true)
 
 		s.Chart = append(s.Chart, &core.ChartState{
 			Forced: true,
@@ -150,13 +175,7 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 		rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_BOOK_RHD)
 		vm := getNumberParam(c.Params, "vm", 0)
-
-		showText := true
-		if stV, ok := c.Params["show_text"]; ok {
-			if stB, ok := stV.(bool); ok {
-				showText = stB
-			}
-		}
+		showText := getBooleanParam(c.Params, "show_text", true)
 
 		orderBook := &OrderBook{
 			Rect:     &Rect{},
@@ -183,12 +202,12 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 		obA, ok := splitter.A.(*OrderBook)
 		if !ok {
-			return nil, errors.New("TODO")
+			return nil, errors.New("type of comp should be orderbook")
 		}
 
 		obB, ok := splitter.B.(*OrderBook)
 		if !ok {
-			return nil, errors.New("TODO")
+			return nil, errors.New("type of comp should be orderbook")
 		}
 
 		obB.I = obA.I
@@ -201,6 +220,12 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 		return orderBookPlus, nil
 
+	case "void":
+
+		return &Void{
+			Rect: &Rect{},
+		}, nil
+
 	default:
 		return nil, errors.New("unknow component type")
 
@@ -208,15 +233,16 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 }
 
 func InitRoot(c *core.Config, s *core.State) (*Root, error) {
-	comp, err := parseComponentFromLayuotConfig(c.Layout, s)
+
+	entryComp, err := parseComponentFromLayuotConfig(c.Layout, s)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Root{
-		Rect: &Rect{},
-		c:    comp,
-		f: Footer{
+		Rect:      &Rect{},
+		EntryComp: entryComp,
+		Footer: Footer{
 			Rect: &Rect{},
 		},
 	}, nil
@@ -225,8 +251,8 @@ func InitRoot(c *core.Config, s *core.State) (*Root, error) {
 type Root struct {
 	*Rect
 
-	c Comp
-	f Footer
+	EntryComp Comp
+	Footer    Footer
 }
 
 func (r *Root) Render(s *core.State) {
@@ -240,12 +266,12 @@ func (r *Root) Render(s *core.State) {
 
 		cr, fr := r.SplitH(r.s.Y - footerH)
 
-		r.f.Rect = fr
-		*r.c.R() = *cr
+		r.Footer.Rect = fr
+		*r.EntryComp.R() = *cr
 	}
 
-	r.c.Render(s)
-	r.f.Render(s)
+	r.EntryComp.Render(s)
+	r.Footer.Render(s)
 
 	if s.ShowFPS {
 		fps := fmt.Sprintf("%d", rl.GetFPS())

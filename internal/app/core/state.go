@@ -1,7 +1,6 @@
 package core
 
 import (
-	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"time"
 
@@ -21,20 +20,6 @@ const (
 
 type CommitFn func(*State)
 
-func CommitCommandLineError(text string) CommitFn {
-	return func(s *State) {
-		s.CommandLine.Prompt = text
-		s.CommandLine.Color = s.P.Base.Red
-	}
-}
-
-func CommitCommandLineErrorAnd(text string, f CommitFn) CommitFn {
-	return func(s *State) {
-		CommitCommandLineError(text)(s)
-		f(s)
-	}
-}
-
 type State struct {
 	ST time.Time // Start time
 	FN uint64    // Frame number
@@ -48,10 +33,13 @@ type State struct {
 
 	WS rl.Vector2 // Window size
 
+	ThrottlingF bool // frame num % (fps / 4) == 0
+
 	M Mode
 
 	P *Palette
 
+	E     Event
 	Mouse MouseState
 
 	F        rl.Font
@@ -79,15 +67,12 @@ type State struct {
 }
 
 type MouseState struct {
-	P        rl.Vector2 // Position
-	D        rl.Vector2 // Delta
-	PL       bool       // Pressed left
-	PR       bool       // Pressed right
-	DL       bool       // Double left
-	DR       bool       // Double right
-	HL       bool       // Hold left
-	HR       bool       // Hold right
-	Captured bool
+	Pos         rl.Vector2 // Position
+	Delta       rl.Vector2 // Delta
+	Pressed     [2]bool
+	DoubleClick bool
+	HoldLeft    bool
+	Captured    bool
 }
 
 type Cache struct {
@@ -97,10 +82,6 @@ type Cache struct {
 }
 
 type BackgroundState struct {
-	IsActiveIO bool
-	Category   broker.Category
-	Symbol     string
-	Interval   cdl.Interval
 }
 
 type StatusLineState struct {
@@ -189,9 +170,9 @@ func InitState(c *Config) *State {
 		RH: c.RowHeight,
 		F:  rl.LoadFont(c.LoadFont),
 
-		StatusLine: StatusLineState{
-			Interval: cdl.M1.AsString(),
-		},
+		// StatusLine: StatusLineState{
+		// 	Interval: cdl.M1.AsString(),
+		// },
 
 		CommandLine: CommandLineState{
 			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
@@ -203,13 +184,6 @@ func InitState(c *Config) *State {
 		},
 	}
 
-	s.SetRH(c.RowHeight)
-
-	return s
-}
-
-func (s *State) SetRH(rh float32) {
-	s.RH = max(2, rh)
 	s.RH_Dirty = true
 
 	const NUMBERS = "1234567890"
@@ -220,6 +194,8 @@ func (s *State) SetRH(rh float32) {
 	s.TextDotW = rl.MeasureTextEx(
 		s.F, ".", float32(s.F.BaseSize), 0,
 	).X
+
+	return s
 }
 
 func (s *State) StdDrawText(text string, pos rl.Vector2, color rl.Color) {

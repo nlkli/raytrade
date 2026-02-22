@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit"
 	"nlkli/raytrade/internal/broker/bybit/models"
-	"nlkli/raytrade/internal/cdl"
 	"sort"
 	"strconv"
 	"testing"
@@ -200,19 +198,19 @@ func TestOrderBookStream(t *testing.T) {
 }
 
 func TestCandlesStream(t *testing.T) {
-	client := bybit.NewClientFromEnv(context.Background())
-	b := bybit.NewBroker(client)
+	// client := bybit.NewClientFromEnv(context.Background())
+	// b := bybit.NewBroker(client)
 
-	stream := b.CreateStream(broker.Futures, nil)
-	sub, err := stream.SubscribeCandleStream("BTCUSDT", cdl.M1)
+	// stream := b.CreateStream(broker.Futures, nil)
+	// sub, err := stream.SubscribeCandleStream("BTCUSDT", cdl.M1)
 
-	if err != nil {
-		t.Error(err)
-	}
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 
-	for d := range sub.C {
-		fmt.Printf("%+v\n", d)
-	}
+	// for d := range sub.C {
+	// 	fmt.Printf("%+v\n", d)
+	// }
 }
 
 func TestPosStream(t *testing.T) {

@@ -37,6 +37,7 @@
             }
         }
     },
+    "init_commands": [],
     "theme": {
         "name": "Terminal Basic",
         "is_light": true,

@@ -35,6 +35,8 @@ func (a *App) Frame() {
 		a.S.WS = rl.NewVector2(float32(sW), float32(sH))
 	}
 
+	a.S.ThrottlingF = a.S.FN%uint64(a.S.TFPS/3) == 0
+
 	a.C.Event(a.S)
 	a.BG.Update(a.S)
 
@@ -87,12 +89,14 @@ func Run(ctx context.Context, configPath string) error {
 
 	state := core.InitState(&c)
 
-	cmd := core.InitCMD(context.Background())
+	cmd := core.InitCMD(context.Background(), &c)
 
 	state.CMDTX = cmd.Tx
 
 	bg := core.InitBackground(context.Background(), br)
 	state.BTX = bg.Tx
+
+	cmd.BTX = bg.Tx
 
 	go func() {
 		time.Sleep(time.Second * 3)
@@ -137,7 +141,6 @@ func Run(ctx context.Context, configPath string) error {
 
 	return nil
 }
-
 
 //   "layout": {
 //     "type": "split",

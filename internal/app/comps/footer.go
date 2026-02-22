@@ -40,13 +40,17 @@ type StatusLine struct {
 func (sl *StatusLine) Render(s *core.State) {
 	sl.Fill(s.P.Bg[0])
 
-	if s.FN%uint64(s.TFPS/4) == 0 {
+	if s.ThrottlingF {
 		sl.utS = time.Since(s.ST).Truncate(time.Second).String()
 		sl.utTW = s.StdMeasureText(sl.utS).X
 	}
 
 	if len(sl.utS) > 0 {
-		s.StdDrawText(sl.utS, rl.Vector2{X: sl.s.X - sl.utTW, Y: sl.p.Y}, s.P.Fg[3])
+		s.StdDrawText(
+			sl.utS,
+			rl.Vector2{X: sl.s.X - sl.utTW, Y: sl.p.Y},
+			s.P.Fg[3],
+		)
 	}
 
 	s.StdDrawText(

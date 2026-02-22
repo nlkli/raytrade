@@ -7,7 +7,7 @@ type PositionInfoResult struct {
 }
 
 type PositionInfo struct {
-	PositionIdx            PositionIdx            `json:"positionIdx"`
+	PositionIdx            PositionIdx    `json:"positionIdx"`
 	RiskID                 int            `json:"riskId"`
 	RiskLimitValue         string         `json:"riskLimitValue"`
 	Symbol                 string         `json:"symbol"`

@@ -1,12 +1,14 @@
 package core
 
 type Config struct {
-	InitWindow InitWindow `json:"init_window"`
-	Layout     *Component `json:"layout"`
-	TargetFPS  int32      `json:"target_fps"`
-	LoadFont   string     `json:"load_font"`
-	RowHeight  float32    `json:"row_height"`
-	Theme      Theme      `json:"theme"`
+	InitWindow   InitWindow        `json:"init_window"`
+	Layout       *Component        `json:"layout"`
+	InitCommands []string          `json:"init_commands"`
+	Vars         map[string]string `json:"vars"`
+	TargetFPS    int32             `json:"target_fps"`
+	LoadFont     string            `json:"load_font"`
+	RowHeight    float32           `json:"row_height"`
+	Theme        Theme             `json:"theme"`
 }
 
 type InitWindow struct {

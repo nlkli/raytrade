@@ -186,9 +186,8 @@ type Background struct {
 
 	broker broker.Broker
 
-	stream []broker.Stream
-
-	// sleep subs bs[] ...
+	stream        []broker.Stream
+	privateStream broker.PrivateStream
 
 	chartSub     []*broker.Subscription[cdl.CandleStreamData]
 	orderBookSub []*broker.Subscription[[2][][2]float64]

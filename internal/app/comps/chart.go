@@ -23,7 +23,7 @@ const (
 type Chart struct {
 	*Rect
 
-	i int
+	StateIdx int
 
 	c  Canvas
 	tl TimeLine
@@ -36,7 +36,7 @@ func (ch *Chart) R() *Rect {
 }
 
 func (ch *Chart) Render(s *core.State) {
-	cs := s.Chart[ch.i] // Chart state
+	cs := s.Chart[ch.StateIdx] // Chart state
 	rh := s.RH - cs.RHD
 
 	if s.WRF {
@@ -186,6 +186,11 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 			levelY := priceToWorldY(
 				l, cs.MaxVisPrice, cs.PxPerPrice,
 			)
+
+			if levelY < 0 || levelY > c.s.Y {
+				continue
+			}
+
 			rl.DrawLineEx(
 				rl.Vector2{X: cs.Shift.X, Y: levelY},
 				rl.Vector2{X: c.s.X + cs.Shift.X, Y: levelY},
@@ -252,12 +257,12 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	}
 
 	// Mouse crosshair
-	if !s.Mouse.Captured && c.ContainsV(s.Mouse.P) {
-		if s.Mouse.HL {
-			cs.Shift.X -= s.Mouse.D.X
+	if !s.Mouse.Captured && c.ContainsV(s.Mouse.Pos) {
+		if s.Mouse.HoldLeft {
+			cs.Shift.X -= s.Mouse.Delta.X
 		}
 
-		worldMouse := rl.GetScreenToWorld2D(s.Mouse.P, c.cam)
+		worldMouse := rl.GetScreenToWorld2D(s.Mouse.Pos, c.cam)
 
 		cs.Cursor = worldMouse
 
@@ -459,6 +464,31 @@ type Crossing struct {
 
 func (cr *Crossing) Render(s *core.State) {
 }
+
+// func DrawCenteredGradientV( // TODO
+// 	pX int32, centerY int32, width int32, height int32,
+// 	topColor, bottomColor rl.Color,
+// ) {
+// 	halfHeight := height / 2
+//
+// 	rl.DrawRectangleGradientV(
+// 		pX,
+// 		centerY-halfHeight,
+// 		width,
+// 		halfHeight,
+// 		topColor,
+// 		bottomColor,
+// 	)
+//
+// 	rl.DrawRectangleGradientV(
+// 		pX,
+// 		centerY,
+// 		width,
+// 		halfHeight,
+// 		bottomColor,
+// 		topColor,
+// 	)
+// }
 
 // quantizePriceStep rounds price to nice numbers for grid labels
 func quantizePriceStep(price float64) float64 {

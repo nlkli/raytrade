@@ -2,396 +2,331 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"iter"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"strconv"
 	"strings"
 	"sync/atomic"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-type CMD struct {
-	Tx   chan string
-	slot atomic.Pointer[CommitFn]
+func CommitCommandLineError(text string) CommitFn {
+	return func(s *State) {
+		s.CommandLine.Prompt = text
+		s.CommandLine.Color = s.P.Base.Red
+	}
 }
 
-func InitCMD(ctx context.Context) *CMD {
-	c := &CMD{
-		Tx: make(chan string, 32),
+func CommitCommandLineErrorAnd(text string, f CommitFn) CommitFn {
+	return func(s *State) {
+		CommitCommandLineError(text)(s)
+		f(s)
 	}
+}
+
+func MergeCommits(a CommitFn, b CommitFn) CommitFn {
+	return func(s *State) {
+		a(s)
+		b(s)
+	}
+}
+
+type CMD struct {
+	Tx chan string
+
+	BTX chan<- Task // Backgorund tx
+
+	Vars     map[string]string
+	Replacer *strings.Replacer
+
+	Slot atomic.Pointer[CommitFn]
+}
+
+func InitCMD(ctx context.Context, c *Config) *CMD {
+
+	cmd := &CMD{
+		Tx:   make(chan string, 32),
+		Vars: c.Vars,
+	}
+
+	cmd.updateReplacer()
 
 	go func() {
 		for {
 			select {
-			case p := <-c.Tx:
-				f := c.translate(p)
-				c.slot.Store(&f)
+			case p := <-cmd.Tx:
+				f := cmd.processing(p)
+				cmd.Slot.Store(&f)
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 
-	return c
+	return cmd
 }
 
 func (c *CMD) Update(s *State) {
-	if ptr := c.slot.Swap(nil); ptr != nil {
+	if ptr := c.Slot.Swap(nil); ptr != nil {
 		(*ptr)(s)
 	}
 }
 
-func (c *CMD) translate(prompt string) CommitFn {
-
-	parseFloatValue := func(v string, f *float64) (err error) {
-		switch rune(v[0]) {
-		case '+':
-			pf, err := strconv.ParseFloat(v[1:], 64)
-			if err != nil {
-				return err
-			}
-			*f += pf
-		case '-':
-			pf, err := strconv.ParseFloat(v[1:], 64)
-			if err != nil {
-				return err
-			}
-			*f -= pf
-		case '=':
-			*f, err = strconv.ParseFloat(v[1:], 64)
-		default:
-			*f, err = strconv.ParseFloat(v, 64)
-		}
-		return err
+func (c *CMD) updateReplacer() {
+	vars := make([]string, 0, len(c.Vars)*2)
+	for k, v := range c.Vars {
+		vars = append(vars, "$"+k, v)
 	}
 
-	if len(prompt) == 0 {
-		return CommitCommandLineError("empty command")
-	}
+	c.Replacer = strings.NewReplacer(vars...)
+}
 
-	var commands []CommitFn
+func (c *CMD) processing(prompt string) CommitFn {
 
-	parts := strings.SplitSeq(prompt, "|")
+	var commit CommitFn
 
-	// var intervalArg *cdl.Interval
+	for command := range strings.SplitSeq(prompt, "|") {
 
-	for part := range parts {
+		command = c.Replacer.Replace(command)
+		command = strings.TrimSpace(command)
 
-		part = strings.TrimSpace(part)
+		args := strings.SplitSeq(command, " ")
 
-		args := strings.Split(part, " ")
-		n := len(args)
-
-		var command CommitFn
-
-		switch args[0] {
-
-		case "sub":
-
-			if n <= 3 {
-				break
-			}
-
-			comp := args[1]
-			idx, err := strconv.Atoi(args[2])
-			if err != nil {
-				break
-			}
-			params := strings.Split(args[3], ".")
-
-			switch comp {
-			case "chart":
-				if len(params) < 3 {
-					break
-				}
-
-				category, err := broker.CategoryFromString(params[0])
-
-				if err != nil {
-					break
-				}
-
-				symbol := params[1]
-
-				interval, err := cdl.IntervalFromString(params[2])
-
-				if err != nil {
-					break
-				}
-
-				command = func(s *State) {
-					s.BTX <- SubChart{
-						Idx:      idx,
-						Category: category,
-						Symbol:   symbol,
-						Interval: interval,
-						Limit:    200,
-					}
-				}
-			case "orderbook":
-				if len(params) < 3 {
-					break
-				}
-
-				category, err := broker.CategoryFromString(params[0])
-
-				if err != nil {
-					break
-				}
-
-				symbol := params[1]
-
-				depth, err := strconv.Atoi(params[2])
-
-				if err != nil {
-					break
-				}
-
-				command = func(s *State) {
-					s.BTX <- SubOrderBook{
-						Idx:      idx,
-						Category: category,
-						Symbol:   symbol,
-						Depth:    depth,
-					}
-				}
-			}
-
-			// 	case "symbol", "s":
-
-			// 		var symbol string
-			// 		if n > 1 {
-			// 			symbol = strings.ToUpper(args[1])
-			// 		}
-
-			// 		command = func(s *State) {
-			// 			if s.StatusLine.Symbol == "..." {
-			// 				CommitCommandLineError("TODO")(s)
-			// 			}
-
-			// 			interval := intervalArg
-			// 			if interval == nil {
-			// 				res, err := cdl.IntervalFromString(s.StatusLine.Interval)
-			// 				if err != nil {
-			// 					CommitCommandLineError(err.Error())(s)
-			// 				}
-			// 				interval = &res
-			// 			}
-
-			// 			if len(symbol) == 0 {
-			// 				symbol = s.StatusLine.Symbol
-			// 			}
-
-			// 			if len(symbol) == 0 {
-			// 				CommitCommandLineError("TODO")(s)
-			// 			}
-
-			// 			s.StatusLine.Symbol = "..."
-
-			// 			limit := s.Chart[0].Cap * 2
-			// 			if limit == 0 {
-			// 				limit = 200
-			// 			}
-
-			// 			s.BTX <- InstrumentObserverT{
-			// 				Category:         broker.Futures,
-			// 				Symbol:           symbol,
-			// 				Interval:         *interval,
-			// 				InitCandlesLimit: limit,
-			// 			}
-			// 		}
-
-		// case "interval", "i":
-
-		// 	if n == 1 {
-		// 		break
-		// 	}
-
-		// 	res, err := cdl.IntervalFromString(args[1])
-		// 	if err != nil {
-		// 		return CommitCommandLineError(err.Error())
-		// 	}
-
-		// 	// intervalArg = &res
-
-		case "reset", "r":
-
-			if n == 1 {
-				break
-			}
-
-			switch args[1] {
-
-			// case "ut":
-			// 	tn := time.Now()
-
-			// 	command = func(s *State) error {
-			// 		s.ST = tn
-			// 		return nil
-			// 	}
-
-			case "scalex", "sx":
-
-				if n == 1 {
-					break
-				}
-
-				command = func(s *State) {
-					s.Chart[0].Forced = true
-					s.Chart[0].Scale.X = 1
-				}
-
-			case "scaley", "sy":
-
-				if n == 1 {
-					break
-				}
-
-				command = func(s *State) {
-					s.Chart[0].Forced = true
-					s.Chart[0].Scale.Y = 1
-				}
-
-			case "targetx", "tx":
-
-				if n == 1 {
-					break
-				}
-
-				command = func(s *State) {
-					s.Chart[0].Forced = true
-					s.Chart[0].Shift.X = 1
-				}
-
-			case "targety", "ty":
-
-				if n == 1 {
-					break
-				}
-
-				command = func(s *State) {
-					s.Chart[0].Forced = true
-					s.Chart[0].Shift.Y = 1
-				}
-
-			case "rowheight", "rh":
-
-				if n == 1 {
-					break
-				}
-
-				command = func(s *State) {
-					s.SetRH(20) // TODO
-				}
-
-			default:
-			}
-
-		case "scalex", "sx":
-
-			if n == 1 {
-				break
-			}
-
-			command = func(s *State) {
-				f := float64(s.Chart[0].Scale.X)
-				if err := parseFloatValue(args[1], &f); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				s.Chart[0].Scale.X = float32(f)
-				s.Chart[0].Forced = true
-			}
-
-		case "scaley", "sy":
-
-			if n == 1 {
-				break
-			}
-
-			command = func(s *State) {
-				f := float64(s.Chart[0].Scale.Y)
-				if err := parseFloatValue(args[1], &f); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				s.Chart[0].Scale.Y = float32(f)
-				s.Chart[0].Forced = true
-			}
-
-		case "targetx", "tx":
-
-			if n == 1 {
-				break
-			}
-
-			command = func(s *State) {
-				f := float64(s.Chart[0].Shift.X)
-				if err := parseFloatValue(args[1], &f); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				s.Chart[0].Shift.X = float32(f)
-				s.Chart[0].Forced = true
-			}
-
-		case "targety", "ty":
-
-			if n == 1 {
-				break
-			}
-
-			command = func(s *State) {
-				f := float64(s.Chart[0].Shift.Y)
-				if err := parseFloatValue(args[1], &f); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				s.Chart[0].Shift.Y = float32(f)
-				s.Chart[0].Forced = true
-			}
-
-		case "rowheight", "rh":
-
-			if n == 1 {
-				break
-			}
-
-			command = func(s *State) {
-				f := float64(s.RH)
-				if err := parseFloatValue(args[1], &f); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-
-				s.SetRH(float32(f))
-			}
-
-		case "fps":
-
-			command = func(s *State) {
-				s.ShowFPS = !s.ShowFPS
-			}
-
-		case "overlay":
-
-			command = func(s *State) {
-				s.ShowOverlay = !s.ShowOverlay
-			}
-
-		default:
+		c, err := c.translateV2(args)
+		if err != nil {
+			return CommitCommandLineError(err.Error())
 		}
 
-		if command != nil {
-			commands = append(commands, command)
+		if c == nil {
+			continue
 		}
+
+		if commit == nil {
+			commit = c
+			continue
+		}
+
+		MergeCommits(commit, c)
 	}
 
-	if len(commands) == 1 {
-		return commands[0]
+	return commit
+}
+
+func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
+	next, stop := iter.Pull(args)
+	defer stop()
+
+	head, ok := next()
+	if !ok {
+		return nil, errors.New("empty command")
 	}
-	if len(commands) > 1 {
+
+	switch head {
+	case "set":
+		varName, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing argument for command '%s'", head)
+		}
+
+		varValue, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing argument for command '%s'", head)
+		}
+
+		c.Vars[varName] = varValue
+		c.updateReplacer()
+
+		output := fmt.Sprintf("%s=%s", varName, varValue)
+
 		return func(s *State) {
-			for _, c := range commands {
-				c(s)
-			}
+			s.CommandLine.Prompt = output
+		}, nil
+
+	case "read":
+		varName, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing argument for command '%s'", head)
 		}
+
+		varValue, ok := c.Vars[varName]
+		if !ok {
+			varValue = "nil"
+		}
+
+		output := fmt.Sprintf("%s=%s", varName, varValue)
+
+		return func(s *State) {
+			s.CommandLine.Prompt = output
+		}, nil
+
+	case "rh":
+		newRH, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing argument for command '%s'", head)
+		}
+
+		return func(s *State) {
+
+			rh := float64(s.RH)
+			if err := parseFloatValue(newRH, &rh); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+
+			s.RH = max(2, float32(rh))
+			s.RH_Dirty = true
+
+			const NUMBERS = "1234567890"
+
+			s.TextNumSV = rl.MeasureTextEx(s.F, NUMBERS, float32(s.F.BaseSize), 0)
+			s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))
+
+			s.TextDotW = rl.MeasureTextEx(
+				s.F, ".", float32(s.F.BaseSize), 0,
+			).X
+
+		}, nil
+
+	case "sub":
+		compType, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing argument for command '%s'", head)
+		}
+
+		compIdxV, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing argument for command '%s'", head)
+		}
+
+		compIdx, err := strconv.Atoi(compIdxV)
+		if err != nil {
+			return nil, fmt.Errorf("type error")
+
+		}
+
+		paramsV, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing argument for command '%s'", head)
+		}
+
+		paramsIter := strings.SplitSeq(paramsV, ".")
+		nextP, stopP := iter.Pull(paramsIter)
+		defer stopP()
+
+		switch compType {
+
+		case "chart":
+			categoryV, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing argument for command '%s'", head)
+			}
+
+			category, err := broker.CategoryFromString(categoryV)
+			if err != nil {
+				return nil, fmt.Errorf("category type error")
+			}
+
+			symbol, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing argument for command '%s'", head)
+			}
+
+			intervalV, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing argument for command '%s'", head)
+			}
+
+			interval, err := cdl.IntervalFromString(intervalV)
+			if err != nil {
+				return nil, fmt.Errorf("interval type error")
+			}
+
+			limitV, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing argument for command '%s'", head)
+			}
+
+			limit, err := strconv.Atoi(limitV)
+			if err != nil {
+				return nil, fmt.Errorf("limit type error")
+			}
+
+			c.BTX <- SubChart{
+				Idx:      compIdx,
+				Category: category,
+				Symbol:   symbol,
+				Interval: interval,
+				Limit:    limit,
+			}
+		case "orderbook":
+			categoryV, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing argument for command '%s'", head)
+			}
+
+			category, err := broker.CategoryFromString(categoryV)
+			if err != nil {
+				return nil, fmt.Errorf("category type error")
+			}
+
+			symbol, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing argument for command '%s'", head)
+			}
+
+			depthV, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing argument for command '%s'", head)
+			}
+
+			depth, err := strconv.Atoi(depthV)
+			if err != nil {
+				return nil, fmt.Errorf("limit type error")
+			}
+
+			c.BTX <- SubOrderBook{
+				Idx:      compIdx,
+				Category: category,
+				Symbol:   symbol,
+				Depth:    depth,
+			}
+		default:
+			return nil, fmt.Errorf("unknown component type: %s", compType)
+		}
+
+		return func(s *State) {}, nil
+
+	case "overlay":
+		return func(s *State) {
+			s.ShowOverlay = !s.ShowOverlay
+		}, nil
+
 	}
 
-	return CommitCommandLineError(fmt.Sprintf("unknown command: %s", prompt))
+	return nil, fmt.Errorf("unknown command: %s", head)
+}
+
+func parseFloatValue(v string, f *float64) (err error) {
+	switch rune(v[0]) {
+	case '+':
+		pf, err := strconv.ParseFloat(v[1:], 64)
+		if err != nil {
+			return err
+		}
+		*f += pf
+	case '-':
+		pf, err := strconv.ParseFloat(v[1:], 64)
+		if err != nil {
+			return err
+		}
+		*f -= pf
+	case '=':
+		*f, err = strconv.ParseFloat(v[1:], 64)
+	default:
+		*f, err = strconv.ParseFloat(v, 64)
+	}
+	return err
 }
