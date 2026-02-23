@@ -1,7 +1,6 @@
 package bybit
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -36,7 +35,7 @@ type Client struct {
 	httpClient *http.Client
 }
 
-func NewClient(ctx context.Context, apiKey, apiSecret string, opts ...Option) *Client {
+func NewClient(apiKey, apiSecret string, opts ...Option) *Client {
 	client := &Client{
 		baseURL:    MAINNET,
 		apiKey:     apiKey,
@@ -52,7 +51,7 @@ func NewClient(ctx context.Context, apiKey, apiSecret string, opts ...Option) *C
 	return client
 }
 
-func NewClientFromEnv(ctx context.Context, opts ...Option) *Client {
+func NewClientFromEnv(opts ...Option) *Client {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("error loading .env file")
 	}
@@ -67,7 +66,7 @@ func NewClientFromEnv(ctx context.Context, opts ...Option) *Client {
 		log.Fatal("env var BYBIT_API_SECRET is missing")
 	}
 
-	return NewClient(ctx, apiKey, apiSecret, opts...)
+	return NewClient(apiKey, apiSecret, opts...)
 }
 
 type Option func(*Client)

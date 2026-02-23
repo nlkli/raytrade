@@ -26,6 +26,13 @@ const (
 	Short Side = "Short"
 )
 
+type OrderType string
+
+const (
+	Market OrderType = "Market"
+	Limit  OrderType = "Limit"
+)
+
 type OrderStatus string
 
 const (

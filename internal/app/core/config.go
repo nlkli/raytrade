@@ -5,6 +5,7 @@ type Config struct {
 	Layout       *Component        `json:"layout"`
 	InitCommands []string          `json:"init_commands"`
 	Vars         map[string]string `json:"vars"`
+	Binds        [][2]string       `json:"binds"`
 	TargetFPS    int32             `json:"target_fps"`
 	LoadFont     string            `json:"load_font"`
 	RowHeight    float32           `json:"row_height"`

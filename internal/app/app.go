@@ -9,6 +9,7 @@ import (
 	"nlkli/raytrade/internal/app/core"
 	"nlkli/raytrade/internal/broker/bybit"
 	"os"
+	"strings"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -49,16 +50,7 @@ func (a *App) Frame() {
 	a.CMD.Update(a.S)
 }
 
-func Run(ctx context.Context, configPath string) error {
-	b, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	var c core.Config
-	if err = json.Unmarshal(b, &c); err != nil {
-		return err
-	}
+func InitApp(ctx context.Context, c *core.Config) *App {
 
 	httpClient := &http.Client{
 		Transport: &http.Transport{
@@ -76,9 +68,55 @@ func Run(ctx context.Context, configPath string) error {
 	}
 
 	client := bybit.NewClientFromEnv(
-		context.Background(), bybit.WithHttpClient(httpClient),
+		bybit.WithHttpClient(httpClient),
 	)
+
 	br := bybit.NewBroker(client)
+
+	state := core.InitState(c)
+
+	root, err := comps.InitRoot(c, state)
+	if err != nil {
+		panic(err)
+	}
+
+	bg := core.InitBackground(ctx, br)
+
+	cmd := core.InitCMD(ctx, c)
+	cmd.BTX = bg.Tx
+
+	controller := core.InitController(c)
+	controller.CMDTX = cmd.Tx
+
+	state.BTX = bg.Tx
+	state.CMDTX = cmd.Tx
+
+	if len(c.InitCommands) > 0 {
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			cmd.Tx <- strings.Join(c.InitCommands, "|")
+		}()
+	}
+
+	return &App{
+		Root: root,
+		S:    state,
+		CMD:  cmd,
+		BG:   bg,
+		C:    controller,
+	}
+}
+
+func Run(ctx context.Context, configPath string) {
+	b, err := os.ReadFile(configPath)
+	if err != nil {
+		panic(err)
+	}
+
+	var c core.Config
+	if err = json.Unmarshal(b, &c); err != nil {
+		panic(err)
+	}
 
 	rl.SetConfigFlags(rl.FlagWindowResizable)
 
@@ -87,49 +125,7 @@ func Run(ctx context.Context, configPath string) error {
 
 	rl.SetExitKey(0)
 
-	state := core.InitState(&c)
-
-	cmd := core.InitCMD(context.Background(), &c)
-
-	state.CMDTX = cmd.Tx
-
-	bg := core.InitBackground(context.Background(), br)
-	state.BTX = bg.Tx
-
-	cmd.BTX = bg.Tx
-
-	go func() {
-		time.Sleep(time.Second * 3)
-		cmd.Tx <- "sub chart 0 F.BTCUSDT.1"
-		// time.Sleep(time.Second * 1)
-		// cmd.Tx <- "sub chart 1 F.FARTCOINUSDT.1"
-		// time.Sleep(time.Second * 1)
-		// cmd.Tx <- "sub chart 2 F.TONUSDT.1"
-		// time.Sleep(time.Second * 1)
-		// cmd.Tx <- "sub chart 3 F.DOGEUSDT.1"
-		// time.Sleep(time.Second * 1)
-		// cmd.Tx <- "sub chart 4 F.ADAUSDT.1"
-		// time.Sleep(time.Second * 1)
-		// cmd.Tx <- "sub chart 5 F.ETHUSDT.1"
-		time.Sleep(time.Second * 1)
-		cmd.Tx <- "sub orderbook 0 F.DOGEUSDT.200"
-		// time.Sleep(time.Second * 1)
-		// cmd.Tx <- "sub orderbook 1 F.BTCUSDT.200"
-		// time.Sleep(time.Second * 1)
-	}()
-
-	root, err := comps.InitRoot(&c, state)
-	if err != nil {
-		panic(err)
-	}
-
-	app := &App{
-		S:    state,
-		Root: root,
-		CMD:  cmd,
-		BG:   bg,
-		C:    core.NewController(),
-	}
+	app := InitApp(ctx, &c)
 
 	defer rl.CloseWindow()
 
@@ -138,8 +134,6 @@ func Run(ctx context.Context, configPath string) error {
 	for !rl.WindowShouldClose() {
 		app.Frame()
 	}
-
-	return nil
 }
 
 //   "layout": {

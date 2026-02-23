@@ -41,6 +41,9 @@ func (sl *StatusLine) Render(s *core.State) {
 	sl.Fill(s.P.Bg[0])
 
 	if s.ThrottlingF {
+		s.AFPS = rl.GetFPS() + 1
+		s.ATFT = time.Second / time.Duration(s.AFPS)
+
 		sl.utS = time.Since(s.ST).Truncate(time.Second).String()
 		sl.utTW = s.StdMeasureText(sl.utS).X
 	}

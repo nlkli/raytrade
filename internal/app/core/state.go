@@ -7,6 +7,8 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+const NUMBERS = "1234567890"
+
 type Mode int
 
 const (
@@ -23,6 +25,9 @@ type CommitFn func(*State)
 type State struct {
 	ST time.Time // Start time
 	FN uint64    // Frame number
+
+	AFPS int32         // Actual FPS
+	ATFT time.Duration // Actual frame time
 
 	TFPS int32         // Target FPS
 	TFT  time.Duration // Target frame time
@@ -60,7 +65,6 @@ type State struct {
 
 	Bg BackgroundState
 
-	ShowFPS     bool
 	ShowOverlay bool
 
 	Cache Cache
@@ -155,9 +159,14 @@ type OrderBookState struct {
 func InitState(c *Config) *State {
 	palette := PaletteFromConfig(c)
 
+	targetFrameTime := time.Second / time.Duration(c.TargetFPS)
+
 	s := &State{
+		AFPS: c.TargetFPS,
+		ATFT: targetFrameTime,
+
 		TFPS: c.TargetFPS,
-		TFT:  time.Second / time.Duration(c.TargetFPS),
+		TFT:  targetFrameTime,
 
 		ST: time.Now(),
 		WS: rl.NewVector2(
@@ -167,8 +176,8 @@ func InitState(c *Config) *State {
 		M: Normal,
 		P: palette,
 
-		RH: c.RowHeight,
 		F:  rl.LoadFont(c.LoadFont),
+		RH: c.RowHeight,
 
 		// StatusLine: StatusLineState{
 		// 	Interval: cdl.M1.AsString(),
@@ -185,8 +194,6 @@ func InitState(c *Config) *State {
 	}
 
 	s.RH_Dirty = true
-
-	const NUMBERS = "1234567890"
 
 	s.TextNumSV = rl.MeasureTextEx(s.F, NUMBERS, float32(s.F.BaseSize), 0)
 	s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))

@@ -58,7 +58,7 @@ type Splitter struct {
 }
 
 func (sp *Splitter) Render(s *core.State) {
-	if s.WRF {
+	if s.WRF || s.RH_Dirty {
 		as := sp.S
 		if sp.Axis == 0 {
 			switch sp.M {
@@ -144,8 +144,8 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 	case "chart":
 		chart := &Chart{
-			Rect: &Rect{},
-			I:    len(s.Chart),
+			Rect:     &Rect{},
+			StateIdx: len(s.Chart),
 		}
 
 		chart.c.cam.Zoom = 1
@@ -179,7 +179,7 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 		orderBook := &OrderBook{
 			Rect:     &Rect{},
-			I:        len(s.OrderBook),
+			StateIdx: len(s.OrderBook),
 			RHD:      rhd,
 			VM:       vm,
 			ShowText: showText,
@@ -210,7 +210,7 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 			return nil, errors.New("type of comp should be orderbook")
 		}
 
-		obB.I = obA.I
+		obB.StateIdx = obA.StateIdx
 		s.OrderBook = s.OrderBook[:len(s.OrderBook)-1]
 		s.OrderBook[len(s.OrderBook)-1].PlusCompI = 1
 
@@ -273,7 +273,7 @@ func (r *Root) Render(s *core.State) {
 	r.EntryComp.Render(s)
 	r.Footer.Render(s)
 
-	if s.ShowFPS {
+	if s.ShowOverlay {
 		fps := fmt.Sprintf("%d", rl.GetFPS())
 		s.StdDrawText(string(fps), rl.Vector2{X: ROOT_PADDING, Y: ROOT_PADDING}, s.P.Comment)
 	}

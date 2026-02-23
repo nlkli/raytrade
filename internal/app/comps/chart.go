@@ -39,9 +39,9 @@ func (ch *Chart) Render(s *core.State) {
 	cs := s.Chart[ch.StateIdx] // Chart state
 	rh := s.RH - cs.RHD
 
-	if s.WRF {
+	if s.WRF || s.RH_Dirty {
 		priceBarW := (s.TextNumSV.X*PRICE_BAR_MAX_NUMBERS_CAP+s.TextDotW)*
-			((s.RH-cs.RHD)/float32(s.F.BaseSize)) +
+			(rh/float32(s.F.BaseSize)) +
 			PRICE_BAR_LABLE_XPD*2
 
 		l, r := ch.SplitV(ch.s.X - priceBarW)
@@ -108,7 +108,7 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	c.cam.Offset = c.p
 	c.cam.Target = cs.Shift
 
-	if s.WRF || cs.Forced {
+	if s.WRF || cs.Forced || s.RH_Dirty {
 		// Visible candles count based on canvas width
 		cs.Cap = int(c.s.X / stepX)
 		visC := candles[max(0, n-cs.Cap):]

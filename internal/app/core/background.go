@@ -5,20 +5,25 @@ import (
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"nlkli/raytrade/internal/ws"
-	"sync"
 	"sync/atomic"
 	"time"
 )
 
-type Task any
+type Task interface {
+	Execute(*Background) error
+}
 
-// Commands
+type PlaceOrder struct {
+	Category broker.Category
+	Symbol   string
+	Side     broker.Side
+	Price    float64
+	UsdQty   float64
+}
 
-// sub <chart> <i> <F.BTCUSDT.15>
-// sub <orderbook> <i> <F.BTCUSDT.depth>
-
-// unsub <chart> <i>
-// unsub <orderbook> <i>
+func (t *PlaceOrder) Execute(b *Background) error {
+	return nil
+}
 
 type SubChart struct {
 	Idx      int
@@ -43,6 +48,7 @@ func (t *SubChart) Execute(b *Background) error {
 		cs := s.Chart[t.Idx]
 		cs.SecInterval = float32(t.Interval.AsSeconds())
 		cs.Candles = []cdl.Candle{first.Candle}
+		cs.Forced = true
 	})
 
 	if b.chartSub[t.Idx] != nil {
@@ -191,8 +197,6 @@ type Background struct {
 
 	chartSub     []*broker.Subscription[cdl.CandleStreamData]
 	orderBookSub []*broker.Subscription[[2][][2]float64]
-
-	mu sync.Mutex
 }
 
 func (b *Background) CreateStream(
@@ -227,12 +231,10 @@ func InitBackground(ctx context.Context, br broker.Broker) *Background {
 		for {
 			select {
 			case t := <-b.Tx:
-				switch t := t.(type) {
-				case SubChart:
-					t.Execute(b)
-				case SubOrderBook:
-					t.Execute(b)
-				default:
+				if err := t.Execute(b); err != nil {
+					b.Push(
+						CommitCommandLineError(err.Error()),
+					)
 				}
 			case <-ctx.Done():
 				return

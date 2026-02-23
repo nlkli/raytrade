@@ -160,6 +160,19 @@ func (b *Broker) ExtendEndCandles(
 	return res, nil
 }
 
+func (b *Broker) PlaceOrder(
+
+	ctx context.Context,
+	category broker.Category,
+	symbol string,
+	side broker.Side,
+	price float64,
+	usdQty float64,
+
+) {
+
+}
+
 func (b *Broker) GetOpenOrders(
 
 	ctx context.Context,

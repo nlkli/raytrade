@@ -41,7 +41,7 @@ func (c *Client) GetPositionInfo(
 	}
 
 	queryString := query.Encode()
-	fullURL := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/market/kline", queryString)
+	fullURL := fmt.Sprintf("%s%s?%s", c.baseURL, "/v5/position/list", queryString)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {

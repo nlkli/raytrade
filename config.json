@@ -37,7 +37,59 @@
             }
         }
     },
-    "init_commands": [],
+    "vars": {
+        "fc": "FARTCOINUSDT",
+        "btc": "BTCUSDT",
+        "ci": "0",
+        "css": "0.09",
+        "cst": "25"
+    },
+    "binds": [
+        [
+            "f",
+            "sub chart $ci F,$fc,1,300"
+        ],
+        [
+            "b",
+            "sub chart $ci F,$btc,1,300"
+        ],
+        [
+            "c1",
+            "set ci 0"
+        ],
+        [
+            "c2",
+            "set ci 1"
+        ],
+        [
+            "sx]",
+            "chart $ci sx +$css"
+        ],
+        [
+            "sx[",
+            "chart $ci sx -$css"
+        ],
+        [
+            "sy]",
+            "chart $ci sy +$css"
+        ],
+        [
+            "sy[",
+            "chart $ci sy -$css"
+        ],
+        [
+            "tx]",
+            "chart $ci tx +$cst"
+        ],
+        [
+            "tx[",
+            "chart $ci tx -$cst"
+        ]
+    ],
+    "init_commands": [
+        "sub chart 0 F.$fc.1.300",
+        "sub orderbook 0 F.$fc.200"
+    ],
     "theme": {
         "name": "Terminal Basic",
         "is_light": true,

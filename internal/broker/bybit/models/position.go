@@ -39,7 +39,7 @@ type PositionInfo struct {
 	AdlRankIndicator       int            `json:"adlRankIndicator"`
 	CreatedTime            string         `json:"createdTime"`
 	UpdatedTime            string         `json:"updatedTime"`
-	Seq                    string         `json:"seq"`
+	Seq                    uint64         `json:"seq"`
 	IsReduceOnly           bool           `json:"isReduceOnly"`
 	MmrSysUpdatedTime      string         `json:"mmrSysUpdatedTime"`
 	LeverageSysUpdatedTime string         `json:"leverageSysUpdatedTime"`
