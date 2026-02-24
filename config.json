@@ -87,8 +87,8 @@
         ]
     ],
     "init_commands": [
-        "sub chart 0 F.$fc.1.300",
-        "sub orderbook 0 F.$fc.200"
+        "sub chart 0 F,$fc,1,300",
+        "sub orderbook 0 F,$fc,200"
     ],
     "theme": {
         "name": "Terminal Basic",
