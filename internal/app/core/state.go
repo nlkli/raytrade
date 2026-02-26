@@ -44,8 +44,7 @@ type State struct {
 
 	P *Palette
 
-	E     Event
-	Mouse MouseState
+	E Event
 
 	F        rl.Font
 	RH       float32 // Row height
@@ -68,15 +67,6 @@ type State struct {
 	ShowOverlay bool
 
 	Cache Cache
-}
-
-type MouseState struct {
-	Pos         rl.Vector2 // Position
-	Delta       rl.Vector2 // Delta
-	Pressed     [2]bool
-	DoubleClick bool
-	HoldLeft    bool
-	Captured    bool
 }
 
 type Cache struct {
@@ -111,6 +101,10 @@ type ChartState struct {
 
 	RHD float32
 
+	Category string
+	Symbol   string
+	Interval string
+
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
 
@@ -123,7 +117,7 @@ type ChartState struct {
 	Candles     []cdl.Candle // Candles buffer
 	SecInterval float32      // Seconds interval
 
-	Cap int // Number of candles that fit in canvas width
+	Cap float32 // Number of candles that fit in canvas width
 
 	MinP, MaxP float64 // Min/max price in visible range
 	MidP       float64 // Average price
@@ -140,17 +134,19 @@ type ChartState struct {
 	GridStepX float32 // Pixels between vertical grid lines (quantized)
 
 	Levels []float64 // Price levels
-}
 
-type ChartLine struct {
-	X     rl.Vector2 // X, Price
-	Y     rl.Vector2 // X, Price
-	Color rl.Color
+	Lines        [][2]rl.Vector2
+	IsLineDuring bool
 }
 
 type OrderBookState struct {
 	Forced    bool // Forced update
 	PlusCompI int
+
+	RHD float32
+
+	Symbol   string
+	Category string
 
 	Bids [][2]float64
 	Asks [][2]float64

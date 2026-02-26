@@ -110,8 +110,8 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 
 	if s.WRF || cs.Forced || s.RH_Dirty {
 		// Visible candles count based on canvas width
-		cs.Cap = int(c.s.X / stepX)
-		visC := candles[max(0, n-cs.Cap):]
+		cs.Cap = c.s.X / stepX
+		visC := candles[max(0, n-int(cs.Cap)):]
 
 		cs.MinP, cs.MaxP = cdl.MinMaxPrice(visC)
 		cs.MidP = (cs.MaxP + cs.MinP) * .5
@@ -128,8 +128,8 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 		cs.GridStepY = float32(priceStep * cs.PxPerPrice)
 
 		// X-axis grid calculation
-		cs.StartSec = float32(visC[0].Time / 1000)
-		timeSecRng := float32(cs.Cap) * cs.SecInterval
+		timeSecRng := cs.Cap * cs.SecInterval
+		cs.StartSec = float32(visC[len(visC)-1].Time)/1000 - timeSecRng
 		cs.SecPerPx = timeSecRng / c.s.X
 
 		timeStep := quantizeTimeStep(s.RH * 6 * cs.SecPerPx)
@@ -195,7 +195,51 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 				rl.Vector2{X: cs.Shift.X, Y: levelY},
 				rl.Vector2{X: c.s.X + cs.Shift.X, Y: levelY},
 				1,
-				s.P.Cur.Bg,
+				s.P.Base.Cyan,
+			)
+		}
+	}
+
+	if len(cs.Lines) > 0 {
+
+		lines := cs.Lines
+
+		if cs.IsLineDuring {
+			worldMouse := rl.GetScreenToWorld2D(s.E.Mouse.Pos, c.cam)
+
+			l := lines[len(lines)-1]
+
+			lineX0 := (l[0].X - cs.StartSec) / cs.SecPerPx
+			lineY0 := priceToWorldY(
+				float64(l[0].Y), cs.MaxVisPrice, cs.PxPerPrice,
+			)
+
+			rl.DrawLineEx(
+				rl.Vector2{X: lineX0, Y: lineY0},
+				worldMouse,
+				1,
+				s.P.Dim.Blue,
+			)
+
+			lines = lines[:len(lines)-1]
+		}
+
+		for _, l := range lines {
+			lineX0 := (l[0].X - cs.StartSec) / cs.SecPerPx
+			lineX1 := (l[1].X - cs.StartSec) / cs.SecPerPx
+
+			lineY0 := priceToWorldY(
+				float64(l[0].Y), cs.MaxVisPrice, cs.PxPerPrice,
+			)
+			lineY1 := priceToWorldY(
+				float64(l[1].Y), cs.MaxVisPrice, cs.PxPerPrice,
+			)
+
+			rl.DrawLineEx(
+				rl.Vector2{X: lineX0, Y: lineY0},
+				rl.Vector2{X: lineX1, Y: lineY1},
+				1,
+				s.P.Dim.Blue,
 			)
 		}
 	}
@@ -212,7 +256,7 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	if cs.Shift.X < 0 {
 		start -= int(cs.Shift.X / stepX)
 	}
-	end := min(n, cs.Cap+start+2)
+	end := min(n, int(cs.Cap)+start+2)
 
 	// Draw candles from right to left (newest to oldest)
 	for i := start; i < end; i++ {
@@ -257,14 +301,11 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	}
 
 	// Mouse crosshair
-	if !s.Mouse.Captured && c.ContainsV(s.Mouse.Pos) {
-		if s.Mouse.HoldLeft {
-			cs.Shift.X -= s.Mouse.Delta.X
-		}
+	if !s.E.Mouse.Captured && c.ContainsV(s.E.Mouse.Pos) {
 
-		worldMouse := rl.GetScreenToWorld2D(s.Mouse.Pos, c.cam)
+		wm := rl.GetScreenToWorld2D(s.E.Mouse.Pos, c.cam) // World mouse
 
-		cs.Cursor = worldMouse
+		cs.Cursor = wm
 
 		cs.CursorPrice = worldYToPrice(
 			cs.Cursor.Y, cs.MaxVisPrice, cs.PxPerPrice,
@@ -272,21 +313,61 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 
 		// Horizontal line
 		rl.DrawLineEx(
-			rl.Vector2{X: cs.Shift.X, Y: worldMouse.Y},
-			rl.Vector2{X: c.s.X + cs.Shift.X, Y: worldMouse.Y},
+			rl.Vector2{X: cs.Shift.X, Y: wm.Y},
+			rl.Vector2{X: c.s.X + cs.Shift.X, Y: wm.Y},
 			1,
 			s.P.Bg[4],
 		)
 
 		// Vertical line
 		rl.DrawLineEx(
-			rl.Vector2{X: worldMouse.X, Y: 0},
-			rl.Vector2{X: worldMouse.X, Y: c.s.Y + cs.Shift.Y},
+			rl.Vector2{X: wm.X, Y: cs.Shift.Y},
+			rl.Vector2{X: wm.X, Y: c.s.Y + cs.Shift.Y},
 			1,
 			s.P.Bg[4],
 		)
 
-		s.Mouse.Captured = true
+		if s.E.Mouse.HoldLeft {
+
+			cs.Shift.X -= s.E.Mouse.Delta.X
+			cs.Shift.Y -= s.E.Mouse.Delta.Y
+
+		} else {
+
+			if s.E.Mouse.Click[0] && cs.IsLineDuring {
+				cs.Lines[len(cs.Lines)-1][1] = rl.Vector2{
+					X: cs.StartSec + wm.X*cs.SecPerPx,
+					Y: float32(
+						worldYToPrice(wm.Y, cs.MaxVisPrice, cs.PxPerPrice),
+					),
+				}
+				cs.IsLineDuring = false
+			}
+
+			if s.E.Mouse.DoubleClick && !cs.IsLineDuring {
+				cs.Lines = append(
+					cs.Lines,
+					[2]rl.Vector2{
+						{
+							X: cs.StartSec + wm.X*cs.SecPerPx,
+							Y: float32(
+								worldYToPrice(wm.Y, cs.MaxVisPrice, cs.PxPerPrice),
+							),
+						},
+						{},
+					},
+				)
+				cs.IsLineDuring = true
+			}
+
+			if s.E.Mouse.Click[1] && cs.IsLineDuring {
+				cs.Lines = cs.Lines[:len(cs.Lines)-1]
+				cs.IsLineDuring = false
+			}
+
+		}
+
+		s.E.Mouse.Captured = true
 	} else {
 		cs.Cursor = rl.Vector2{}
 	}

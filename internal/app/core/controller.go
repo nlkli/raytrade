@@ -11,15 +11,18 @@ const (
 	REPEATED_PRESSING_DUR time.Duration = time.Millisecond * 555
 )
 
-type Event int
+type MouseEvent struct {
+	Pos         rl.Vector2 // Position
+	Delta       rl.Vector2 // Delta
+	Click     [2]bool
+	DoubleClick bool
+	HoldLeft    bool
+	Captured    bool
+}
 
-const (
-	NoneE Event = iota
-	InputModeE
-	CancelE
-	SpaceE
-	LastE
-)
+type Event struct {
+	Mouse MouseEvent
+}
 
 type BindNode struct {
 	Command  string
@@ -34,8 +37,6 @@ type BindHit struct {
 
 type Controller struct {
 	CMDTX chan<- string // CMD tx
-
-	LastEvent Event
 
 	Binds   map[rune]*BindNode
 	BindHit *BindHit
@@ -67,6 +68,8 @@ func InitController(c *Config) *Controller {
 		if bindStr == "" {
 			continue
 		}
+
+		bindStr = strings.ReplaceAll(bindStr, "<leader>", c.LeaderKey)
 
 		currentMap := binds
 		runes := []rune(bindStr)
@@ -186,13 +189,17 @@ func (c *Controller) handleNormalMode(s *State) {
 	}
 
 	if cp == ':' {
-		c.handleEvent(s, InputModeE)
+		s.M = Input
+		s.CommandLine.Prompt = ":"
+		s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+		s.CommandLine.Color = s.P.Fg[1]
+
+		c.handleInputMode(s)
 		return
 	}
 
-	if rl.IsKeyPressed(rl.KeyEscape) {
-		c.handleEvent(s, CancelE)
-	}
+	// if rl.IsKeyPressed(rl.KeyEscape) {
+	// }
 
 }
 
@@ -200,20 +207,20 @@ func (c *Controller) mouseEvent(s *State) {
 	const HOLDTIME = time.Duration(444) * time.Millisecond
 
 	if s.WHF || !s.WFF {
-		s.Mouse.Captured = true
+		s.E.Mouse.Captured = true
 		return
 	}
 
-	s.Mouse.Pos = rl.GetMousePosition()
-	s.Mouse.Delta = rl.GetMouseDelta()
+	s.E.Mouse.Pos = rl.GetMousePosition()
+	s.E.Mouse.Delta = rl.GetMouseDelta()
 
-	s.Mouse.Pressed[0] = rl.IsMouseButtonPressed(rl.MouseButtonLeft)
-	s.Mouse.Pressed[1] = rl.IsMouseButtonPressed(rl.MouseButtonRight)
+	s.E.Mouse.Click[0] = rl.IsMouseButtonReleased(rl.MouseButtonLeft)
+	s.E.Mouse.Click[1] = rl.IsMouseButtonPressed(rl.MouseButtonRight)
 
-	s.Mouse.DoubleClick = false
-	if s.Mouse.Pressed[0] {
+	s.E.Mouse.DoubleClick = false
+	if s.E.Mouse.Click[0] {
 		if s.FN-c.Mouse.LastPressFrame.LB < uint64(s.TFPS)/2 {
-			s.Mouse.DoubleClick = true
+			s.E.Mouse.DoubleClick = true
 		}
 		c.Mouse.LastPressFrame.LB = s.FN
 	}
@@ -221,14 +228,14 @@ func (c *Controller) mouseEvent(s *State) {
 	if rl.IsMouseButtonDown(rl.MouseButtonLeft) {
 		c.Mouse.HoldTime.LB += s.TFT
 		if c.Mouse.HoldTime.LB > HOLDTIME {
-			s.Mouse.HoldLeft = true
+			s.E.Mouse.HoldLeft = true
 		}
 	} else {
-		s.Mouse.HoldLeft = false
+		s.E.Mouse.HoldLeft = false
 		c.Mouse.HoldTime.LB = time.Duration(0)
 	}
 
-	s.Mouse.Captured = false
+	s.E.Mouse.Captured = false
 }
 
 func (c *Controller) handleInputMode(s *State) {
@@ -307,20 +314,5 @@ func (c *Controller) handleInputMode(s *State) {
 		s.CommandLine.HistoryCur = len(s.CommandLine.History)
 
 		s.M = Normal
-	}
-}
-
-func (c *Controller) handleEvent(s *State, e Event) {
-	c.LastEvent = e
-
-	switch e {
-	case InputModeE:
-		s.M = Input
-		s.CommandLine.Prompt = ":"
-
-		s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
-
-		s.CommandLine.Color = s.P.Fg[1]
-	default:
 	}
 }

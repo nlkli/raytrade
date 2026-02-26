@@ -180,13 +180,13 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 		orderBook := &OrderBook{
 			Rect:     &Rect{},
 			StateIdx: len(s.OrderBook),
-			RHD:      rhd,
 			VM:       vm,
 			ShowText: showText,
 		}
 
 		s.OrderBook = append(s.OrderBook, &core.OrderBookState{
 			Forced: true,
+			RHD:      rhd,
 		})
 
 		return orderBook, nil

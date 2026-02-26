@@ -28,7 +28,6 @@ type OrderBook struct {
 
 	StateIdx int
 
-	RHD      float32
 	VM       int
 	ShowText bool
 
@@ -82,7 +81,7 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 		return
 	}
 
-	ob.RH = s.RH - ob.RHD
+	ob.RH = s.RH - obS.RHD
 
 	if s.WRF || obS.Forced {
 		halfY := ob.s.Y * .5
@@ -264,7 +263,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 		return
 	}
 
-	ob.RH = s.RH - ob.RHD
+	ob.RH = s.RH - obS.RHD
 
 	halfX := ob.s.X * .5
 

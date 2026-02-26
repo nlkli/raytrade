@@ -46,8 +46,14 @@ func (t *SubChart) Execute(b *Background) error {
 
 	b.Push(func(s *State) {
 		cs := s.Chart[t.Idx]
+		cs.Category = t.Category.AsString(true)
+		cs.Symbol = t.Symbol
+		cs.Interval = t.Interval.AsString()
 		cs.SecInterval = float32(t.Interval.AsSeconds())
 		cs.Candles = []cdl.Candle{first.Candle}
+		cs.Levels = nil
+		cs.Lines = nil
+		cs.IsLineDuring = false
 		cs.Forced = true
 	})
 
@@ -115,15 +121,18 @@ func (t *SubChart) Execute(b *Background) error {
 	go func() {
 		defer close(done)
 
-		intervalMs := int64(t.Interval.AsMilli() + 2_000)
+		intervalMs := int64(t.Interval.AsMilli() + 999)
 
 		for d := range sub.C {
 			if d.Confirm {
 				b.Push(func(s *State) {
 					cs := s.Chart[t.Idx]
 
-					if d.Candle.Time-cs.Candles[len(cs.Candles)-1].Time > intervalMs { // TODO?
-						exCandlesCh <- d.Candle
+					n := len(cs.Candles) - 1
+					if n > 1 {
+						if cs.Candles[n-1].Time-cs.Candles[n-2].Time > intervalMs {
+							exCandlesCh <- d.Candle
+						}
 					}
 
 					cs.Candles = append(cs.Candles, d.Candle)
@@ -163,6 +172,13 @@ func (t *SubOrderBook) Execute(b *Background) error {
 	if err != nil {
 		return err
 	}
+
+	b.Push(func(s *State) {
+		obS := s.OrderBook[t.Idx]
+		obS.Category = t.Category.AsString(true)
+		obS.Symbol = t.Symbol
+		obS.Forced = true
+	})
 
 	if b.orderBookSub[t.Idx] != nil {
 		b.orderBookSub[t.Idx].Stop()

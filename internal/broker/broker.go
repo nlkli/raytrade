@@ -19,6 +19,36 @@ const (
 	Futures
 )
 
+func CategoryFromString(s string) (Category, error) {
+	s = strings.ToUpper(s)
+
+	switch s {
+	case "S", "SP", "SPOT":
+		return Spot, nil
+	case "F", "FT", "FUTURES":
+		return Futures, nil
+	}
+
+	return -1, errors.New("invalid category string")
+}
+
+func (c Category) AsString(short bool) string {
+	switch c {
+	case Spot:
+		if short {
+			return "S"
+		}
+		return "Spot"
+	case Futures:
+		if short {
+			return "F"
+		}
+		return "Futures"
+	default:
+		return ""
+	}
+}
+
 type Side string
 
 const (
@@ -58,36 +88,6 @@ type Position struct {
 	Size       float64
 	EntryPrice float64
 	CreatedAt  time.Time
-}
-
-func CategoryFromString(s string) (Category, error) {
-	s = strings.ToUpper(s)
-
-	switch s {
-	case "S", "SP", "SPOT":
-		return Spot, nil
-	case "F", "FT", "FUTURES":
-		return Futures, nil
-	}
-
-	return -1, errors.New("invalid category string")
-}
-
-func CategoryToString(c Category, short bool) string {
-	switch c {
-	case Spot:
-		if short {
-			return "S"
-		}
-		return "Spot"
-	case Futures:
-		if short {
-			return "F"
-		}
-		return "Futures"
-	default:
-		return ""
-	}
 }
 
 type Broker interface {

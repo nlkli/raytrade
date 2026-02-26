@@ -44,6 +44,7 @@
         "css": "0.09",
         "cst": "25"
     },
+    "leader_key": " ",
     "binds": [
         [
             "f",
@@ -91,77 +92,77 @@
         "sub orderbook 0 F,$fc,200"
     ],
     "theme": {
-        "name": "Terminal Basic",
-        "is_light": true,
+        "name": "Mona Lisa",
+        "is_light": false,
         "colors": {
             "background": [
-                "#f4f4f4",
-                "#ffffff",
-                "#f0f0f0",
-                "#e0e0e0",
-                "#c4c4c4"
+                "#070405",
+                "#120b0d",
+                "#211418",
+                "#311e23",
+                "#4d2f37"
             ],
             "foreground": [
-                "#0f0f0f",
-                "#000000",
-                "#3b3b3b",
-                "#707070"
+                "#ffdd6d",
+                "#f7d66a",
+                "#bca351",
+                "#87753a"
             ],
             "selection": {
-                "bg": "#a4c9ff",
-                "fg": "#000000"
+                "bg": "#f7d66a",
+                "fg": "#120b0d"
             },
             "cursor": {
-                "bg": "#7f7f7f",
-                "fg": "#000000"
+                "bg": "#c46c32",
+                "fg": "#120b0d"
             },
             "base": {
-                "black": "#000000",
-                "red": "#990000",
-                "green": "#00a600",
-                "yellow": "#999900",
-                "blue": "#0000b2",
-                "magenta": "#b200b2",
-                "cyan": "#00a6b2",
-                "white": "#bfbfbf",
-                "orange": "#994d00",
-                "pink": "#ac6060"
+                "black": "#351b0e",
+                "red": "#9b291c",
+                "green": "#636232",
+                "yellow": "#c36e28",
+                "blue": "#515c5d",
+                "magenta": "#9b1d29",
+                "cyan": "#588056",
+                "white": "#f7d75c",
+                "orange": "#af4c22",
+                "pink": "#c9803c"
             },
             "bright": {
-                "black": "#000000",
-                "red": "#990000",
-                "green": "#00a600",
-                "yellow": "#999900",
-                "blue": "#0000b2",
-                "magenta": "#b200b2",
-                "cyan": "#00a6b2",
-                "white": "#bfbfbf",
-                "orange": "#994d00",
-                "pink": "#ac6060"
+                "black": "#351b0e",
+                "red": "#9b291c",
+                "green": "#636232",
+                "yellow": "#c36e28",
+                "blue": "#515c5d",
+                "magenta": "#9b1d29",
+                "cyan": "#588056",
+                "white": "#f7d75c",
+                "orange": "#af4c22",
+                "pink": "#c9803c"
             },
             "dim": {
-                "black": "#000000",
-                "red": "#820000",
-                "green": "#008d00",
-                "yellow": "#828200",
-                "blue": "#000097",
-                "magenta": "#970097",
-                "cyan": "#008d97",
-                "white": "#a2a2a2",
-                "orange": "#824100",
-                "pink": "#925151"
+                "black": "#2d170c",
+                "red": "#842318",
+                "green": "#54532b",
+                "yellow": "#a65e22",
+                "blue": "#454e4f",
+                "magenta": "#841923",
+                "cyan": "#4b6d49",
+                "white": "#d2b74e",
+                "orange": "#95401d",
+                "pink": "#ab6d33"
             },
             "diff": {
-                "add": "#54c354",
-                "delete": "#bb5454",
-                "change": "#5454cb",
-                "text": "#d166d1"
+                "add": "#484526",
+                "delete": "#6e1f17",
+                "change": "#3c4143",
+                "text": "#64161e"
             },
             "code_selection": [
-                "#d9d9d9",
-                "#e0e0e0"
+                "#34291b",
+                "#3d2216"
             ],
-            "comment": "#666666"
+            "comment": "#9b8545"
         }
     }
 }

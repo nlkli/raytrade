@@ -197,213 +197,36 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 
 		}, nil
 
+	case "prompt":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for 'prompt' command")
+		}
+
+		var prompt strings.Builder
+		prompt.WriteRune(':')
+		for ok {
+			prompt.WriteString(value)
+			value, ok = next()
+			if ok {
+				prompt.WriteString(" ")
+			}
+		}
+
+		return func(s *State) {
+			s.M = Input
+			s.CommandLine.Prompt = prompt.String()
+			s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+			s.CommandLine.Color = s.P.Fg[1]
+		}, nil
+
 	case "sub":
-		compType, ok := next()
-		if !ok {
-			return nil, fmt.Errorf("missing component type for 'sub' command")
-		}
 
-		compIdxV, ok := next()
-		if !ok {
-			return nil, fmt.Errorf("missing component index for 'sub' command")
-		}
-
-		compIdx, err := strconv.Atoi(compIdxV)
-		if err != nil {
-			return nil, fmt.Errorf("invalid component index: %s", compIdxV)
-
-		}
-
-		paramsV, ok := next()
-		if !ok {
-			return nil, fmt.Errorf("missing parameters for '%s' component", compType)
-		}
-
-		paramsIter := strings.SplitSeq(paramsV, ",")
-		nextP, stopP := iter.Pull(paramsIter)
-		defer stopP()
-
-		switch compType {
-
-		case "chart":
-			categoryV, ok := nextP()
-			if !ok {
-				return nil, fmt.Errorf("missing category for chart component")
-			}
-
-			category, err := broker.CategoryFromString(categoryV)
-			if err != nil {
-				return nil, fmt.Errorf("invalid category: %s", categoryV)
-			}
-
-			symbol, ok := nextP()
-			if !ok {
-				return nil, fmt.Errorf("missing symbol for chart component")
-			}
-
-			intervalV, ok := nextP()
-			if !ok {
-				return nil, fmt.Errorf("missing interval for chart component")
-			}
-
-			interval, err := cdl.IntervalFromString(intervalV)
-			if err != nil {
-				return nil, fmt.Errorf("invalid interval: %s", intervalV)
-			}
-
-			limitV, ok := nextP()
-			if !ok {
-				return nil, fmt.Errorf("missing limit for chart component")
-			}
-
-			limit, err := strconv.Atoi(limitV)
-			if err != nil {
-				return nil, fmt.Errorf("invalid limit value: %s", limitV)
-			}
-
-			c.BTX <- &SubChart{
-				Idx:      compIdx,
-				Category: category,
-				Symbol:   symbol,
-				Interval: interval,
-				Limit:    limit,
-			}
-		case "orderbook":
-			categoryV, ok := nextP()
-			if !ok {
-				return nil, fmt.Errorf("missing category for orderbook component")
-			}
-
-			category, err := broker.CategoryFromString(categoryV)
-			if err != nil {
-				return nil, fmt.Errorf("invalid category: %s", categoryV)
-			}
-
-			symbol, ok := nextP()
-			if !ok {
-				return nil, fmt.Errorf("missing symbol for orderbook component")
-			}
-
-			depthV, ok := nextP()
-			if !ok {
-				return nil, fmt.Errorf("missing depth for orderbook component")
-			}
-
-			depth, err := strconv.Atoi(depthV)
-			if err != nil {
-				return nil, fmt.Errorf("invalid depth value: %s", depthV)
-			}
-
-			c.BTX <- &SubOrderBook{
-				Idx:      compIdx,
-				Category: category,
-				Symbol:   symbol,
-				Depth:    depth,
-			}
-		default:
-			return nil, fmt.Errorf("unknown component type: %s", compType)
-		}
-
-		return func(s *State) {}, nil
+		return c.translateSubCommand(next)
 
 	case "chart":
 
-		idxV, ok := next()
-		if !ok {
-			return nil, fmt.Errorf("missing chart index for 'chart' command")
-		}
-
-		idx, err := strconv.Atoi(idxV)
-		if err != nil {
-			return nil, fmt.Errorf("invalid chart index: %s", idxV)
-		}
-
-		param, ok := next()
-		if !ok {
-			return nil, fmt.Errorf("missing parameter for chart %d", idx)
-		}
-
-		switch param {
-		case "rhd":
-			value, ok := next()
-			if !ok {
-				return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
-			}
-
-			return func(s *State) {
-				cs := s.Chart[idx]
-				rhd := float64(cs.RHD)
-				if err := parseFloatValue(value, &rhd); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				cs.RHD = float32(rhd)
-				cs.Forced = true
-			}, nil
-
-		case "sx":
-			value, ok := next()
-			if !ok {
-				return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
-			}
-
-			return func(s *State) {
-				cs := s.Chart[idx]
-				sx := float64(cs.Scale.X)
-				if err := parseFloatValue(value, &sx); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				cs.Scale.X = float32(sx)
-				cs.Forced = true
-			}, nil
-
-		case "sy":
-			value, ok := next()
-			if !ok {
-				return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
-			}
-
-			return func(s *State) {
-				cs := s.Chart[idx]
-				sy := float64(cs.Scale.Y)
-				if err := parseFloatValue(value, &sy); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				cs.Scale.Y = float32(sy)
-				cs.Forced = true
-			}, nil
-		case "tx":
-			value, ok := next()
-			if !ok {
-				return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
-			}
-
-			return func(s *State) {
-				cs := s.Chart[idx]
-				tx := float64(cs.Shift.X)
-				if err := parseFloatValue(value, &tx); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				cs.Shift.X = float32(tx)
-				cs.Forced = true
-			}, nil
-		case "ty":
-			value, ok := next()
-			if !ok {
-				return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
-			}
-
-			return func(s *State) {
-				cs := s.Chart[idx]
-				ty := float64(cs.Shift.Y)
-				if err := parseFloatValue(value, &ty); err != nil {
-					CommitCommandLineError(err.Error())(s)
-				}
-				cs.Shift.Y = float32(ty)
-				cs.Forced = true
-			}, nil
-		default:
-			return nil, fmt.Errorf("unknown chart parameter: %s", param)
-		}
+		return c.translateChartCommands(next)
 
 	case "overlay":
 		return func(s *State) {
@@ -413,6 +236,257 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 	}
 
 	return nil, fmt.Errorf("unknown command: %s", head)
+}
+
+func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) {
+	compType, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing component type for 'sub' command")
+	}
+
+	compIdxV, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing component index for 'sub' command")
+	}
+
+	compIdx, err := strconv.Atoi(compIdxV)
+	if err != nil {
+		return nil, fmt.Errorf("invalid component index: %s", compIdxV)
+
+	}
+
+	paramsV, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing parameters for '%s' component", compType)
+	}
+
+	paramsIter := strings.SplitSeq(paramsV, ",")
+	nextP, stopP := iter.Pull(paramsIter)
+	defer stopP()
+
+	switch compType {
+
+	case "chart":
+		categoryV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing category for chart component")
+		}
+
+		category, err := broker.CategoryFromString(categoryV)
+		if err != nil {
+			return nil, fmt.Errorf("invalid category: %s", categoryV)
+		}
+
+		symbol, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing symbol for chart component")
+		}
+
+		intervalV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing interval for chart component")
+		}
+
+		interval, err := cdl.IntervalFromString(intervalV)
+		if err != nil {
+			return nil, fmt.Errorf("invalid interval: %s", intervalV)
+		}
+
+		limitV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing limit for chart component")
+		}
+
+		limit, err := strconv.Atoi(limitV)
+		if err != nil {
+			return nil, fmt.Errorf("invalid limit value: %s", limitV)
+		}
+
+		c.BTX <- &SubChart{
+			Idx:      compIdx,
+			Category: category,
+			Symbol:   symbol,
+			Interval: interval,
+			Limit:    limit,
+		}
+	case "orderbook":
+		categoryV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing category for orderbook component")
+		}
+
+		category, err := broker.CategoryFromString(categoryV)
+		if err != nil {
+			return nil, fmt.Errorf("invalid category: %s", categoryV)
+		}
+
+		symbol, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing symbol for orderbook component")
+		}
+
+		depthV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing depth for orderbook component")
+		}
+
+		depth, err := strconv.Atoi(depthV)
+		if err != nil {
+			return nil, fmt.Errorf("invalid depth value: %s", depthV)
+		}
+
+		c.BTX <- &SubOrderBook{
+			Idx:      compIdx,
+			Category: category,
+			Symbol:   symbol,
+			Depth:    depth,
+		}
+	default:
+		return nil, fmt.Errorf("unknown component type: %s", compType)
+	}
+
+	return func(s *State) {}, nil
+}
+
+func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, error) {
+
+	idxV, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing chart index for 'chart' command")
+	}
+
+	idx, err := strconv.Atoi(idxV)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chart index: %s", idxV)
+	}
+
+	param, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing parameter for chart %d", idx)
+	}
+
+	switch param {
+	case "rhd":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
+		}
+
+		return func(s *State) {
+			cs := s.Chart[idx]
+			rhd := float64(cs.RHD)
+			if err := parseFloatValue(value, &rhd); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+			cs.RHD = float32(rhd)
+			cs.Forced = true
+		}, nil
+
+	case "sx":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
+		}
+
+		return func(s *State) {
+			cs := s.Chart[idx]
+			sx := float64(cs.Scale.X)
+			if err := parseFloatValue(value, &sx); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+			cs.Scale.X = float32(sx)
+			cs.Forced = true
+		}, nil
+
+	case "sy":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
+		}
+
+		return func(s *State) {
+			cs := s.Chart[idx]
+			sy := float64(cs.Scale.Y)
+			if err := parseFloatValue(value, &sy); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+			cs.Scale.Y = float32(sy)
+			cs.Forced = true
+		}, nil
+	case "tx":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
+		}
+
+		return func(s *State) {
+			cs := s.Chart[idx]
+			tx := float64(cs.Shift.X)
+			if err := parseFloatValue(value, &tx); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+			cs.Shift.X = float32(tx)
+			cs.Forced = true
+		}, nil
+	case "ty":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
+		}
+
+		return func(s *State) {
+			cs := s.Chart[idx]
+			ty := float64(cs.Shift.Y)
+			if err := parseFloatValue(value, &ty); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+			cs.Shift.Y = float32(ty)
+			cs.Forced = true
+		}, nil
+	case "uline":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			n := len(cs.Lines)
+			if n > 0 {
+				cs.Lines = cs.Lines[:n-1]
+			}
+		}, nil
+	case "clines":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.Lines = cs.Lines[:0]
+		}, nil
+	case "alevel":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
+		}
+
+		levelPrice, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid level price %s", value)
+		}
+
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.Levels = append(cs.Levels, levelPrice)
+		}, nil
+	case "ulevel":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			n := len(cs.Levels)
+			if n > 0 {
+				cs.Levels = cs.Levels[:n-1]
+			}
+		}, nil
+	case "clevels":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.Levels = cs.Levels[:0]
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown chart parameter: %s", param)
+	}
 }
 
 func parseFloatValue(v string, f *float64) (err error) {
