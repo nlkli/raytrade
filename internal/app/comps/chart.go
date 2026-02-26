@@ -23,6 +23,8 @@ const (
 type Chart struct {
 	*Rect
 
+	ShowLable bool
+
 	StateIdx int
 
 	c  Canvas
@@ -62,7 +64,7 @@ func (ch *Chart) Render(s *core.State) {
 	rl.DrawRectangleGradientH(
 		int32(ch.p.X),
 		int32(ch.p.Y),
-		6,
+		8,
 		int32(ch.s.Y),
 		s.P.Bg[1],
 		s.P.TBg[1],
@@ -73,10 +75,24 @@ func (ch *Chart) Render(s *core.State) {
 		int32(ch.p.X),
 		int32(ch.p.Y),
 		int32(ch.s.X),
-		6,
+		8,
 		s.P.Bg[1],
 		s.P.TBg[1],
 	)
+
+	if ch.ShowLable && ch.s.X > 200 {
+		rl.DrawTextEx(
+			s.F,
+			cs.LableString,
+			rl.Vector2{
+				X: ch.p.X + 2,
+				Y: ch.p.Y + 2,
+			},
+			rh,
+			0,
+			s.P.Comment,
+		)
+	}
 
 	if cs.Forced {
 		cs.Forced = false

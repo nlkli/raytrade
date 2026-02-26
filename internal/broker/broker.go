@@ -149,6 +149,29 @@ type Broker interface {
 	) Stream
 }
 
+func SplitSubscription[T any](
+
+	sub *Subscription[T],
+	onStop func() error,
+
+) (*Subscription[T], *Subscription[T]) {
+	subCh1, subCh2 := make(chan T, 1), make(chan T, 1)
+	sub1, sub2 := NewBrokerStreamSubscription(subCh1, sub.onStop),
+		NewBrokerStreamSubscription(subCh2, onStop)
+
+	go func() {
+		defer close(subCh1)
+		defer close(subCh2)
+
+		for d := range sub.C {
+			subCh1 <- d
+			subCh2 <- d
+		}
+	}()
+
+	return sub1, sub2
+}
+
 type Subscription[T any] struct {
 	C      <-chan T
 	onStop func() error

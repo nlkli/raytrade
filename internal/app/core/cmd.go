@@ -394,7 +394,7 @@ func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, erro
 			if err := parseFloatValue(value, &sx); err != nil {
 				CommitCommandLineError(err.Error())(s)
 			}
-			cs.Scale.X = float32(sx)
+			cs.Scale.X = max(0.00001, float32(sx))
 			cs.Forced = true
 		}, nil
 
@@ -410,7 +410,7 @@ func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, erro
 			if err := parseFloatValue(value, &sy); err != nil {
 				CommitCommandLineError(err.Error())(s)
 			}
-			cs.Scale.Y = float32(sy)
+			cs.Scale.Y = max(0.00001, float32(sy))
 			cs.Forced = true
 		}, nil
 	case "tx":

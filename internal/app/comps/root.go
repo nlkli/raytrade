@@ -143,18 +143,22 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 		return parseSplitter(c, s)
 
 	case "chart":
-		chart := &Chart{
-			Rect:     &Rect{},
-			StateIdx: len(s.Chart),
-		}
-
-		chart.c.cam.Zoom = 1
-
 		rhd := getNumberParam(c.Params, "rhd", DEFAULT_CHART_RHD)
 		sx := getNumberParam(c.Params, "sx", DEFAULT_SCALE_X)
 		sy := getNumberParam(c.Params, "sy", DEFAULT_SCALE_Y)
 		tx := getNumberParam(c.Params, "tx", DEFAULT_SHIFT_X)
 		ty := getNumberParam(c.Params, "ty", DEFAULT_SHIFT_Y)
+
+		showLable := getBooleanParam(c.Params, "show_lable", true)
+
+		chart := &Chart{
+			Rect:     &Rect{},
+			StateIdx: len(s.Chart),
+
+			ShowLable: showLable,
+		}
+
+		chart.c.cam.Zoom = 1
 
 		showGrid := getBooleanParam(c.Params, "show_grid", true)
 
@@ -186,7 +190,7 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 		s.OrderBook = append(s.OrderBook, &core.OrderBookState{
 			Forced: true,
-			RHD:      rhd,
+			RHD:    rhd,
 		})
 
 		return orderBook, nil

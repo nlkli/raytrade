@@ -410,8 +410,8 @@ func (b *Broker) CreatePrivateStream(
 }
 
 type BrokerPrivateStream struct {
-	stream *StreamV2
 	tx     chan []byte
+	stream *StreamV2
 }
 
 func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.Position], error) {
@@ -463,8 +463,8 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 }
 
 type BrokerStream struct {
-	stream *StreamV2
 	tx     chan []byte
+	stream *StreamV2
 }
 
 func (s *BrokerStream) SubscribeCandle(

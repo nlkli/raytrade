@@ -63,27 +63,27 @@
             "set ci 1"
         ],
         [
-            "sx]",
+            "]",
             "chart $ci sx +$css"
         ],
         [
-            "sx[",
+            "[",
             "chart $ci sx -$css"
         ],
         [
-            "sy]",
+            "}",
             "chart $ci sy +$css"
         ],
         [
-            "sy[",
+            "{",
             "chart $ci sy -$css"
         ],
         [
-            "tx]",
+            "t]",
             "chart $ci tx +$cst"
         ],
         [
-            "tx[",
+            "t[",
             "chart $ci tx -$cst"
         ]
     ],
@@ -92,77 +92,77 @@
         "sub orderbook 0 F,$fc,200"
     ],
     "theme": {
-        "name": "Mona Lisa",
+        "name": "Matrix",
         "is_light": false,
         "colors": {
             "background": [
-                "#070405",
-                "#120b0d",
-                "#211418",
-                "#311e23",
-                "#4d2f37"
+                "#090f11",
+                "#0f191c",
+                "#17272b",
+                "#1f343b",
+                "#2e4d57"
             ],
             "foreground": [
-                "#ffdd6d",
-                "#f7d66a",
-                "#bca351",
-                "#87753a"
+                "#4c754e",
+                "#426644",
+                "#1c2b1d",
+                "#000000"
             ],
             "selection": {
-                "bg": "#f7d66a",
-                "fg": "#120b0d"
+                "bg": "#18282e",
+                "fg": "#00ff87"
             },
             "cursor": {
-                "bg": "#c46c32",
-                "fg": "#120b0d"
+                "bg": "#384545",
+                "fg": "#00ff00"
             },
             "base": {
-                "black": "#351b0e",
-                "red": "#9b291c",
-                "green": "#636232",
-                "yellow": "#c36e28",
-                "blue": "#515c5d",
-                "magenta": "#9b1d29",
-                "cyan": "#588056",
-                "white": "#f7d75c",
-                "orange": "#af4c22",
-                "pink": "#c9803c"
+                "black": "#0f191c",
+                "red": "#23755a",
+                "green": "#82d967",
+                "yellow": "#ffd700",
+                "blue": "#3f5242",
+                "magenta": "#409931",
+                "cyan": "#50b45a",
+                "white": "#507350",
+                "orange": "#91a62d",
+                "pink": "#3a7455"
             },
             "bright": {
-                "black": "#351b0e",
-                "red": "#9b291c",
-                "green": "#636232",
-                "yellow": "#c36e28",
-                "blue": "#515c5d",
-                "magenta": "#9b1d29",
-                "cyan": "#588056",
-                "white": "#f7d75c",
-                "orange": "#af4c22",
-                "pink": "#c9803c"
+                "black": "#0f191c",
+                "red": "#23755a",
+                "green": "#82d967",
+                "yellow": "#ffd700",
+                "blue": "#3f5242",
+                "magenta": "#409931",
+                "cyan": "#50b45a",
+                "white": "#507350",
+                "orange": "#91a62d",
+                "pink": "#3a7455"
             },
             "dim": {
-                "black": "#2d170c",
-                "red": "#842318",
-                "green": "#54532b",
-                "yellow": "#a65e22",
-                "blue": "#454e4f",
-                "magenta": "#841923",
-                "cyan": "#4b6d49",
-                "white": "#d2b74e",
-                "orange": "#95401d",
-                "pink": "#ab6d33"
+                "black": "#0d1518",
+                "red": "#1e634d",
+                "green": "#6fb858",
+                "yellow": "#d9b700",
+                "blue": "#364638",
+                "magenta": "#36822a",
+                "cyan": "#44994d",
+                "white": "#446244",
+                "orange": "#7b8d26",
+                "pink": "#316348"
             },
             "diff": {
-                "add": "#484526",
-                "delete": "#6e1f17",
-                "change": "#3c4143",
-                "text": "#64161e"
+                "add": "#5c9a4e",
+                "delete": "#1c5746",
+                "change": "#2f3f35",
+                "text": "#2c6629"
             },
             "code_selection": [
-                "#34291b",
-                "#3d2216"
+                "#172522",
+                "#192426"
             ],
-            "comment": "#9b8545"
+            "comment": "#2e4734"
         }
     }
 }

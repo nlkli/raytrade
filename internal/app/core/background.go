@@ -2,11 +2,17 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"nlkli/raytrade/internal/ws"
 	"sync/atomic"
 	"time"
+)
+
+const (
+	MAX_CATEGORY_STREAMS    = 4
+	MAX_TOPIC_SUBSCRIPTIONS = 16
 )
 
 type Task interface {
@@ -35,20 +41,43 @@ type SubChart struct {
 
 func (t *SubChart) Execute(b *Background) error {
 
-	stream := b.CreateStream(t.Category, nil)
+	stream := b.GetOrInitStream(t.Category)
 
 	sub, err := stream.SubscribeCandle(t.Symbol, t.Interval)
 	if err != nil {
-		return err
+		return fmt.Errorf(
+			"candle subscribtion %s.%s.%s error: %e",
+			t.Category.AsString(false),
+			t.Symbol,
+			t.Interval.AsString(),
+			err,
+		)
 	}
 
 	first := <-sub.C
 
+	if b.chartSub[t.Idx] != nil {
+		if err = b.chartSub[t.Idx].Stop(); err != nil {
+			return fmt.Errorf(
+				"candle unsubscribtion error: %e",
+				err,
+			)
+		}
+	}
+
+	b.chartSub[t.Idx] = sub
+
 	b.Push(func(s *State) {
 		cs := s.Chart[t.Idx]
+
 		cs.Category = t.Category.AsString(true)
 		cs.Symbol = t.Symbol
 		cs.Interval = t.Interval.AsString()
+
+		cs.LableString = fmt.Sprintf(
+			"%s.%s.%s", cs.Category, cs.Symbol, cs.Interval,
+		)
+
 		cs.SecInterval = float32(t.Interval.AsSeconds())
 		cs.Candles = []cdl.Candle{first.Candle}
 		cs.Levels = nil
@@ -56,11 +85,6 @@ func (t *SubChart) Execute(b *Background) error {
 		cs.IsLineDuring = false
 		cs.Forced = true
 	})
-
-	if b.chartSub[t.Idx] != nil {
-		b.chartSub[t.Idx].Stop()
-	}
-	b.chartSub[t.Idx] = sub
 
 	done := make(chan struct{}, 1)
 	exCandlesCh := make(chan cdl.Candle, 1)
@@ -82,7 +106,7 @@ func (t *SubChart) Execute(b *Background) error {
 					case <-done:
 						break loop
 					default:
-						ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+						ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 						exCandles, err := b.broker.ExtendStartCandles(
 							ctx,
 							[]cdl.Candle{candle},
@@ -97,11 +121,12 @@ func (t *SubChart) Execute(b *Background) error {
 						if err == nil {
 							b.Push(func(s *State) {
 								cs := s.Chart[t.Idx]
-								cs.Candles = append(
-									exCandles,
-									cs.Candles[min(1, len(cs.Candles)):]...,
-								)
-
+								n := len(cs.Candles)
+								if n > 0 {
+									last := cs.Candles[n-1]
+									cs.Candles = exCandles
+									cs.Candles = append(cs.Candles, last)
+								}
 								cs.Forced = true
 							})
 							break loop
@@ -166,11 +191,14 @@ type SubOrderBook struct {
 
 func (t *SubOrderBook) Execute(b *Background) error {
 
-	stream := b.CreateStream(t.Category, nil)
+	stream := b.GetOrInitStream(t.Category)
 
 	sub, err := stream.SubscribeOrderBook(t.Symbol, t.Depth)
 	if err != nil {
-		return err
+		return fmt.Errorf(
+			"orderbook subscribtion error: %e",
+			err,
+		)
 	}
 
 	b.Push(func(s *State) {
@@ -208,25 +236,35 @@ type Background struct {
 
 	broker broker.Broker
 
-	stream        []broker.Stream
+	stream        [MAX_CATEGORY_STREAMS]broker.Stream // public streams
 	privateStream broker.PrivateStream
 
-	chartSub     []*broker.Subscription[cdl.CandleStreamData]
-	orderBookSub []*broker.Subscription[[2][][2]float64]
+	chartSub     [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[cdl.CandleStreamData]
+	orderBookSub [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[[2][][2]float64]
 }
 
-func (b *Background) CreateStream(
-
-	c broker.Category,
-	onConnected ws.OnConnectedFn,
-	opts ...ws.PolicyOption,
-
-) broker.Stream {
+func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {
 
 	stream := b.stream[c]
 
 	if stream == nil {
-		stream = b.broker.CreateStream(c, onConnected, opts...)
+		stream = b.broker.CreateStream(
+			c, nil,
+			ws.WithOnConnectFn(func(i int) {
+				b.Push(func(s *State) {
+					s.CommandLine.Prompt = "stream connection established"
+					s.CommandLine.Color = s.P.Dim.Green
+				})
+			}),
+			ws.WithOnDisconnectFn(
+				func(_ int, _ bool) {
+					b.Push(func(s *State) {
+						s.CommandLine.Prompt = "stream Lost. Reconnecting..."
+						s.CommandLine.Color = s.P.Dim.Yellow
+					})
+				},
+			),
+		)
 		b.stream[c] = stream
 		return stream
 	}
@@ -234,21 +272,18 @@ func (b *Background) CreateStream(
 	return stream
 }
 
-func InitBackground(ctx context.Context, br broker.Broker) *Background {
-	b := &Background{
-		Tx:           make(chan Task, 32),
-		broker:       br,
-		stream:       make([]broker.Stream, 16),
-		chartSub:     make([]*broker.Subscription[cdl.CandleStreamData], 16),
-		orderBookSub: make([]*broker.Subscription[[2][][2]float64], 16),
+func InitBackground(ctx context.Context, b broker.Broker) *Background {
+	bg := &Background{
+		Tx:     make(chan Task, 1),
+		broker: b,
 	}
 
 	go func() {
 		for {
 			select {
-			case t := <-b.Tx:
-				if err := t.Execute(b); err != nil {
-					b.Push(
+			case t := <-bg.Tx:
+				if err := t.Execute(bg); err != nil {
+					bg.Push(
 						CommitCommandLineError(err.Error()),
 					)
 				}
@@ -258,7 +293,7 @@ func InitBackground(ctx context.Context, br broker.Broker) *Background {
 		}
 	}()
 
-	return b
+	return bg
 }
 
 func (b *Background) Push(f CommitFn) {

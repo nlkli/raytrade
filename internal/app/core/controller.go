@@ -204,7 +204,7 @@ func (c *Controller) handleNormalMode(s *State) {
 }
 
 func (c *Controller) mouseEvent(s *State) {
-	const HOLDTIME = time.Duration(444) * time.Millisecond
+	const HOLDTIME = time.Duration(333) * time.Millisecond
 
 	if s.WHF || !s.WFF {
 		s.E.Mouse.Captured = true

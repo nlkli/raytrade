@@ -104,6 +104,7 @@ type ChartState struct {
 	Category string
 	Symbol   string
 	Interval string
+	LableString string
 
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)

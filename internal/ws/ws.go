@@ -39,7 +39,7 @@ func NewPolicy(
 
 	p := &Policy{
 		Dialer: &websocket.Dialer{
-			HandshakeTimeout: 7 * time.Second,
+			HandshakeTimeout: 3 * time.Second,
 		},
 
 		OnConnected:    onConnected,
@@ -49,7 +49,7 @@ func NewPolicy(
 
 		ReconnectTimeout: 200 * time.Millisecond,
 		PingInterval:     15 * time.Second,
-		WriteTimeout:     10 * time.Second,
+		WriteTimeout:     5 * time.Second,
 	}
 
 	for _, opt := range opts {
