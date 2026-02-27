@@ -207,8 +207,12 @@ type Stream interface {
 	SubscribeOrderBook(
 		symbol string, depth int,
 	) (*Subscription[[2][][2]float64], error)
+
+	Close()
 }
 
 type PrivateStream interface {
 	SubscribePosition() (*Subscription[Position], error)
+
+	Close()
 }

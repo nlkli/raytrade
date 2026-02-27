@@ -11,12 +11,39 @@
         "type": "split",
         "params": {
             "axis": 1,
-            "s": 0.75,
+            "s": 0.8,
             "m": 2
         },
         "a": {
-            "type": "chart",
-            "params": {}
+            "type": "split",
+            "params": {
+                "axis": 1,
+                "s": 0.15,
+                "m": 2
+            },
+            "a": {
+                "type": "orderbook",
+                "params": {
+                    "vm": 0,
+                    "rhd": 4
+                }
+            },
+            "b": {
+                "type": "split",
+                "params": {
+                    "axis": 0,
+                    "s": 0.5,
+                    "m": 2
+                },
+                "a": {
+                    "type": "chart",
+                    "params": {}
+                },
+                "b": {
+                    "type": "chart",
+                    "params": {}
+                }
+            }
         },
         "b": {
             "type": "orderbook_plus",
@@ -48,18 +75,18 @@
     "binds": [
         [
             "f",
-            "sub chart $ci F,$fc,1,300"
+            "sub chart $ci F,$fc,5,400"
         ],
         [
             "b",
-            "sub chart $ci F,$btc,1,300"
+            "sub chart $ci F,$btc,5,400"
         ],
         [
-            "c1",
+            "1",
             "set ci 0"
         ],
         [
-            "c2",
+            "2",
             "set ci 1"
         ],
         [
@@ -88,81 +115,83 @@
         ]
     ],
     "init_commands": [
-        "sub chart 0 F,$fc,1,300",
-        "sub orderbook 0 F,$fc,200"
+        "sub chart 0 F,$fc,1,500",
+        "sub chart 1 F,$btc,15,500",
+        "sub orderbook 0 F,$fc,200",
+        "sub orderbook 1 F,$btc,200"
     ],
     "theme": {
-        "name": "Matrix",
+        "name": "Dark Pastel",
         "is_light": false,
         "colors": {
             "background": [
-                "#090f11",
-                "#0f191c",
-                "#17272b",
-                "#1f343b",
-                "#2e4d57"
+                "#0b0b0b",
+                "#000000",
+                "#0f0f0f",
+                "#1f1f1f",
+                "#3b3b3b"
             ],
             "foreground": [
-                "#4c754e",
-                "#426644",
-                "#1c2b1d",
-                "#000000"
+                "#f0f0f0",
+                "#ffffff",
+                "#c4c4c4",
+                "#8f8f8f"
             ],
             "selection": {
-                "bg": "#18282e",
-                "fg": "#00ff87"
+                "bg": "#b5d5ff",
+                "fg": "#000000"
             },
             "cursor": {
-                "bg": "#384545",
-                "fg": "#00ff00"
+                "bg": "#bbbbbb",
+                "fg": "#ffffff"
             },
             "base": {
-                "black": "#0f191c",
-                "red": "#23755a",
-                "green": "#82d967",
-                "yellow": "#ffd700",
-                "blue": "#3f5242",
-                "magenta": "#409931",
-                "cyan": "#50b45a",
-                "white": "#507350",
-                "orange": "#91a62d",
-                "pink": "#3a7455"
+                "black": "#000000",
+                "red": "#ff5555",
+                "green": "#55ff55",
+                "yellow": "#ffff55",
+                "blue": "#5555ff",
+                "magenta": "#ff55ff",
+                "cyan": "#55ffff",
+                "white": "#bbbbbb",
+                "orange": "#ffaa55",
+                "pink": "#dd8888"
             },
             "bright": {
-                "black": "#0f191c",
-                "red": "#23755a",
-                "green": "#82d967",
-                "yellow": "#ffd700",
-                "blue": "#3f5242",
-                "magenta": "#409931",
-                "cyan": "#50b45a",
-                "white": "#507350",
-                "orange": "#91a62d",
-                "pink": "#3a7455"
+                "black": "#000000",
+                "red": "#ff5555",
+                "green": "#55ff55",
+                "yellow": "#ffff55",
+                "blue": "#5555ff",
+                "magenta": "#ff55ff",
+                "cyan": "#55ffff",
+                "white": "#bbbbbb",
+                "orange": "#ffaa55",
+                "pink": "#dd8888"
             },
             "dim": {
-                "black": "#0d1518",
-                "red": "#1e634d",
-                "green": "#6fb858",
-                "yellow": "#d9b700",
-                "blue": "#364638",
-                "magenta": "#36822a",
-                "cyan": "#44994d",
-                "white": "#446244",
-                "orange": "#7b8d26",
-                "pink": "#316348"
+                "black": "#000000",
+                "red": "#d94848",
+                "green": "#48d948",
+                "yellow": "#d9d948",
+                "blue": "#4848d9",
+                "magenta": "#d948d9",
+                "cyan": "#48d9d9",
+                "white": "#9f9f9f",
+                "orange": "#d99148",
+                "pink": "#bc7474"
             },
             "diff": {
-                "add": "#5c9a4e",
-                "delete": "#1c5746",
-                "change": "#2f3f35",
-                "text": "#2c6629"
+                "add": "#39ab39",
+                "delete": "#ab3939",
+                "change": "#3939ab",
+                "text": "#993399"
             },
             "code_selection": [
-                "#172522",
-                "#192426"
+                "#262626",
+                "#2d2d2d"
             ],
-            "comment": "#2e4734"
+            "comment": "#999999"
         }
     }
 }

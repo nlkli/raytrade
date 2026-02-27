@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -411,7 +412,12 @@ func (b *Broker) CreatePrivateStream(
 
 type BrokerPrivateStream struct {
 	tx     chan []byte
+	once   sync.Once
 	stream *StreamV2
+}
+
+func (s *BrokerPrivateStream) Close() {
+	s.once.Do(func() { close(s.tx) })
 }
 
 func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.Position], error) {
@@ -464,7 +470,12 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 
 type BrokerStream struct {
 	tx     chan []byte
+	once   sync.Once
 	stream *StreamV2
+}
+
+func (s *BrokerStream) Close() {
+	s.once.Do(func() { close(s.tx) })
 }
 
 func (s *BrokerStream) SubscribeCandle(

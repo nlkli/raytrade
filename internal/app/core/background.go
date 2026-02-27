@@ -243,6 +243,37 @@ type Background struct {
 	orderBookSub [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[[2][][2]float64]
 }
 
+func InitBackground(ctx context.Context, b broker.Broker) *Background {
+	bg := &Background{
+		Tx:     make(chan Task, 1),
+		broker: b,
+	}
+
+	go func() {
+		for {
+			select {
+			case t := <-bg.Tx:
+				if err := t.Execute(bg); err != nil {
+					bg.Push(
+						CommitCommandLineError(err.Error()),
+					)
+				}
+			case <-ctx.Done():
+				bg.privateStream.Close()
+				for _, s := range bg.stream {
+					if s == nil {
+						continue
+					}
+					s.Close()
+				}
+				return
+			}
+		}
+	}()
+
+	return bg
+}
+
 func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {
 
 	stream := b.stream[c]
@@ -270,30 +301,6 @@ func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {
 	}
 
 	return stream
-}
-
-func InitBackground(ctx context.Context, b broker.Broker) *Background {
-	bg := &Background{
-		Tx:     make(chan Task, 1),
-		broker: b,
-	}
-
-	go func() {
-		for {
-			select {
-			case t := <-bg.Tx:
-				if err := t.Execute(bg); err != nil {
-					bg.Push(
-						CommitCommandLineError(err.Error()),
-					)
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return bg
 }
 
 func (b *Background) Push(f CommitFn) {

@@ -350,7 +350,7 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 
 		} else {
 
-			if s.E.Mouse.Click[0] && cs.IsLineDuring {
+			if s.E.Mouse.Click[0] && cs.IsLineDuring && len(cs.Lines) > 0 {
 				cs.Lines[len(cs.Lines)-1][1] = rl.Vector2{
 					X: cs.StartSec + wm.X*cs.SecPerPx,
 					Y: float32(
