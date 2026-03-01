@@ -292,22 +292,11 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 			return nil, fmt.Errorf("invalid interval: %s", intervalV)
 		}
 
-		limitV, ok := nextP()
-		if !ok {
-			return nil, fmt.Errorf("missing limit for chart component")
-		}
-
-		limit, err := strconv.Atoi(limitV)
-		if err != nil {
-			return nil, fmt.Errorf("invalid limit value: %s", limitV)
-		}
-
 		c.BTX <- &SubChart{
 			Idx:      compIdx,
 			Category: category,
 			Symbol:   symbol,
 			Interval: interval,
-			Limit:    limit,
 		}
 	case "orderbook":
 		categoryV, ok := nextP()

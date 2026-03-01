@@ -33,8 +33,8 @@ type OrderBook struct {
 
 	RH float32
 
-	CenterY float32
-	CenterX float32
+	ySep float32
+	xSep float32
 
 	Cap int
 
@@ -83,12 +83,15 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 
 	ob.RH = s.RH - obS.RHD
 
+	halfY := ob.s.Y * .5
+	ob.ySep = ob.p.Y + halfY + obS.ShiftY
+
 	if s.WRF || obS.Forced {
-		halfY := ob.s.Y * .5
-
-		ob.CenterY = ob.p.Y + halfY
-		ob.Cap = min(n, int(halfY/ob.RH)+1)
-
+		shiftY := obS.ShiftY
+		if shiftY < 0 {
+			shiftY = -shiftY
+		}
+		ob.Cap = min(n, int((halfY+shiftY)/ob.RH)+1)
 		ob.UpdateOrderBookState(s, obS)
 	}
 
@@ -100,8 +103,8 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 	)
 
 	rl.DrawLineEx(
-		rl.Vector2{X: ob.p.X, Y: ob.CenterY},
-		rl.Vector2{X: ob.p.X + ob.s.X, Y: ob.CenterY},
+		rl.Vector2{X: ob.p.X, Y: ob.ySep},
+		rl.Vector2{X: ob.p.X + ob.s.X, Y: ob.ySep},
 		2,
 		s.P.Base.Orange,
 	)
@@ -118,7 +121,7 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 			bidSizeRatio := float32(bid[1] / ob.MaxBidS)
 			bidSizeW := maxSizeW * bidSizeRatio
 
-			bidPos := rl.Vector2{X: ob.p.X, Y: ob.CenterY + offsetY}
+			bidPos := rl.Vector2{X: ob.p.X, Y: ob.ySep + offsetY}
 
 			rl.DrawRectangleV(
 				bidPos,
@@ -163,7 +166,7 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 			askSizeRatio := float32(ask[1] / ob.MaxAskS)
 			askSizeW := ob.s.X * askSizeRatio
 
-			askPos := rl.Vector2{X: ob.p.X, Y: ob.CenterY - offsetY - ob.RH}
+			askPos := rl.Vector2{X: ob.p.X, Y: ob.ySep - offsetY - ob.RH}
 
 			rl.DrawRectangleV(
 				askPos,
@@ -214,7 +217,7 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 			bidSizeRatio := float32(bid[1] / ob.MaxBidS)
 			bidSizeW := maxSizeW * bidSizeRatio
 
-			bidPos := rl.Vector2{X: ob.p.X, Y: ob.CenterY + offsetY}
+			bidPos := rl.Vector2{X: ob.p.X, Y: ob.ySep + offsetY}
 
 			rl.DrawRectangleV(
 				bidPos,
@@ -234,7 +237,7 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 			askSizeRatio := float32(ask[1] / ob.MaxAskS)
 			askSizeW := ob.s.X * askSizeRatio
 
-			askPos := rl.Vector2{X: ob.p.X, Y: ob.CenterY - offsetY - ob.RH}
+			askPos := rl.Vector2{X: ob.p.X, Y: ob.ySep - offsetY - ob.RH}
 
 			rl.DrawRectangleV(
 				askPos,
@@ -250,6 +253,31 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 			)
 		}
 
+	}
+
+	if !s.E.Mouse.Captured && ob.ContainsV(s.E.Mouse.Pos) {
+
+		if s.E.Mouse.HoldLeft {
+			obS.ShiftY -= s.E.Mouse.Delta.Y
+		} else {
+			if s.E.Mouse.Click[0] {
+				if s.E.Mouse.Pos.Y < ob.ySep {
+					askIdx := int((ob.ySep - s.E.Mouse.Pos.Y - 1) / ob.RH)
+					if len(obS.Asks) > askIdx {
+						s.Select.Price.InstrumentKey = obS.InstrumentKey
+						s.Select.Price.Value = obS.Asks[askIdx][0]
+					}
+				} else {
+					bidIdx := int((s.E.Mouse.Pos.Y - ob.ySep + 1) / ob.RH)
+					if len(obS.Asks) > bidIdx {
+						s.Select.Price.InstrumentKey = obS.InstrumentKey
+						s.Select.Price.Value = obS.Bids[bidIdx][0]
+					}
+				}
+			}
+		}
+
+		s.E.Mouse.Captured = true
 	}
 
 	rl.EndScissorMode()
@@ -268,8 +296,9 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 	halfX := ob.s.X * .5
 
 	if s.WRF || obS.Forced {
-		ob.CenterX = ob.p.X + halfX
-		ob.Cap = min(n, int(ob.s.Y/ob.RH)+1)
+		ob.xSep = ob.p.X + halfX
+		offsetY := min(0, obS.OffsetY) * -1
+		ob.Cap = min(n, int((ob.s.Y+offsetY)/ob.RH)+1)
 
 		ob.UpdateOrderBookState(s, obS)
 	}
@@ -285,14 +314,14 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 
 	if ob.ShowText {
 		for i := range ob.Cap {
-			offsetY := float32(i) * ob.RH
+			offsetY := float32(i)*ob.RH + obS.OffsetY
 
 			bid := obS.Bids[i]
 			bidSizeRatio := float32(bid[1] / ob.MaxBidS)
 			bidSizeW := maxSizeW * bidSizeRatio
 
 			bidPos := rl.Vector2{
-				X: ob.CenterX - bidSizeW - 2,
+				X: ob.xSep - bidSizeW - 2,
 				Y: ob.p.Y + offsetY,
 			}
 
@@ -306,7 +335,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 				s.F,
 				ob.BidsText[i][0],
 				rl.Vector2{
-					X: ob.CenterX - ORDER_BOOK_TEXT_XPD - ob.BidsPriceTextW[i],
+					X: ob.xSep - ORDER_BOOK_TEXT_XPD - ob.BidsPriceTextW[i],
 					Y: bidPos.Y,
 				},
 				ob.RH,
@@ -316,7 +345,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 
 			rl.DrawLineEx(
 				rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.RH},
-				rl.Vector2{X: ob.CenterX, Y: bidPos.Y + ob.RH},
+				rl.Vector2{X: ob.xSep, Y: bidPos.Y + ob.RH},
 				1,
 				s.P.Bg[0],
 			)
@@ -326,7 +355,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 			askSizeW := halfX * askSizeRatio
 
 			askPos := rl.Vector2{
-				X: ob.CenterX + 2,
+				X: ob.xSep + 2,
 				Y: ob.p.Y + offsetY,
 			}
 
@@ -340,7 +369,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 				s.F,
 				ob.AsksText[i][0],
 				rl.Vector2{
-					X: ob.CenterX + ORDER_BOOK_TEXT_XPD,
+					X: ob.xSep + ORDER_BOOK_TEXT_XPD,
 					Y: askPos.Y,
 				},
 				ob.RH,
@@ -349,7 +378,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 			)
 
 			rl.DrawLineEx(
-				rl.Vector2{X: ob.CenterX, Y: askPos.Y + ob.RH},
+				rl.Vector2{X: ob.xSep, Y: askPos.Y + ob.RH},
 				rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y + ob.RH},
 				1,
 				s.P.Bg[0],
@@ -357,14 +386,14 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 		}
 	} else {
 		for i := range ob.Cap {
-			offsetY := float32(i) * ob.RH
+			offsetY := float32(i)*ob.RH + obS.OffsetY
 
 			bid := obS.Bids[i]
 			bidSizeRatio := float32(bid[1] / ob.MaxBidS)
 			bidSizeW := maxSizeW * bidSizeRatio
 
 			bidPos := rl.Vector2{
-				X: ob.CenterX - bidSizeW - 2,
+				X: ob.xSep - bidSizeW - 2,
 				Y: ob.p.Y + offsetY,
 			}
 
@@ -376,7 +405,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 
 			rl.DrawLineEx(
 				rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.RH},
-				rl.Vector2{X: ob.CenterX, Y: bidPos.Y + ob.RH},
+				rl.Vector2{X: ob.xSep, Y: bidPos.Y + ob.RH},
 				1,
 				s.P.Bg[0],
 			)
@@ -386,7 +415,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 			askSizeW := halfX * askSizeRatio
 
 			askPos := rl.Vector2{
-				X: ob.CenterX + 2,
+				X: ob.xSep + 2,
 				Y: ob.p.Y + offsetY,
 			}
 
@@ -397,7 +426,7 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 			)
 
 			rl.DrawLineEx(
-				rl.Vector2{X: ob.CenterX, Y: askPos.Y + ob.RH},
+				rl.Vector2{X: ob.xSep, Y: askPos.Y + ob.RH},
 				rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y + ob.RH},
 				1,
 				s.P.Bg[0],
@@ -407,11 +436,35 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 
 	// Vertical center line
 	rl.DrawLineEx(
-		rl.Vector2{X: ob.CenterX, Y: ob.p.Y},
-		rl.Vector2{X: ob.CenterX, Y: ob.p.Y + ob.s.Y},
+		rl.Vector2{X: ob.xSep, Y: ob.p.Y},
+		rl.Vector2{X: ob.xSep, Y: ob.p.Y + ob.s.Y},
 		2,
 		s.P.Base.Orange,
 	)
+
+	if !s.E.Mouse.Captured && ob.ContainsV(s.E.Mouse.Pos) {
+
+		if s.E.Mouse.HoldLeft {
+			obS.OffsetY -= s.E.Mouse.Delta.Y
+		} else {
+			if s.E.Mouse.Click[0] {
+				idx := int((s.E.Mouse.Pos.Y - ob.p.Y) / ob.RH)
+				if s.E.Mouse.Pos.X > ob.xSep {
+					if len(obS.Asks) > idx {
+						s.Select.Price.InstrumentKey = obS.InstrumentKey
+						s.Select.Price.Value = obS.Asks[idx][0]
+					}
+				} else {
+					if len(obS.Asks) > idx {
+						s.Select.Price.InstrumentKey = obS.InstrumentKey
+						s.Select.Price.Value = obS.Bids[idx][0]
+					}
+				}
+			}
+		}
+
+		s.E.Mouse.Captured = true
+	}
 
 	rl.EndScissorMode()
 

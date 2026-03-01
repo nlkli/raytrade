@@ -126,6 +126,7 @@ func Run(ctx context.Context, configPath string) {
 	rl.SetExitKey(0)
 
 	app := InitApp(ctx, &c)
+	app.BG.WatchConfig(ctx, configPath)
 
 	defer rl.CloseWindow()
 
@@ -135,92 +136,3 @@ func Run(ctx context.Context, configPath string) {
 		app.Frame()
 	}
 }
-
-//   "layout": {
-//     "type": "split",
-//     "params": {
-//       "axis": 1,
-//       "s": 0.7,
-//       "m": 2
-//     },
-//     "a": {
-//       "type": "split",
-//       "params": {
-//         "axis": 1,
-//         "s": 0.67,
-//         "m": 2
-//       },
-//       "a": {
-//         "type": "split",
-//         "params": {
-//           "axis": 1,
-//           "s": 0.5,
-//           "m": 2
-//         },
-//         "a": {
-//           "type": "split",
-//           "params": {
-//             "axis": 0,
-//             "s": 0.5,
-//             "m": 2
-//           },
-//           "a": {
-//             "type": "chart",
-//             "params": {}
-//           },
-//           "b": {
-//             "type": "chart",
-//             "params": {}
-//           }
-//         },
-//         "b": {
-//           "type": "split",
-//           "params": {
-//             "axis": 0,
-//             "s": 0.5,
-//             "m": 2
-//           },
-//           "a": {
-//             "type": "chart",
-//             "params": {}
-//           },
-//           "b": {
-//             "type": "chart",
-//             "params": {}
-//           }
-//         }
-//       },
-//       "b": {
-//         "type": "split",
-//         "params": {
-//           "axis": 0,
-//           "s": 0.5,
-//           "m": 2
-//         },
-//         "a": {
-//           "type": "chart",
-//           "params": {}
-//         },
-//         "b": {
-//           "type": "chart",
-//           "params": {}
-//         }
-//       }
-//     },
-//     "b": {
-//       "type": "split",
-//       "params": {
-//         "axis": 1,
-//         "s": 0.5,
-//         "m": 2
-//       },
-//       "a": {
-//         "type": "order_book",
-//         "params": {}
-//       },
-//       "b": {
-//         "type": "order_book",
-//         "params": {}
-//       }
-//     }
-//   },

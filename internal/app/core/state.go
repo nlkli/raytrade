@@ -1,6 +1,7 @@
 package core
 
 import (
+	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"time"
 
@@ -44,6 +45,8 @@ type State struct {
 
 	P *Palette
 
+	MouseDeltaFactor float32
+
 	E Event
 
 	F        rl.Font
@@ -56,6 +59,10 @@ type State struct {
 	BTX   chan<- Task   // Backgorund tx
 	CMDTX chan<- string // CMD tx
 
+	InstrumentInfo map[string]InstrumentInfo
+
+	Select Select
+
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 
@@ -67,6 +74,21 @@ type State struct {
 	ShowOverlay bool
 
 	Cache Cache
+}
+
+type InstrumentInfo struct {
+	TickSize float64
+}
+
+type Select struct {
+	OrderId struct {
+		InstrumentKey string
+		Value         float64
+	}
+	Price struct {
+		InstrumentKey string
+		Value         float64
+	}
 }
 
 type Cache struct {
@@ -101,22 +123,24 @@ type ChartState struct {
 
 	RHD float32
 
-	Category string
-	Symbol   string
-	Interval string
-	LableString string
+	InstrumentKey string
+	Category      broker.Category
+	Symbol        string
+	Interval      cdl.Interval
+	LableString   string
 
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
 
-	Price  float64 // Last price
-	PriceY float32 // Last price y coord
+	LastPrice  float64 // Last price
+	LastPriceY float32 // Last price y coord
 
 	Cursor      rl.Vector2
 	CursorPrice float64
 
-	Candles     []cdl.Candle // Candles buffer
-	SecInterval float32      // Seconds interval
+	ExtendCandlesF bool
+	Candles        []cdl.Candle // Candles buffer
+	SecInterval    float32      // Seconds interval
 
 	Cap float32 // Number of candles that fit in canvas width
 
@@ -146,8 +170,12 @@ type OrderBookState struct {
 
 	RHD float32
 
-	Symbol   string
-	Category string
+	ShiftY  float32 // for scroll centered
+	OffsetY float32 // for scroll split
+
+	InstrumentKey string
+	Category      broker.Category
+	Symbol        string
 
 	Bids [][2]float64
 	Asks [][2]float64
@@ -176,9 +204,7 @@ func InitState(c *Config) *State {
 		F:  rl.LoadFont(c.LoadFont),
 		RH: c.RowHeight,
 
-		// StatusLine: StatusLineState{
-		// 	Interval: cdl.M1.AsString(),
-		// },
+		MouseDeltaFactor: c.MouseDeltaFactor,
 
 		CommandLine: CommandLineState{
 			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),

@@ -1,8 +1,8 @@
 # raytrade
 
-![rytrade demo 1 Sat Feb 28 01:31:02 MSK 2026](https://github.com/nlkli/assetsrepo/blob/main/raytrade.demo/demo1-o.mp4)  
+[![rytrade demo 1 Sat Feb 28 01:31:02 MSK 2026]()](https://github.com/nlkli/assetsrepo/blob/main/raytrade.demo/demo1-o.mp4)  
 
-![rytrade demo 2 Sat Feb 28 01:31:16 MSK 2026](https://github.com/nlkli/assetsrepo/blob/main/raytrade.demo/demo2-o.mp4)  
+[![rytrade demo 2 Sat Feb 28 01:31:16 MSK 2026]()](https://github.com/nlkli/assetsrepo/blob/main/raytrade.demo/demo2-o.mp4)
 
 ### Component params
 

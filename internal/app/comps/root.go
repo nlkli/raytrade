@@ -14,9 +14,9 @@ const (
 	DEFAULT_CHART_RHD      float32 = 4
 	DEFAULT_ORDER_BOOK_RHD float32 = 2
 
-	DEFAULT_SCALE_X float32 = 1
-	DEFAULT_SCALE_Y float32 = .9
-	DEFAULT_SHIFT_X float32 = 40
+	DEFAULT_SCALE_X float32 = .9
+	DEFAULT_SCALE_Y float32 = .8
+	DEFAULT_SHIFT_X float32 = 60
 	DEFAULT_SHIFT_Y float32 = 0
 )
 

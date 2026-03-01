@@ -2,15 +2,22 @@ package core
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
+	"nlkli/raytrade/internal/utils"
 	"nlkli/raytrade/internal/ws"
+	"sync"
 	"sync/atomic"
 	"time"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const (
+	REQUEST_CANDLES_TIMEOUT = time.Second * 3
 	MAX_CATEGORY_STREAMS    = 4
 	MAX_TOPIC_SUBSCRIPTIONS = 16
 )
@@ -20,14 +27,96 @@ type Task interface {
 }
 
 type PlaceOrder struct {
-	Category broker.Category
-	Symbol   string
-	Side     broker.Side
-	Price    float64
-	UsdQty   float64
+	Category     broker.Category
+	Symbol       string
+	UseMargin    bool
+	Side         broker.Side
+	Type         broker.OrderType
+	Qty          float64
+	IsCoinQty    bool
+	Price        float64
+	TriggerPrice float64
+	TriggerBy    string
+	TakeProfit   float64
+	StopLoss     float64
 }
 
 func (t *PlaceOrder) Execute(b *Background) error {
+	return nil
+}
+
+type ExtendStartCandles struct {
+	Idx      int
+	Category broker.Category
+	Symbol   string
+	Interval cdl.Interval
+	Candles  []cdl.Candle
+	Limit    int
+}
+
+func (t *ExtendStartCandles) Execute(b *Background) error {
+	defer b.Push(func(s *State) {
+		s.Chart[t.Idx].ExtendCandlesF = false
+	})
+
+	if len(t.Candles) == 0 {
+		return errors.New("empty candles")
+	}
+
+	if t.Limit <= 1 {
+		return errors.New("ivalid limit param")
+	}
+
+	startCandles := len(t.Candles)
+	exCandles := t.Candles
+	// intervalMilli := int64(t.Interval.AsMilli())
+	timeout := time.After(time.Minute)
+
+loop:
+	for {
+		select {
+		case <-timeout:
+			break loop
+		default:
+			ctx, cancel := context.WithTimeout(
+				context.Background(),
+				REQUEST_CANDLES_TIMEOUT,
+			)
+			res, err := b.broker.ExtendStartCandles(
+				ctx,
+				exCandles,
+				t.Category,
+				t.Symbol,
+				t.Interval,
+				t.Limit,
+			)
+
+			cancel()
+
+			if err == nil {
+
+				exCandles = append(res, exCandles...)
+
+				b.Push(func(s *State) {
+					cs := s.Chart[t.Idx]
+
+					if cs.ExtendCandlesF {
+						cs.Candles = exCandles[:len(exCandles)-startCandles]
+						startCandles = len(cs.Candles)
+
+						cs.Forced = true
+					}
+				})
+
+				if len(res) < t.Limit {
+					continue
+				}
+
+				break loop
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -36,11 +125,9 @@ type SubChart struct {
 	Category broker.Category
 	Symbol   string
 	Interval cdl.Interval
-	Limit    int
 }
 
 func (t *SubChart) Execute(b *Background) error {
-
 	stream := b.GetOrInitStream(t.Category)
 
 	sub, err := stream.SubscribeCandle(t.Symbol, t.Interval)
@@ -54,10 +141,9 @@ func (t *SubChart) Execute(b *Background) error {
 		)
 	}
 
-	first := <-sub.C
-
 	if b.chartSub[t.Idx] != nil {
 		if err = b.chartSub[t.Idx].Stop(); err != nil {
+			sub.Stop()
 			return fmt.Errorf(
 				"candle unsubscribtion error: %e",
 				err,
@@ -67,100 +153,54 @@ func (t *SubChart) Execute(b *Background) error {
 
 	b.chartSub[t.Idx] = sub
 
+	first := <-sub.C
+
 	b.Push(func(s *State) {
 		cs := s.Chart[t.Idx]
 
-		cs.Category = t.Category.AsString(true)
+		cString := t.Category.AsString(true)
+		iString := t.Interval.AsString()
+
+		cs.InstrumentKey = fmt.Sprintf(
+			"%s.%s", cString, t.Symbol,
+		)
+		cs.Category = t.Category
 		cs.Symbol = t.Symbol
-		cs.Interval = t.Interval.AsString()
+		cs.Interval = t.Interval
 
 		cs.LableString = fmt.Sprintf(
-			"%s.%s.%s", cs.Category, cs.Symbol, cs.Interval,
+			"%s.%s.%s", cString, cs.Symbol, iString,
 		)
 
 		cs.SecInterval = float32(t.Interval.AsSeconds())
 		cs.Candles = []cdl.Candle{first.Candle}
+		cs.ExtendCandlesF = false
+
 		cs.Levels = nil
 		cs.Lines = nil
 		cs.IsLineDuring = false
 		cs.Forced = true
 	})
 
-	done := make(chan struct{}, 1)
-	exCandlesCh := make(chan cdl.Candle, 1)
-
 	go func() {
-		for {
-			select {
-			case candle := <-exCandlesCh:
-
-				timeout := time.After(
-					time.Second * time.Duration(t.Interval.AsSeconds()-10),
-				)
-
-			loop:
-				for {
-					select {
-					case <-timeout:
-						break loop
-					case <-done:
-						break loop
-					default:
-						ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-						exCandles, err := b.broker.ExtendStartCandles(
-							ctx,
-							[]cdl.Candle{candle},
-							t.Category,
-							t.Symbol,
-							t.Interval,
-							t.Limit,
-						)
-
-						cancel()
-
-						if err == nil {
-							b.Push(func(s *State) {
-								cs := s.Chart[t.Idx]
-								n := len(cs.Candles)
-								if n > 0 {
-									last := cs.Candles[n-1]
-									cs.Candles = exCandles
-									cs.Candles = append(cs.Candles, last)
-								}
-								cs.Forced = true
-							})
-							break loop
-						}
-					}
-				}
-
-			case <-done:
-				return
-
-			}
-		}
-	}()
-
-	exCandlesCh <- first.Candle
-
-	go func() {
-		defer close(done)
-
-		intervalMs := int64(t.Interval.AsMilli() + 999)
+		intervalMilli := int64(t.Interval.AsMilli())
 
 		for d := range sub.C {
 			if d.Confirm {
 				b.Push(func(s *State) {
 					cs := s.Chart[t.Idx]
 
-					n := len(cs.Candles) - 1
-					if n > 1 {
-						if cs.Candles[n-1].Time-cs.Candles[n-2].Time > intervalMs {
-							exCandlesCh <- d.Candle
-						}
+					cs.LastPrice = d.Candle.C
+
+					n := len(cs.Candles)
+
+					timeDiff := d.Candle.Time - cs.Candles[n-2].Time
+					if timeDiff > intervalMilli+200 {
+						cs.Candles = []cdl.Candle{d.Candle}
+					} else {
+						cs.Candles = append(cs.Candles, d.Candle)
 					}
 
-					cs.Candles = append(cs.Candles, d.Candle)
 					cs.Forced = true
 				})
 				continue
@@ -169,6 +209,7 @@ func (t *SubChart) Execute(b *Background) error {
 			b.Push(func(s *State) {
 				cs := s.Chart[t.Idx]
 
+				cs.LastPrice = d.Candle.C
 				cs.Candles[len(cs.Candles)-1] = d.Candle
 
 				cs.MaxP = max(cs.MaxP, d.Candle.H)
@@ -203,8 +244,13 @@ func (t *SubOrderBook) Execute(b *Background) error {
 
 	b.Push(func(s *State) {
 		obS := s.OrderBook[t.Idx]
-		obS.Category = t.Category.AsString(true)
+
+		obS.InstrumentKey = fmt.Sprintf(
+			"%s.%s", t.Category.AsString(true), t.Symbol,
+		)
+		obS.Category = t.Category
 		obS.Symbol = t.Symbol
+
 		obS.Forced = true
 	})
 
@@ -241,22 +287,47 @@ type Background struct {
 
 	chartSub     [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[cdl.CandleStreamData]
 	orderBookSub [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[[2][][2]float64]
+
+	mu sync.Mutex
 }
 
-func InitBackground(ctx context.Context, b broker.Broker) *Background {
+func InitBackground(
+
+	ctx context.Context,
+	b broker.Broker,
+
+) *Background {
 	bg := &Background{
 		Tx:     make(chan Task, 1),
 		broker: b,
 	}
 
-	go func() {
-		for {
-			select {
-			case t := <-bg.Tx:
+	const totalWorkers = 8
+	workers := [totalWorkers]chan Task{}
+	for i, _ := range workers {
+		ch := make(chan Task)
+		workers[i] = ch
+		go func() {
+			for t := range ch {
 				if err := t.Execute(bg); err != nil {
 					bg.Push(
 						CommitCommandLineError(err.Error()),
 					)
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wi := 0
+
+		for {
+			select {
+			case t := <-bg.Tx:
+				workers[wi] <- t
+				wi++
+				if wi >= totalWorkers {
+					wi = 0
 				}
 			case <-ctx.Done():
 				bg.privateStream.Close()
@@ -266,6 +337,9 @@ func InitBackground(ctx context.Context, b broker.Broker) *Background {
 					}
 					s.Close()
 				}
+				for _, ch := range workers {
+					close(ch)
+				}
 				return
 			}
 		}
@@ -274,7 +348,48 @@ func InitBackground(ctx context.Context, b broker.Broker) *Background {
 	return bg
 }
 
+func (b *Background) WatchConfig(ctx context.Context, configPath string) error {
+
+	watchConfig, err := utils.WatchFile(ctx, configPath, time.Second*5)
+	if err != nil {
+		return err
+
+	}
+
+	go func() {
+		for {
+			select {
+			case cb := <-watchConfig:
+				var c Config
+				if err := json.Unmarshal(cb, &c); err == nil {
+					b.Push(func(s *State) {
+						s.P = PaletteFromConfig(&c)
+						s.RH = c.RowHeight
+						s.RH_Dirty = true
+						s.MouseDeltaFactor = c.MouseDeltaFactor
+						s.TextNumSV = rl.MeasureTextEx(s.F, NUMBERS, float32(s.F.BaseSize), 0)
+						s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))
+						s.TextDotW = rl.MeasureTextEx(
+							s.F, ".", float32(s.F.BaseSize), 0,
+						).X
+						s.F = rl.LoadFont(c.LoadFont)
+						s.TFPS = c.TargetFPS
+						rl.SetTargetFPS(c.TargetFPS)
+						s.ATFT = time.Second / time.Duration(c.TargetFPS)
+					})
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return nil
+}
+
 func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
 	stream := b.stream[c]
 

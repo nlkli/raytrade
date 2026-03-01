@@ -18,6 +18,7 @@ const (
 	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
 	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
 	PRICE_BAR_LABLE_XPD       float32 = 4     // Padding
+	EXTEND_CANDLES_LIMIT              = 100
 )
 
 type Chart struct {
@@ -51,7 +52,8 @@ func (ch *Chart) Render(s *core.State) {
 		ch.pb.Rect, ch.cr.Rect = r.SplitH(ch.s.Y - rh)
 	}
 
-	if len(cs.Candles) == 0 {
+	n := len(cs.Candles)
+	if n == 0 {
 		return
 	}
 
@@ -94,6 +96,18 @@ func (ch *Chart) Render(s *core.State) {
 		)
 	}
 
+	if ch.c.endCandleIdx >= n && !cs.ExtendCandlesF {
+		cs.ExtendCandlesF = true
+		s.BTX <- &core.ExtendStartCandles{
+			Idx:      ch.StateIdx,
+			Category: cs.Category,
+			Symbol:   cs.Symbol,
+			Interval: cs.Interval,
+			Candles:  cs.Candles,
+			Limit:    EXTEND_CANDLES_LIMIT,
+		}
+	}
+
 	if cs.Forced {
 		cs.Forced = false
 	}
@@ -111,6 +125,8 @@ type Canvas struct {
 	*Rect
 
 	cam rl.Camera2D
+
+	endCandleIdx int
 }
 
 func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
@@ -157,9 +173,8 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	}
 
 	// Current price position
-	cs.Price = candles[n-1].C
-	cs.PriceY = priceToWorldY(
-		cs.Price, cs.MaxVisPrice, cs.PxPerPrice,
+	cs.LastPriceY = priceToWorldY(
+		cs.LastPrice, cs.MaxVisPrice, cs.PxPerPrice,
 	)
 
 	// Draw grid
@@ -262,8 +277,8 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 
 	// Current price line
 	rl.DrawLineEx(
-		rl.Vector2{X: cs.Shift.X, Y: cs.PriceY},
-		rl.Vector2{X: c.s.X + cs.Shift.X, Y: cs.PriceY},
+		rl.Vector2{X: cs.Shift.X, Y: cs.LastPriceY},
+		rl.Vector2{X: c.s.X + cs.Shift.X, Y: cs.LastPriceY},
 		1,
 		s.P.Bg[4],
 	)
@@ -272,10 +287,10 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	if cs.Shift.X < 0 {
 		start -= int(cs.Shift.X / stepX)
 	}
-	end := min(n, int(cs.Cap)+start+2)
+	c.endCandleIdx = min(n, int(cs.Cap)+start+2)
 
 	// Draw candles from right to left (newest to oldest)
-	for i := start; i < end; i++ {
+	for i := start; i < c.endCandleIdx; i++ {
 		candle := candles[n-i]
 
 		xPos := c.s.X - stepX*float32(i)
@@ -326,6 +341,11 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 		cs.CursorPrice = worldYToPrice(
 			cs.Cursor.Y, cs.MaxVisPrice, cs.PxPerPrice,
 		)
+
+		if s.E.Mouse.Click[0] {
+			s.Select.Price.InstrumentKey = cs.InstrumentKey
+			s.Select.Price.Value = cs.CursorPrice
+		}
 
 		// Horizontal line
 		rl.DrawLineEx(
@@ -434,7 +454,7 @@ type PriceBar struct {
 
 func (pb *PriceBar) Render(s *core.State, cs *core.ChartState, rh float32) {
 	// Current price position in local coordinates
-	localPriceY := cs.PriceY + pb.p.Y - cs.Shift.Y
+	localPriceY := cs.LastPriceY + pb.p.Y - cs.Shift.Y
 
 	rowCenter := rh * .5
 	// Lables offset x (padding)
@@ -498,7 +518,7 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState, rh float32) {
 	)
 
 	// Current price label
-	priceText := fmt.Sprintf("%.5f", cs.Price)
+	priceText := fmt.Sprintf("%.5f", cs.LastPrice)
 	if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
 		priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 	}

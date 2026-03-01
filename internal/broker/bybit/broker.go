@@ -375,23 +375,10 @@ func (b *Broker) GetOrderBook(
 	return &ob, nil
 }
 
-func (b *Broker) CreateStream(
-
-	category broker.Category,
-	onConnected ws.OnConnectedFn,
-
-	opts ...ws.PolicyOption,
-
-) broker.Stream {
-
-	lc := ToLocalCategory(category)
-	tx := make(chan []byte, 1)
-	stream := b.c.CreatePublicStreamV2(lc, tx, onConnected, opts...)
-
-	return &BrokerStream{
-		stream: stream,
-		tx:     tx,
-	}
+type BrokerPrivateStream struct {
+	tx     chan []byte
+	once   sync.Once
+	stream *StreamV2
 }
 
 func (b *Broker) CreatePrivateStream(
@@ -408,12 +395,6 @@ func (b *Broker) CreatePrivateStream(
 		stream: stream,
 		tx:     tx,
 	}
-}
-
-type BrokerPrivateStream struct {
-	tx     chan []byte
-	once   sync.Once
-	stream *StreamV2
 }
 
 func (s *BrokerPrivateStream) Close() {
@@ -472,6 +453,25 @@ type BrokerStream struct {
 	tx     chan []byte
 	once   sync.Once
 	stream *StreamV2
+}
+
+func (b *Broker) CreateStream(
+
+	category broker.Category,
+	onConnected ws.OnConnectedFn,
+
+	opts ...ws.PolicyOption,
+
+) broker.Stream {
+
+	lc := ToLocalCategory(category)
+	tx := make(chan []byte, 1)
+	stream := b.c.CreatePublicStreamV2(lc, tx, onConnected, opts...)
+
+	return &BrokerStream{
+		stream: stream,
+		tx:     tx,
+	}
 }
 
 func (s *BrokerStream) Close() {

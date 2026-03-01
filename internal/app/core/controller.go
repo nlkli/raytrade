@@ -14,14 +14,18 @@ const (
 type MouseEvent struct {
 	Pos         rl.Vector2 // Position
 	Delta       rl.Vector2 // Delta
-	Click     [2]bool
+	Click       [2]bool
 	DoubleClick bool
 	HoldLeft    bool
 	Captured    bool
 }
 
 type Event struct {
-	Mouse MouseEvent
+	Mouse            MouseEvent
+	ShiftDown        bool
+	CtrlDown         bool
+	SuperDown        bool
+	CancelKeyPressed bool
 }
 
 type BindNode struct {
@@ -51,11 +55,6 @@ type Controller struct {
 			RB uint64
 		}
 	}
-
-	// LastCharPressed struct {
-	// 	C  rune
-	// 	FN uint64
-	// }
 }
 
 func InitController(c *Config) *Controller {
@@ -138,14 +137,15 @@ func (c *Controller) handleNormalMode(s *State) {
 	// c.LastCharPressed.C = cp
 	// c.LastCharPressed.FN = s.FN
 
-	ctrlDown := rl.IsKeyDown(rl.KeyLeftControl)
-	superDown := rl.IsKeyDown(rl.KeyLeftSuper)
+	s.E.ShiftDown = rl.IsKeyDown(rl.KeyLeftShift)
+	s.E.CtrlDown = rl.IsKeyDown(rl.KeyLeftControl)
+	s.E.SuperDown = rl.IsKeyDown(rl.KeyLeftSuper)
 
 	if c.BindHit == nil {
 
 		bind, ok := c.Binds[cp]
 
-		if ok && bind.WithCtrl == ctrlDown && !superDown {
+		if ok && bind.WithCtrl == s.E.CtrlDown && !s.E.SuperDown {
 
 			if bind.Next == nil {
 				c.CMDTX <- bind.Command
@@ -163,7 +163,7 @@ func (c *Controller) handleNormalMode(s *State) {
 
 		bind, ok := c.BindHit.Node.Next[cp]
 
-		if ok && bind.WithCtrl == ctrlDown && !superDown {
+		if ok && bind.WithCtrl == s.E.CtrlDown && !s.E.SuperDown {
 
 			if bind.Next == nil {
 				c.CMDTX <- bind.Command
@@ -200,7 +200,6 @@ func (c *Controller) handleNormalMode(s *State) {
 
 	// if rl.IsKeyPressed(rl.KeyEscape) {
 	// }
-
 }
 
 func (c *Controller) mouseEvent(s *State) {
@@ -212,7 +211,7 @@ func (c *Controller) mouseEvent(s *State) {
 	}
 
 	s.E.Mouse.Pos = rl.GetMousePosition()
-	s.E.Mouse.Delta = rl.GetMouseDelta()
+	s.E.Mouse.Delta = rl.Vector2Scale(rl.GetMouseDelta(), s.MouseDeltaFactor)
 
 	s.E.Mouse.Click[0] = rl.IsMouseButtonReleased(rl.MouseButtonLeft)
 	s.E.Mouse.Click[1] = rl.IsMouseButtonPressed(rl.MouseButtonRight)

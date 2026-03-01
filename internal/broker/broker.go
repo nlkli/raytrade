@@ -2,93 +2,10 @@ package broker
 
 import (
 	"context"
-	"errors"
 	"nlkli/raytrade/internal/cdl"
 	"nlkli/raytrade/internal/ws"
-	"strings"
 	"sync"
-	"time"
 )
-
-type OrderBookDT [2][][2]float64
-
-type Category int
-
-const (
-	Spot Category = iota
-	Futures
-)
-
-func CategoryFromString(s string) (Category, error) {
-	s = strings.ToUpper(s)
-
-	switch s {
-	case "S", "SP", "SPOT":
-		return Spot, nil
-	case "F", "FT", "FUTURES":
-		return Futures, nil
-	}
-
-	return -1, errors.New("invalid category string")
-}
-
-func (c Category) AsString(short bool) string {
-	switch c {
-	case Spot:
-		if short {
-			return "S"
-		}
-		return "Spot"
-	case Futures:
-		if short {
-			return "F"
-		}
-		return "Futures"
-	default:
-		return ""
-	}
-}
-
-type Side string
-
-const (
-	Long  Side = "Long"
-	Short Side = "Short"
-)
-
-type OrderType string
-
-const (
-	Market OrderType = "Market"
-	Limit  OrderType = "Limit"
-)
-
-type OrderStatus string
-
-const (
-	Open   OrderStatus = "Open"
-	Closed OrderStatus = "Closed"
-)
-
-type Order struct {
-	Symbol     string
-	Side       Side
-	Status     OrderStatus
-	Price      float64
-	Qty        float64
-	ExecQty    float64
-	ExecValue  float64
-	EntryPrice *float64
-	CreatedAt  time.Time
-}
-
-type Position struct {
-	Symbol     string
-	Side       Side
-	Size       float64
-	EntryPrice float64
-	CreatedAt  time.Time
-}
 
 type Broker interface {
 	GetCandles(

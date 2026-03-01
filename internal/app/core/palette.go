@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -58,11 +57,11 @@ func PaletteFromConfig(cfg *Config) *Palette {
 	parse := func(s string) rl.Color {
 		s = strings.TrimPrefix(s, "#")
 		if len(s) != 6 {
-			panic(fmt.Sprintf("invalid color: %s", s))
+			return rl.Color{}
 		}
 		v, err := strconv.ParseUint(s, 16, 32)
 		if err != nil {
-			panic(err)
+			return rl.Color{}
 		}
 		return rl.Color{
 			R: uint8(v >> 16),

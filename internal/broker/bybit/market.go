@@ -109,3 +109,22 @@ func (c *Client) GetOrderBook(
 
 	return &orderBook, nil
 }
+
+func (c *Client) GetInstrumentInfo(
+
+	ctx context.Context,
+
+	category models.Category,
+	symbol string,
+
+) (*models.InstrumentInfoResult, error) {
+
+	query := make(url.Values)
+	if category != models.CategoryDefault {
+		query.Set("category", string(category))
+	}
+
+	query.Set("symbol", symbol)
+
+	return nil, nil
+}

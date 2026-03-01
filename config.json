@@ -7,6 +7,7 @@
     "target_fps": 90,
     "load_font": "resources/ComicRelief-Bold.ttf",
     "row_height": 20,
+    "mouse_delta_factor": 1.5,
     "layout": {
         "type": "split",
         "params": {
@@ -75,11 +76,11 @@
     "binds": [
         [
             "f",
-            "sub chart $ci F,$fc,5,400"
+            "sub chart $ci F,$fc,5"
         ],
         [
             "b",
-            "sub chart $ci F,$btc,5,400"
+            "sub chart $ci F,$btc,5"
         ],
         [
             "1",
@@ -115,83 +116,83 @@
         ]
     ],
     "init_commands": [
-        "sub chart 0 F,$fc,1,500",
-        "sub chart 1 F,$btc,15,500",
+        "sub chart 0 F,$fc,1",
+        "sub chart 1 F,$btc,15",
         "sub orderbook 0 F,$fc,200",
         "sub orderbook 1 F,$btc,200"
     ],
     "theme": {
-        "name": "Dark Pastel",
+        "name": "Flat",
         "is_light": false,
         "colors": {
             "background": [
-                "#0b0b0b",
-                "#000000",
-                "#0f0f0f",
-                "#1f1f1f",
-                "#3b3b3b"
+                "#001c35",
+                "#002240",
+                "#002a4f",
+                "#00325f",
+                "#00417b"
             ],
             "foreground": [
-                "#f0f0f0",
-                "#ffffff",
-                "#c4c4c4",
-                "#8f8f8f"
+                "#2fd464",
+                "#2cc55d",
+                "#1f8a41",
+                "#135528"
             ],
             "selection": {
-                "bg": "#b5d5ff",
-                "fg": "#000000"
+                "bg": "#792b9c",
+                "fg": "#ffffff"
             },
             "cursor": {
-                "bg": "#bbbbbb",
+                "bg": "#e5be0c",
                 "fg": "#ffffff"
             },
             "base": {
-                "black": "#000000",
-                "red": "#ff5555",
-                "green": "#55ff55",
-                "yellow": "#ffff55",
-                "blue": "#5555ff",
-                "magenta": "#ff55ff",
-                "cyan": "#55ffff",
-                "white": "#bbbbbb",
-                "orange": "#ffaa55",
-                "pink": "#dd8888"
+                "black": "#222d3f",
+                "red": "#a82320",
+                "green": "#32a548",
+                "yellow": "#e58d11",
+                "blue": "#3167ac",
+                "magenta": "#781aa0",
+                "cyan": "#2c9370",
+                "white": "#b0b6ba",
+                "orange": "#c75819",
+                "pink": "#ac6d6d"
             },
             "bright": {
-                "black": "#000000",
-                "red": "#ff5555",
-                "green": "#55ff55",
-                "yellow": "#ffff55",
-                "blue": "#5555ff",
-                "magenta": "#ff55ff",
-                "cyan": "#55ffff",
-                "white": "#bbbbbb",
-                "orange": "#ffaa55",
-                "pink": "#dd8888"
+                "black": "#222d3f",
+                "red": "#a82320",
+                "green": "#32a548",
+                "yellow": "#e58d11",
+                "blue": "#3167ac",
+                "magenta": "#781aa0",
+                "cyan": "#2c9370",
+                "white": "#b0b6ba",
+                "orange": "#c75819",
+                "pink": "#ac6d6d"
             },
             "dim": {
-                "black": "#000000",
-                "red": "#d94848",
-                "green": "#48d948",
-                "yellow": "#d9d948",
-                "blue": "#4848d9",
-                "magenta": "#d948d9",
-                "cyan": "#48d9d9",
-                "white": "#9f9f9f",
-                "orange": "#d99148",
-                "pink": "#bc7474"
+                "black": "#1d2636",
+                "red": "#8f1e1b",
+                "green": "#2b8c3d",
+                "yellow": "#c3780e",
+                "blue": "#2a5892",
+                "magenta": "#661688",
+                "cyan": "#257d5f",
+                "white": "#969b9e",
+                "orange": "#a94b15",
+                "pink": "#925c5d"
             },
             "diff": {
-                "add": "#39ab39",
-                "delete": "#ab3939",
-                "change": "#3939ab",
-                "text": "#993399"
+                "add": "#217a45",
+                "delete": "#71232b",
+                "change": "#215088",
+                "text": "#481d7a"
             },
             "code_selection": [
-                "#262626",
-                "#2d2d2d"
+                "#073a44",
+                "#374734"
             ],
-            "comment": "#999999"
+            "comment": "#1a8451"
         }
     }
 }
