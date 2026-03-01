@@ -185,15 +185,7 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 				CommitCommandLineError(err.Error())(s)
 			}
 
-			s.RH = max(2, float32(rh))
-			s.RH_Dirty = true
-
-			s.TextNumSV = rl.MeasureTextEx(s.F, NUMBERS, float32(s.F.BaseSize), 0)
-			s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))
-
-			s.TextDotW = rl.MeasureTextEx(
-				s.F, ".", float32(s.F.BaseSize), 0,
-			).X
+			s.ApplyNewRH(float32(rh))
 
 		}, nil
 
@@ -216,7 +208,12 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 		return func(s *State) {
 			s.M = Input
 			s.CommandLine.Prompt = prompt.String()
-			s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+			s.CommandLine.PromptW = rl.MeasureTextEx(
+				s.F,
+				s.CommandLine.Prompt,
+				s.RH,
+				0,
+			).X
 			s.CommandLine.Color = s.P.Fg[1]
 		}, nil
 

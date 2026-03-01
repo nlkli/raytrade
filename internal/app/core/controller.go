@@ -191,7 +191,12 @@ func (c *Controller) handleNormalMode(s *State) {
 	if cp == ':' {
 		s.M = Input
 		s.CommandLine.Prompt = ":"
-		s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+		s.CommandLine.PromptW = rl.MeasureTextEx(
+			s.F,
+			s.CommandLine.Prompt,
+			s.RH,
+			0,
+		).X
 		s.CommandLine.Color = s.P.Fg[1]
 
 		c.handleInputMode(s)
@@ -243,14 +248,24 @@ func (c *Controller) handleInputMode(s *State) {
 		r := []rune(s.CommandLine.Prompt)
 		s.CommandLine.Prompt = string(r[:len(r)-1])
 
-		s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+		s.CommandLine.PromptW = rl.MeasureTextEx(
+			s.F,
+			s.CommandLine.Prompt,
+			s.RH,
+			0,
+		).X
 	}
 
 	// Char input
 	for cp := rl.GetCharPressed(); cp > 0; cp = rl.GetCharPressed() {
 		s.CommandLine.Prompt += string(rune(cp))
 
-		s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+		s.CommandLine.PromptW = rl.MeasureTextEx(
+			s.F,
+			s.CommandLine.Prompt,
+			s.RH,
+			0,
+		).X
 	}
 
 	// Enter
@@ -287,7 +302,12 @@ func (c *Controller) handleInputMode(s *State) {
 
 		s.CommandLine.Prompt = s.CommandLine.History[s.CommandLine.HistoryCur]
 
-		s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+		s.CommandLine.PromptW = rl.MeasureTextEx(
+			s.F,
+			s.CommandLine.Prompt,
+			s.RH,
+			0,
+		).X
 	}
 
 	// History down
@@ -301,7 +321,12 @@ func (c *Controller) handleInputMode(s *State) {
 			s.CommandLine.Prompt = ":"
 		}
 
-		s.CommandLine.PromptW = s.StdMeasureText(s.CommandLine.Prompt).X
+		s.CommandLine.PromptW = rl.MeasureTextEx(
+			s.F,
+			s.CommandLine.Prompt,
+			s.RH,
+			0,
+		).X
 	}
 
 	// Escape

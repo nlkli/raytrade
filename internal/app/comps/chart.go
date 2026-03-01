@@ -11,10 +11,6 @@ import (
 )
 
 const (
-	CW  float32 = 6.5 // Candle width
-	CG  float32 = 2   // Candles gap
-	CWW float32 = 1.5 // Candle wick width
-
 	PRICE_BAR_MAX_NUMBERS_CAP float32 = 7
 	PRICE_BAR_MAX_CONTENT_CAP int     = 7 + 1 // Numbers + dot
 	PRICE_BAR_LABLE_XPD       float32 = 4     // Padding
@@ -23,8 +19,6 @@ const (
 
 type Chart struct {
 	*Rect
-
-	ShowLable bool
 
 	StateIdx int
 
@@ -82,7 +76,7 @@ func (ch *Chart) Render(s *core.State) {
 		s.P.TBg[1],
 	)
 
-	if ch.ShowLable && ch.s.X > 200 {
+	if cs.ShowLable && ch.s.X > 200 {
 		rl.DrawTextEx(
 			s.F,
 			cs.LableString,
@@ -134,8 +128,8 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 	n := len(candles)
 
 	sf := cs.Scale
-	cw := CW * sf.X  // candle width * scale
-	stepX := cw + CG // total width including gap
+	cw := cs.CW * sf.X  // candle width * scale
+	stepX := cw + cs.CG // total width including gap
 
 	c.cam.Offset = c.p
 	c.cam.Target = cs.Shift
@@ -310,7 +304,7 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 		rl.DrawLineEx(
 			rl.Vector2{X: wickX, Y: yH},
 			rl.Vector2{X: wickX, Y: yL},
-			CWW,
+			cs.CWW,
 			color,
 		)
 
@@ -580,32 +574,8 @@ type Crossing struct {
 }
 
 func (cr *Crossing) Render(s *core.State) {
-}
 
-// func DrawCenteredGradientV( // TODO
-// 	pX int32, centerY int32, width int32, height int32,
-// 	topColor, bottomColor rl.Color,
-// ) {
-// 	halfHeight := height / 2
-//
-// 	rl.DrawRectangleGradientV(
-// 		pX,
-// 		centerY-halfHeight,
-// 		width,
-// 		halfHeight,
-// 		topColor,
-// 		bottomColor,
-// 	)
-//
-// 	rl.DrawRectangleGradientV(
-// 		pX,
-// 		centerY,
-// 		width,
-// 		halfHeight,
-// 		bottomColor,
-// 		topColor,
-// 	)
-// }
+}
 
 // quantizePriceStep rounds price to nice numbers for grid labels
 func quantizePriceStep(price float64) float64 {

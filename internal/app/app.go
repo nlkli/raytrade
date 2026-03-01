@@ -24,9 +24,6 @@ type App struct {
 }
 
 func (a *App) Frame() {
-	// a.state.FT = time.Duration(
-	// 	rl.GetFrameTime() * float32(time.Second),
-	// )
 
 	a.S.WHF = rl.IsWindowHidden()
 	a.S.WFF = rl.IsWindowFocused()
@@ -129,8 +126,6 @@ func Run(ctx context.Context, configPath string) {
 	app.BG.WatchConfig(ctx, configPath)
 
 	defer rl.CloseWindow()
-
-	rl.SetTargetFPS(c.TargetFPS)
 
 	for !rl.WindowShouldClose() {
 		app.Frame()

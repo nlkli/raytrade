@@ -6,35 +6,30 @@
     },
     "target_fps": 90,
     "load_font": "resources/ComicRelief-Bold.ttf",
-    "row_height": 20,
+    "row_height": 32,
+    "show_overlay": true,
     "mouse_delta_factor": 1.5,
     "layout": {
         "type": "split",
         "params": {
             "axis": 1,
-            "s": 0.8,
-            "m": 2
+            "size": 0.9
         },
         "a": {
             "type": "split",
             "params": {
                 "axis": 1,
-                "s": 0.15,
-                "m": 2
+                "size": 0.1
             },
             "a": {
                 "type": "orderbook",
-                "params": {
-                    "vm": 0,
-                    "rhd": 4
-                }
+                "params": {}
             },
             "b": {
                 "type": "split",
                 "params": {
                     "axis": 0,
-                    "s": 0.5,
-                    "m": 2
+                    "size": 0.5
                 },
                 "a": {
                     "type": "chart",
@@ -47,22 +42,8 @@
             }
         },
         "b": {
-            "type": "orderbook_plus",
-            "params": {},
-            "a": {
-                "type": "orderbook",
-                "params": {
-                    "vm": 1,
-                    "rhd": 4
-                }
-            },
-            "b": {
-                "type": "orderbook",
-                "params": {
-                    "vm": 0,
-                    "rhd": 4
-                }
-            }
+            "type": "orderbook",
+            "params": {}
         }
     },
     "vars": {
@@ -122,77 +103,77 @@
         "sub orderbook 1 F,$btc,200"
     ],
     "theme": {
-        "name": "Flat",
-        "is_light": false,
+        "name": "Hot Dog Stand",
+        "is_light": true,
         "colors": {
             "background": [
-                "#001c35",
-                "#002240",
-                "#002a4f",
-                "#00325f",
-                "#00417b"
+                "#f53525",
+                "#ea3323",
+                "#db3021",
+                "#cb2c1e",
+                "#af261a"
             ],
             "foreground": [
-                "#2fd464",
-                "#2cc55d",
-                "#1f8a41",
-                "#135528"
+                "#f0f0f0",
+                "#ffffff",
+                "#ffffff",
+                "#ffffff"
             ],
             "selection": {
-                "bg": "#792b9c",
-                "fg": "#ffffff"
+                "bg": "#ffff54",
+                "fg": "#000000"
             },
             "cursor": {
-                "bg": "#e5be0c",
-                "fg": "#ffffff"
+                "bg": "#ffff54",
+                "fg": "#ea3323"
             },
             "base": {
-                "black": "#222d3f",
-                "red": "#a82320",
-                "green": "#32a548",
-                "yellow": "#e58d11",
-                "blue": "#3167ac",
-                "magenta": "#781aa0",
-                "cyan": "#2c9370",
-                "white": "#b0b6ba",
-                "orange": "#c75819",
-                "pink": "#ac6d6d"
+                "black": "#000000",
+                "red": "#ffff54",
+                "green": "#ffff54",
+                "yellow": "#ffff54",
+                "blue": "#000000",
+                "magenta": "#ffff54",
+                "cyan": "#ffffff",
+                "white": "#c6c6c6",
+                "orange": "#ffff54",
+                "pink": "#e3e38d"
             },
             "bright": {
-                "black": "#222d3f",
-                "red": "#a82320",
-                "green": "#32a548",
-                "yellow": "#e58d11",
-                "blue": "#3167ac",
-                "magenta": "#781aa0",
-                "cyan": "#2c9370",
-                "white": "#b0b6ba",
-                "orange": "#c75819",
-                "pink": "#ac6d6d"
+                "black": "#000000",
+                "red": "#ffff54",
+                "green": "#ffff54",
+                "yellow": "#ffff54",
+                "blue": "#000000",
+                "magenta": "#ffff54",
+                "cyan": "#ffffff",
+                "white": "#c6c6c6",
+                "orange": "#ffff54",
+                "pink": "#e3e38d"
             },
             "dim": {
-                "black": "#1d2636",
-                "red": "#8f1e1b",
-                "green": "#2b8c3d",
-                "yellow": "#c3780e",
-                "blue": "#2a5892",
-                "magenta": "#661688",
-                "cyan": "#257d5f",
-                "white": "#969b9e",
-                "orange": "#a94b15",
-                "pink": "#925c5d"
+                "black": "#000000",
+                "red": "#d9d947",
+                "green": "#d9d947",
+                "yellow": "#d9d947",
+                "blue": "#000000",
+                "magenta": "#d9d947",
+                "cyan": "#d9d9d9",
+                "white": "#a8a8a8",
+                "orange": "#d9d947",
+                "pink": "#c1c178"
             },
             "diff": {
-                "add": "#217a45",
-                "delete": "#71232b",
-                "change": "#215088",
-                "text": "#481d7a"
+                "add": "#f8bc44",
+                "delete": "#f8bc44",
+                "change": "#4d110c",
+                "text": "#f7ad40"
             },
             "code_selection": [
-                "#073a44",
-                "#374734"
+                "#ed5244",
+                "#ef642f"
             ],
-            "comment": "#1a8451"
+            "comment": "#f7ada7"
         }
     }
 }

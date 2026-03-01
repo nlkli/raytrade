@@ -8,19 +8,20 @@ import (
 )
 
 type Palette struct {
-	Name    string
-	IsLight bool
-	Bg      [5]rl.Color
-	TBg     [5]rl.Color
-	Fg      [4]rl.Color
-	Sel     SelectionRlColors
-	Cur     CursorRlColors
-	Base    AnsiRlColors
-	Bright  AnsiRlColors
-	Dim     AnsiRlColors
-	Diff    DiffRlColors
-	CodeSel [2]rl.Color
-	Comment rl.Color
+	Name      string
+	IsLight   bool
+	Bg        [5]rl.Color
+	TBg       [5]rl.Color
+	Fg        [4]rl.Color
+	Sel       SelectionRlColors
+	Cur       CursorRlColors
+	Base      AnsiRlColors
+	Bright    AnsiRlColors
+	Dim       AnsiRlColors
+	Diff      DiffRlColors
+	CodeSel   [2]rl.Color
+	Comment   rl.Color
+	OverlayBg rl.Color
 }
 
 type SelectionRlColors struct {
@@ -120,6 +121,9 @@ func PaletteFromConfig(cfg *Config) *Palette {
 	}
 
 	p.Comment = parse(c.Comment)
+
+	p.OverlayBg = p.Bg[1]
+	p.OverlayBg.A /= 2
 
 	return &p
 }

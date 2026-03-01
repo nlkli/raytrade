@@ -1,7 +1,6 @@
 package comps
 
 import (
-	"fmt"
 	"nlkli/raytrade/internal/app/core"
 	"time"
 
@@ -45,22 +44,24 @@ func (sl *StatusLine) Render(s *core.State) {
 		s.ATFT = time.Second / time.Duration(s.AFPS)
 
 		sl.utS = time.Since(s.ST).Truncate(time.Second).String()
-		sl.utTW = s.StdMeasureText(sl.utS).X
+		sl.utTW = rl.MeasureTextEx(
+			s.F,
+			sl.utS,
+			s.RH,
+			0,
+		).X
 	}
 
 	if len(sl.utS) > 0 {
-		s.StdDrawText(
+		rl.DrawTextEx(
+			s.F,
 			sl.utS,
 			rl.Vector2{X: sl.s.X - sl.utTW, Y: sl.p.Y},
+			s.RH,
+			0,
 			s.P.Fg[3],
 		)
 	}
-
-	s.StdDrawText(
-		fmt.Sprintf("%s/%s", s.StatusLine.Symbol, s.StatusLine.Interval),
-		rl.Vector2{X: sl.p.X, Y: sl.p.Y},
-		s.P.Fg[3],
-	)
 }
 
 type CommandLine struct {
@@ -91,12 +92,15 @@ func (cl *CommandLine) Render(s *core.State) {
 	// }
 
 	if len(s.CommandLine.Prompt) > 0 {
-		s.StdDrawText(
+		rl.DrawTextEx(
+			s.F,
 			s.CommandLine.Prompt,
 			rl.Vector2{
 				X: cl.p.X,
 				Y: cl.p.Y + s.CommandLine.LinesH,
 			},
+			s.RH,
+			0,
 			s.CommandLine.Color,
 		)
 	}

@@ -8,6 +8,7 @@ type Config struct {
 	LeaderKey        string            `json:"leader_key"`
 	Binds            [][2]string       `json:"binds"`
 	TargetFPS        int32             `json:"target_fps"`
+	ShowOverlay      bool              `json:"show_overlay"`
 	LoadFont         string            `json:"load_font"`
 	RowHeight        float32           `json:"row_height"`
 	MouseDeltaFactor float32           `json:"mouse_delta_factor"`

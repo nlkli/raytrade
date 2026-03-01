@@ -12,8 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const (
@@ -350,10 +348,9 @@ func InitBackground(
 
 func (b *Background) WatchConfig(ctx context.Context, configPath string) error {
 
-	watchConfig, err := utils.WatchFile(ctx, configPath, time.Second*5)
+	watchConfig, err := utils.WatchFile(ctx, configPath, time.Second*3)
 	if err != nil {
 		return err
-
 	}
 
 	go func() {
@@ -361,23 +358,14 @@ func (b *Background) WatchConfig(ctx context.Context, configPath string) error {
 			select {
 			case cb := <-watchConfig:
 				var c Config
-				if err := json.Unmarshal(cb, &c); err == nil {
-					b.Push(func(s *State) {
-						s.P = PaletteFromConfig(&c)
-						s.RH = c.RowHeight
-						s.RH_Dirty = true
-						s.MouseDeltaFactor = c.MouseDeltaFactor
-						s.TextNumSV = rl.MeasureTextEx(s.F, NUMBERS, float32(s.F.BaseSize), 0)
-						s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))
-						s.TextDotW = rl.MeasureTextEx(
-							s.F, ".", float32(s.F.BaseSize), 0,
-						).X
-						s.F = rl.LoadFont(c.LoadFont)
-						s.TFPS = c.TargetFPS
-						rl.SetTargetFPS(c.TargetFPS)
-						s.ATFT = time.Second / time.Duration(c.TargetFPS)
-					})
+				err := json.Unmarshal(cb, &c)
+				if err != nil {
+					CommitCommandLineError(err.Error())
+					continue
 				}
+				b.Push(func(s *State) {
+					s.ApplyConfig(&c)
+				})
 			case <-ctx.Done():
 				return
 			}

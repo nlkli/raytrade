@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"nlkli/raytrade/internal/app/core"
+	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -11,8 +12,14 @@ import (
 const (
 	ROOT_PADDING float32 = 4
 
+	DEFAULT_ORDERBOOK_VIEW_MODEL = 0
+
 	DEFAULT_CHART_RHD      float32 = 4
-	DEFAULT_ORDER_BOOK_RHD float32 = 2
+	DEFAULT_ORDER_BOOK_RHD float32 = 4
+
+	DEFAULT_CANDLE_WIDTH      float32 = 6.5
+	DEFAULT_CANDLE_WICK_WIDTH float32 = 1.5
+	DEFAULT_CANDLE_GAP        float32 = 2
 
 	DEFAULT_SCALE_X float32 = .9
 	DEFAULT_SCALE_Y float32 = .8
@@ -111,8 +118,8 @@ func getBooleanParam(params map[string]any, key string, defaultValue bool) bool 
 
 func parseSplitter(c *core.Component, s *core.State) (Comp, error) {
 	axis := getNumberParam(c.Params, "axis", 1)
-	size := getNumberParam(c.Params, "s", .5)
-	mode := getNumberParam(c.Params, "m", 2)
+	size := getNumberParam(c.Params, "size", .5)
+	mode := getNumberParam(c.Params, "mode", 2)
 
 	splitter := &Splitter{
 		Rect: &Rect{},
@@ -136,6 +143,96 @@ func parseSplitter(c *core.Component, s *core.State) (Comp, error) {
 	return splitter, nil
 }
 
+func parseChart(c *core.Component, s *core.State) (Comp, error) {
+	chart := &Chart{
+		Rect:     &Rect{},
+		StateIdx: len(s.Chart),
+	}
+
+	chart.c.cam.Zoom = 1
+
+	rhd := getNumberParam(c.Params, "rhd", DEFAULT_CHART_RHD)
+
+	cw := getNumberParam(c.Params, "cw", DEFAULT_CANDLE_WIDTH)
+	cww := getNumberParam(c.Params, "cww", DEFAULT_CANDLE_WICK_WIDTH)
+	cg := getNumberParam(c.Params, "cg", DEFAULT_CANDLE_GAP)
+
+	sx := getNumberParam(c.Params, "sx", DEFAULT_SCALE_X)
+	sy := getNumberParam(c.Params, "sy", DEFAULT_SCALE_Y)
+	tx := getNumberParam(c.Params, "tx", DEFAULT_SHIFT_X)
+	ty := getNumberParam(c.Params, "ty", DEFAULT_SHIFT_Y)
+
+	showLable := getBooleanParam(c.Params, "show_lable", true)
+	showGrid := getBooleanParam(c.Params, "show_grid", true)
+
+	s.Chart = append(s.Chart, &core.ChartState{
+		Forced: true,
+
+		RHD: rhd,
+
+		Scale: rl.Vector2{X: sx, Y: sy},
+		Shift: rl.Vector2{X: tx, Y: ty},
+
+		CW:  cw,
+		CWW: cww,
+		CG:  cg,
+
+		ShowLable: showLable,
+		ShowGrid:  showGrid,
+	})
+
+	return chart, nil
+}
+
+func parseOrderBook(c *core.Component, s *core.State) (Comp, error) {
+	rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_BOOK_RHD)
+	vm := getNumberParam(c.Params, "vm", DEFAULT_ORDERBOOK_VIEW_MODEL)
+	showText := getBooleanParam(c.Params, "show_text", true)
+
+	orderBook := &OrderBook{
+		Rect:     &Rect{},
+		StateIdx: len(s.OrderBook),
+		VM:       vm,
+		ShowText: showText,
+	}
+
+	s.OrderBook = append(s.OrderBook, &core.OrderBookState{
+		Forced: true,
+		RHD:    rhd,
+	})
+
+	return orderBook, nil
+}
+
+func parseOrderBookPlus(c *core.Component, s *core.State) (Comp, error) {
+	comp, err := parseSplitter(c, s)
+	if err != nil {
+		return nil, err
+	}
+
+	splitter := comp.(*Splitter)
+
+	obA, ok := splitter.A.(*OrderBook)
+	if !ok {
+		return nil, errors.New("type of comp should be orderbook")
+	}
+
+	obB, ok := splitter.B.(*OrderBook)
+	if !ok {
+		return nil, errors.New("type of comp should be orderbook")
+	}
+
+	obB.StateIdx = obA.StateIdx
+	s.OrderBook = s.OrderBook[:len(s.OrderBook)-1]
+	s.OrderBook[len(s.OrderBook)-1].PlusCompI = 1
+
+	orderBookPlus := &OrderBookPlus{
+		splitter: splitter,
+	}
+
+	return orderBookPlus, nil
+}
+
 func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, error) {
 	switch c.Type {
 
@@ -143,95 +240,18 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 		return parseSplitter(c, s)
 
 	case "chart":
-		rhd := getNumberParam(c.Params, "rhd", DEFAULT_CHART_RHD)
-		sx := getNumberParam(c.Params, "sx", DEFAULT_SCALE_X)
-		sy := getNumberParam(c.Params, "sy", DEFAULT_SCALE_Y)
-		tx := getNumberParam(c.Params, "tx", DEFAULT_SHIFT_X)
-		ty := getNumberParam(c.Params, "ty", DEFAULT_SHIFT_Y)
-
-		showLable := getBooleanParam(c.Params, "show_lable", true)
-
-		chart := &Chart{
-			Rect:     &Rect{},
-			StateIdx: len(s.Chart),
-
-			ShowLable: showLable,
-		}
-
-		chart.c.cam.Zoom = 1
-
-		showGrid := getBooleanParam(c.Params, "show_grid", true)
-
-		s.Chart = append(s.Chart, &core.ChartState{
-			Forced: true,
-
-			RHD: rhd,
-
-			Scale: rl.Vector2{X: sx, Y: sy},
-			Shift: rl.Vector2{X: tx, Y: ty},
-
-			ShowGrid: showGrid,
-		})
-
-		return chart, nil
+		return parseChart(c, s)
 
 	case "orderbook":
-
-		rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_BOOK_RHD)
-		vm := getNumberParam(c.Params, "vm", 0)
-		showText := getBooleanParam(c.Params, "show_text", true)
-
-		orderBook := &OrderBook{
-			Rect:     &Rect{},
-			StateIdx: len(s.OrderBook),
-			VM:       vm,
-			ShowText: showText,
-		}
-
-		s.OrderBook = append(s.OrderBook, &core.OrderBookState{
-			Forced: true,
-			RHD:    rhd,
-		})
-
-		return orderBook, nil
+		return parseOrderBook(c, s)
 
 	case "orderbook_plus":
+		return parseOrderBookPlus(c, s)
 
-		comp, err := parseSplitter(c, s)
-		if err != nil {
-			return nil, err
-		}
-
-		splitter := comp.(*Splitter)
-
-		obA, ok := splitter.A.(*OrderBook)
-		if !ok {
-			return nil, errors.New("type of comp should be orderbook")
-		}
-
-		obB, ok := splitter.B.(*OrderBook)
-		if !ok {
-			return nil, errors.New("type of comp should be orderbook")
-		}
-
-		obB.StateIdx = obA.StateIdx
-		s.OrderBook = s.OrderBook[:len(s.OrderBook)-1]
-		s.OrderBook[len(s.OrderBook)-1].PlusCompI = 1
-
-		orderBookPlus := &OrderBookPlus{
-			splitter: splitter,
-		}
-
-		return orderBookPlus, nil
-
-	case "void":
-
+	default:
 		return &Void{
 			Rect: &Rect{},
 		}, nil
-
-	default:
-		return nil, errors.New("unknow component type")
 
 	}
 }
@@ -277,9 +297,34 @@ func (r *Root) Render(s *core.State) {
 	r.EntryComp.Render(s)
 	r.Footer.Render(s)
 
-	if s.ShowOverlay {
-		fps := fmt.Sprintf("%d", rl.GetFPS())
-		s.StdDrawText(string(fps), rl.Vector2{X: ROOT_PADDING, Y: ROOT_PADDING}, s.P.Comment)
+	if s.ShowOverlay && r.s.X > 200 {
+		overlayText := fmt.Sprintf(
+			"StartTime: %s\nWindow: %v\nFrameNumber: %v\nFPS: %v\nFrameTime: %v",
+			s.ST.Format(time.RFC1123),
+			s.WS,
+			s.FN,
+			s.AFPS,
+			s.ATFT,
+		)
+		overlayTextSize := rl.MeasureTextEx(
+			s.F,
+			overlayText,
+			s.RH,
+			0,
+		)
+		rl.DrawRectangleV(
+			rl.Vector2{X: ROOT_PADDING, Y: ROOT_PADDING},
+			overlayTextSize,
+			s.P.OverlayBg,
+		)
+		rl.DrawTextEx(
+			s.F,
+			overlayText,
+			rl.Vector2{X: ROOT_PADDING, Y: ROOT_PADDING},
+			s.RH,
+			0,
+			s.P.Bright.Magenta,
+		)
 	}
 
 	if s.RH_Dirty {

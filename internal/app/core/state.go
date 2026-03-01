@@ -8,8 +8,6 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-const NUMBERS = "1234567890"
-
 type Mode int
 
 const (
@@ -132,6 +130,8 @@ type ChartState struct {
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
 
+	ShowLable bool
+
 	LastPrice  float64 // Last price
 	LastPriceY float32 // Last price y coord
 
@@ -141,6 +141,10 @@ type ChartState struct {
 	ExtendCandlesF bool
 	Candles        []cdl.Candle // Candles buffer
 	SecInterval    float32      // Seconds interval
+
+	CW  float32 // Candles width
+	CWW float32 // Wick width
+	CG  float32 // Candles gap
 
 	Cap float32 // Number of candles that fit in canvas width
 
@@ -181,34 +185,61 @@ type OrderBookState struct {
 	Asks [][2]float64
 }
 
-func InitState(c *Config) *State {
-	palette := PaletteFromConfig(c)
+func (s *State) ApplyNewRH(rh float32) {
+	const NUMBERS = "1234567890"
 
+	s.RH = max(2, rh)
+	s.RH_Dirty = true
+
+	s.TextNumSV = rl.MeasureTextEx(
+		s.F,
+		NUMBERS,
+		float32(s.F.BaseSize),
+		0,
+	)
+	s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))
+	s.TextDotW = rl.MeasureTextEx(
+		s.F, ".", float32(s.F.BaseSize), 0,
+	).X
+}
+
+func (s *State) ApplyConfig(c *Config) {
+
+	palette := PaletteFromConfig(c)
 	targetFrameTime := time.Second / time.Duration(c.TargetFPS)
 
+	rl.SetTargetFPS(c.TargetFPS)
+
+	s.AFPS = c.TargetFPS
+	s.ATFT = targetFrameTime
+
+	s.TFPS = c.TargetFPS
+	s.TFT = targetFrameTime
+
+	s.P = palette
+	s.F = rl.LoadFont(c.LoadFont)
+
+	s.MouseDeltaFactor = c.MouseDeltaFactor
+	s.CommandLine.Prompt = "configuration applied successfully"
+	s.CommandLine.Color = palette.Fg[1]
+
+	s.ApplyNewRH(c.RowHeight)
+
+	s.ShowOverlay = c.ShowOverlay
+}
+
+func InitState(c *Config) *State {
+
 	s := &State{
-		AFPS: c.TargetFPS,
-		ATFT: targetFrameTime,
-
-		TFPS: c.TargetFPS,
-		TFT:  targetFrameTime,
-
 		ST: time.Now(),
 		WS: rl.NewVector2(
 			float32(c.InitWindow.Width),
 			float32(c.InitWindow.Height),
 		),
 		M: Normal,
-		P: palette,
-
-		F:  rl.LoadFont(c.LoadFont),
-		RH: c.RowHeight,
-
-		MouseDeltaFactor: c.MouseDeltaFactor,
 
 		CommandLine: CommandLineState{
 			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
-			Color:   palette.Fg[1],
 		},
 
 		Cache: Cache{
@@ -216,29 +247,7 @@ func InitState(c *Config) *State {
 		},
 	}
 
-	s.RH_Dirty = true
-
-	s.TextNumSV = rl.MeasureTextEx(s.F, NUMBERS, float32(s.F.BaseSize), 0)
-	s.TextNumSV.X = s.TextNumSV.X / float32(len(NUMBERS))
-
-	s.TextDotW = rl.MeasureTextEx(
-		s.F, ".", float32(s.F.BaseSize), 0,
-	).X
+	s.ApplyConfig(c)
 
 	return s
-}
-
-func (s *State) StdDrawText(text string, pos rl.Vector2, color rl.Color) {
-	rl.DrawTextEx(
-		s.F,
-		text,
-		pos,
-		s.RH,
-		0,
-		color,
-	)
-}
-
-func (s *State) StdMeasureText(text string) rl.Vector2 {
-	return rl.MeasureTextEx(s.F, text, s.RH, 0)
 }
