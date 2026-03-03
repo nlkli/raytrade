@@ -302,7 +302,7 @@ func InitBackground(
 
 	const totalWorkers = 8
 	workers := [totalWorkers]chan Task{}
-	for i, _ := range workers {
+	for i := range workers {
 		ch := make(chan Task)
 		workers[i] = ch
 		go func() {
@@ -328,7 +328,9 @@ func InitBackground(
 					wi = 0
 				}
 			case <-ctx.Done():
-				bg.privateStream.Close()
+				if bg.privateStream != nil {
+					bg.privateStream.Close()
+				}
 				for _, s := range bg.stream {
 					if s == nil {
 						continue
