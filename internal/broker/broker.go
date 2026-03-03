@@ -49,8 +49,7 @@ type Broker interface {
 	GetPosition(
 		ctx context.Context,
 		category Category,
-		symbol string,
-	) (*Position, error)
+	) ([]Position, error)
 
 	GetOpenOrders(
 		ctx context.Context,
@@ -64,6 +63,11 @@ type Broker interface {
 		onConnected ws.OnConnectedFn,
 		opts ...ws.PolicyOption,
 	) Stream
+
+	CreatePrivateStream(
+		onConnected ws.OnConnectedFn,
+		opts ...ws.PolicyOption,
+	) PrivateStream
 }
 
 func SplitSubscription[T any](
@@ -130,6 +134,7 @@ type Stream interface {
 
 type PrivateStream interface {
 	SubscribePosition() (*Subscription[Position], error)
+	SubscribeOrder() (*Subscription[Order], error)
 
 	Close()
 }

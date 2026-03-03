@@ -3,7 +3,6 @@ package bybit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit/models"
@@ -247,7 +246,7 @@ func (b *Broker) GetOpenOrders(
 			if err != nil {
 				return nil, "", err
 			}
-			order.EntryPrice = &ep
+			order.EntryPrice = ep
 		}
 
 		createdAtUnix, err := strconv.ParseInt(o.CreatedTime, 0, 64)
@@ -265,14 +264,13 @@ func (b *Broker) GetPosition(
 
 	ctx context.Context,
 	category broker.Category,
-	symbol string,
 
-) (*broker.Position, error) {
+) ([]broker.Position, error) {
 
 	res, err := b.c.GetPositionInfo(
 		ctx,
 		ToLocalCategory(category),
-		&symbol,
+		nil,
 		nil,
 		nil,
 	)
@@ -280,43 +278,56 @@ func (b *Broker) GetPosition(
 		return nil, err
 	}
 
-	if len(res.List) == 0 {
-		return nil, errors.New("position not found")
+	var position []broker.Position
+
+	for _, pi := range res.List {
+		var side broker.Side
+		switch pi.Side {
+		case "Buy":
+			side = broker.Long
+		case "Sell":
+			side = broker.Short
+		}
+
+		size, err := strconv.ParseFloat(pi.Size, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		entryPrice, err := strconv.ParseFloat(pi.AvgPrice, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		takeProfit, err := strconv.ParseFloat(pi.TakeProfit, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		stopLoss, err := strconv.ParseFloat(pi.StopLoss, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		createdAt := time.UnixMilli(createdAtUnix)
+
+		position = append(position, broker.Position{
+			Category:   FromLocalCategory(res.Category),
+			Symbol:     pi.Symbol,
+			Side:       side,
+			Size:       size,
+			EntryPrice: entryPrice,
+			TakeProfit: takeProfit,
+			StopLoss:   stopLoss,
+			CreatedAt:  createdAt,
+		})
 	}
 
-	pi := res.List[0]
-
-	var side broker.Side
-	switch pi.Side {
-	case "Buy":
-		side = broker.Long
-	case "Sell":
-		side = broker.Short
-	}
-
-	size, err := strconv.ParseFloat(pi.Size, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	entryPrice, err := strconv.ParseFloat(pi.AvgPrice, 64)
-	if err != nil {
-		return nil, err
-	}
-
-	createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
-	if err != nil {
-		return nil, err
-	}
-	createdAt := time.UnixMilli(createdAtUnix)
-
-	return &broker.Position{
-		Symbol:     pi.Symbol,
-		Side:       side,
-		Size:       size,
-		EntryPrice: entryPrice,
-		CreatedAt:  createdAt,
-	}, nil
+	return position, nil
 }
 
 // [bids, asks][][price, size]
@@ -420,6 +431,9 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 
 			var pos broker.Position
 
+			pos.Category = FromLocalCategory(pi.Category)
+			pos.Symbol = pi.Symbol
+
 			switch pi.Side {
 			case "Buy":
 				pos.Side = broker.Long
@@ -437,6 +451,16 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 				continue
 			}
 
+			pos.TakeProfit, err = strconv.ParseFloat(pi.TakeProfit, 64)
+			if err != nil {
+				continue
+			}
+
+			pos.StopLoss, err = strconv.ParseFloat(pi.StopLoss, 64)
+			if err != nil {
+				continue
+			}
+
 			createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
 			if err != nil {
 				continue
@@ -446,6 +470,10 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 			ch <- pos
 		}
 	}()
+	return nil, nil
+}
+
+func (s *BrokerPrivateStream) SubscribeOrder() (*broker.Subscription[broker.Order], error) {
 	return nil, nil
 }
 
@@ -695,6 +723,17 @@ func ToLocalCategory(c broker.Category) models.Category {
 		return models.CategoryLinear
 	default:
 		return models.CategoryDefault
+	}
+}
+
+func FromLocalCategory(c models.Category) broker.Category {
+	switch c {
+	case models.CategoryLinear:
+		return broker.Futures
+	case models.CategorySpot:
+		return broker.Spot
+	default:
+		return broker.Futures
 	}
 }
 

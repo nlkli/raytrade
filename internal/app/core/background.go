@@ -12,10 +12,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 const (
-	REQUEST_CANDLES_TIMEOUT = time.Second * 3
+	REQUEST_TIMEOUT         = time.Second * 3
 	MAX_CATEGORY_STREAMS    = 4
 	MAX_TOPIC_SUBSCRIPTIONS = 16
 )
@@ -78,7 +80,7 @@ loop:
 		default:
 			ctx, cancel := context.WithTimeout(
 				context.Background(),
-				REQUEST_CANDLES_TIMEOUT,
+				REQUEST_TIMEOUT,
 			)
 			res, err := b.broker.ExtendStartCandles(
 				ctx,
@@ -273,6 +275,94 @@ func (t *SubOrderBook) Execute(b *Background) error {
 	return nil
 }
 
+type PositionFilter struct {
+	Category broker.Category
+	Symbol   string
+}
+
+type SubPosition struct {
+	Filter []PositionFilter
+}
+
+func (t *SubPosition) Execute(b *Background) error {
+
+	stream := b.GetOrInitPrivateStream()
+
+	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+	defer cancel()
+
+	position, err := b.broker.GetPosition(ctx, broker.Futures)
+	if err != nil {
+		println(err.Error())
+		return err
+	}
+
+	b.Push(func(s *State) {
+		s.Position.List = position
+	})
+
+	if b.positionSub != nil {
+		b.positionSub.Stop()
+	}
+	b.positionSub, err = stream.SubscribePosition()
+
+	if err != nil {
+		println(err.Error())
+		return err
+	}
+
+	go func() {
+		for d := range b.positionSub.C {
+			if len(t.Filter) > 0 {
+				if !slices.ContainsFunc(t.Filter, func(e PositionFilter) bool {
+					return e.Category == d.Category && e.Symbol == d.Symbol
+				}) {
+					continue
+				}
+			}
+			b.Push(func(s *State) {
+				i := slices.IndexFunc(s.Position.List, func(e broker.Position) bool {
+					return e.CreatedAt.Equal(d.CreatedAt)
+				})
+				if i >= 0 {
+					s.Position.List[i] = d
+					return
+				}
+				s.Position.List = append(s.Position.List, d)
+			})
+		}
+	}()
+
+	return nil
+}
+
+type OrderFilter struct {
+	Category broker.Category
+	Symbol   string
+}
+
+type SubOrder struct {
+	Idx    int
+	Filter []PositionFilter
+}
+
+func (t *SubOrder) Execute(b *Background) error {
+	// stream := b.GetOrInitPrivateStream()
+
+	// sub, err := stream.SubscribeOrder()
+
+	// if err != nil {
+	// 	return err
+	// }
+
+	go func() {
+		// for _ := range sub.C {
+		// }
+	}()
+
+	return nil
+}
+
 type Background struct {
 	Tx chan Task
 
@@ -282,6 +372,9 @@ type Background struct {
 
 	stream        [MAX_CATEGORY_STREAMS]broker.Stream // public streams
 	privateStream broker.PrivateStream
+
+	positionSub *broker.Subscription[broker.Position]
+	orderSub    *broker.Subscription[broker.Order]
 
 	chartSub     [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[cdl.CandleStreamData]
 	orderBookSub [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[[2][][2]float64]
@@ -375,6 +468,17 @@ func (b *Background) WatchConfig(ctx context.Context, configPath string) error {
 	}()
 
 	return nil
+}
+
+func (b *Background) GetOrInitPrivateStream() broker.PrivateStream {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.privateStream == nil {
+		b.privateStream = b.broker.CreatePrivateStream(nil)
+	}
+
+	return b.privateStream
 }
 
 func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {

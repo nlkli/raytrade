@@ -125,7 +125,10 @@ func Run(ctx context.Context, configPath string) {
 	app := InitApp(ctx, &c)
 	app.BG.WatchConfig(ctx, configPath)
 
-	defer rl.CloseWindow()
+	go func() {
+		<-ctx.Done()
+		rl.CloseWindow()
+	}()
 
 	for !rl.WindowShouldClose() {
 		app.Frame()

@@ -248,6 +248,16 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 	case "orderbook_plus":
 		return parseOrderBookPlus(c, s)
 
+	case "position":
+		return &Position{
+			Rect: &Rect{},
+		}, nil
+
+	case "order":
+		return &Order{
+			Rect: &Rect{},
+		}, nil
+
 	default:
 		return &Void{
 			Rect: &Rect{},

@@ -64,6 +64,9 @@ type State struct {
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 
+	Position PositionState
+	Order OrderState
+
 	Chart     []*ChartState
 	OrderBook []*OrderBookState
 
@@ -72,6 +75,14 @@ type State struct {
 	ShowOverlay bool
 
 	Cache Cache
+}
+
+type PositionState struct {
+	List []broker.Position
+}
+
+type OrderState struct {
+	List []broker.Order
 }
 
 type InstrumentInfo struct {

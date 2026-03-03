@@ -241,6 +241,38 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 		return nil, fmt.Errorf("missing component type for 'sub' command")
 	}
 
+	if compType == "position" {
+		var filter []PositionFilter
+
+		filterV, ok := next()
+		if ok {
+			for f := range strings.SplitSeq(filterV, ",") {
+				parts := strings.SplitN(f, ".", 1)
+				if len(parts) != 2 {
+					return nil, fmt.Errorf("invalid position filter")
+				}
+
+				category, err := broker.CategoryFromString(parts[0])
+				if err != nil {
+					return nil, err
+				}
+
+				symbol := parts[1]
+
+				filter = append(filter, PositionFilter{
+					Category: category,
+					Symbol:   symbol,
+				})
+			}
+		}
+
+		c.BTX <- &SubPosition{
+			Filter: filter,
+		}
+
+		return func(s *State) {}, nil
+	}
+
 	compIdxV, ok := next()
 	if !ok {
 		return nil, fmt.Errorf("missing component index for 'sub' command")

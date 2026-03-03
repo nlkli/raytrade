@@ -1,7 +1,7 @@
 package models
 
 type PositionInfoResult struct {
-	Category       string         `json:"category"`
+	Category       Category         `json:"category"`
 	NextPageCursor string         `json:"nextPageCursor"`
 	List           []PositionInfo `json:"list"`
 }

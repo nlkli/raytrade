@@ -67,6 +67,7 @@ const (
 )
 
 type Order struct {
+	Category   Category
 	Symbol     string
 	Side       Side
 	Status     OrderStatus
@@ -74,14 +75,17 @@ type Order struct {
 	Qty        float64
 	ExecQty    float64
 	ExecValue  float64
-	EntryPrice *float64
+	EntryPrice float64
 	CreatedAt  time.Time
 }
 
 type Position struct {
+	Category   Category
 	Symbol     string
 	Side       Side
 	Size       float64
 	EntryPrice float64
+	TakeProfit float64
+	StopLoss   float64
 	CreatedAt  time.Time
 }

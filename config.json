@@ -13,7 +13,7 @@
         "type": "split",
         "params": {
             "axis": 1,
-            "size": 0.9
+            "size": 0.8
         },
         "a": {
             "type": "split",
@@ -42,8 +42,16 @@
             }
         },
         "b": {
-            "type": "orderbook",
-            "params": {}
+            "type": "split",
+            "params": {},
+            "a": {
+                "type": "orderbook",
+                "params": {}
+            },
+            "b": {
+                "type": "positon",
+                "params": {}
+            }
         }
     },
     "vars": {
@@ -100,7 +108,8 @@
         "sub chart 0 F,$fc,1",
         "sub chart 1 F,$btc,15",
         "sub orderbook 0 F,$fc,200",
-        "sub orderbook 1 F,$btc,200"
+        "sub orderbook 1 F,$btc,200",
+        "sub position"
     ],
     "theme": {
         "name": "One Double Light",
