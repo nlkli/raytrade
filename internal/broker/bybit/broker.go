@@ -264,13 +264,14 @@ func (b *Broker) GetPosition(
 
 	ctx context.Context,
 	category broker.Category,
+	symbol string,
 
 ) ([]broker.Position, error) {
 
 	res, err := b.c.GetPositionInfo(
 		ctx,
 		ToLocalCategory(category),
-		nil,
+		&symbol,
 		nil,
 		nil,
 	)
@@ -299,14 +300,20 @@ func (b *Broker) GetPosition(
 			return nil, err
 		}
 
-		takeProfit, err := strconv.ParseFloat(pi.TakeProfit, 64)
-		if err != nil {
-			return nil, err
+		var takeProfit float64
+		if len(pi.TakeProfit) > 0 {
+			takeProfit, err = strconv.ParseFloat(pi.TakeProfit, 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		stopLoss, err := strconv.ParseFloat(pi.StopLoss, 64)
-		if err != nil {
-			return nil, err
+		var stopLoss float64
+		if len(pi.StopLoss) > 0 {
+			stopLoss, err = strconv.ParseFloat(pi.StopLoss, 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
@@ -470,7 +477,13 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 			ch <- pos
 		}
 	}()
-	return nil, nil
+
+	return broker.NewBrokerStreamSubscription(
+		ch,
+		func() error {
+			return s.stream.Unsubscribe("position")
+		},
+	), nil
 }
 
 func (s *BrokerPrivateStream) SubscribeOrder() (*broker.Subscription[broker.Order], error) {

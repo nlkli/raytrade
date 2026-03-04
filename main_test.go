@@ -6,6 +6,7 @@ import (
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/broker/bybit"
 	"testing"
+	"time"
 )
 
 func TestPos(t *testing.T) {
@@ -18,4 +19,14 @@ func TestPos(t *testing.T) {
 	}
 
 	fmt.Printf("%+v\n", pos)
+
+	stream := b.CreatePrivateStream(nil)
+
+	time.Sleep(time.Second * 7)
+
+	sub, err := stream.SubscribePosition()
+
+	for d := range sub.C {
+		fmt.Printf("%+v", d)
+	}
 }

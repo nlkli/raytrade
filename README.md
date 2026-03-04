@@ -107,36 +107,27 @@ BYBIT_API_SECRET=your_api_secret_here
 
 ---
 
-## ![recol](https://github.com/nlkli/recol.git) (change colorscheme)
-
-```bash
-git clone https://github.com/nlkli/recol.git
-cd recol
-cargo build --release
-cp target/release/recol /usr/local/bin/
-```
-
 ## SCC
 
 ```text
-Mon Mar  2 00:05:55 MSK 2026
+Wed Mar  4 21:51:47 MSK 2026
 ───────────────────────────────────────────────────────────────────────────────
 Language                 Files     Lines   Blanks  Comments     Code Complexity
 ───────────────────────────────────────────────────────────────────────────────
-Go                          34      7317     1327       355     5635        774
-JSON                         1       179        0         0      179          0
+Go                          34      7702     1403       369     5930        827
+JSON                         1       188        0         0      188          0
 License                      1        21        4         0       17          0
 Makefile                     1        15        5         0       10          0
-Markdown                     1       107       36         0       71          0
-Shell                        1        12        3         1        8          1
+Markdown                     1       195       41         0      154          0
+Shell                        1        15        4         3        8          1
 ───────────────────────────────────────────────────────────────────────────────
-Total                       39      7651     1375       356     5920        775
+Total                       39      8136     1457       372     6307        828
 ───────────────────────────────────────────────────────────────────────────────
-Estimated Cost to Develop (organic) $174,796
-Estimated Schedule Effort (organic) 7.09 months
-Estimated People Required (organic) 2.19
+Estimated Cost to Develop (organic) $186,813
+Estimated Schedule Effort (organic) 7.27 months
+Estimated People Required (organic) 2.28
 ───────────────────────────────────────────────────────────────────────────────
-Processed 168588 bytes, 0.169 megabytes (SI)
+Processed 180539 bytes, 0.181 megabytes (SI)
 ───────────────────────────────────────────────────────────────────────────────
 ```
 

@@ -5,6 +5,7 @@ import (
 	"math"
 	"nlkli/raytrade/internal/app/core"
 	"nlkli/raytrade/internal/cdl"
+	"strconv"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -51,7 +52,7 @@ func (ch *Chart) Render(s *core.State) {
 		return
 	}
 
-	ch.c.Render(s, cs)
+	ch.c.Render(s, cs, rh)
 	ch.pb.Render(s, cs, rh)
 	ch.tl.Render(s, cs, rh)
 	// ch.cr.Render(s, cs)
@@ -123,7 +124,7 @@ type Canvas struct {
 	endCandleIdx int
 }
 
-func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
+func (c *Canvas) Render(s *core.State, cs *core.ChartState, rh float32) {
 	candles := cs.Candles
 	n := len(candles)
 
@@ -232,6 +233,14 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 		if cs.IsLineDuring {
 			worldMouse := rl.GetScreenToWorld2D(s.E.Mouse.Pos, c.cam)
 
+			// if worldMouse.X < -10 ||
+			// 	worldMouse.Y < -10 ||
+			// 	worldMouse.X > c.s.X+10 ||
+			// 	worldMouse.Y > c.s.Y+10 {
+			// 	cs.Lines = cs.Lines[:len(cs.Lines)-1]
+			// 	cs.IsLineDuring = false
+			// }
+
 			l := lines[len(lines)-1]
 
 			lineX0 := (l[0].X - cs.StartSec) / cs.SecPerPx
@@ -244,6 +253,34 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState) {
 				worldMouse,
 				1,
 				s.P.Dim.Blue,
+			)
+
+			diff := cs.CursorPrice - float64(l[0].Y)
+
+			var pDiff float64
+			if diff != 0 {
+				pDiff = diff / float64(cs.CursorPrice) * 100
+			}
+
+			pDiffText := strconv.FormatFloat(pDiff, 'f', 2, 64)
+
+			var color rl.Color
+			if pDiff > 0 {
+				color = s.P.Base.Cyan
+			} else {
+				color = s.P.Base.Magenta
+			}
+
+			rl.DrawTextEx(
+				s.F,
+				pDiffText,
+				rl.Vector2{
+					X: worldMouse.X + 2,
+					Y: worldMouse.Y - rh,
+				},
+				rh,
+				0,
+				color,
 			)
 
 			lines = lines[:len(lines)-1]
@@ -574,7 +611,6 @@ type Crossing struct {
 }
 
 func (cr *Crossing) Render(s *core.State) {
-
 }
 
 // quantizePriceStep rounds price to nice numbers for grid labels

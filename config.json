@@ -49,7 +49,7 @@
                 "params": {}
             },
             "b": {
-                "type": "positon",
+                "type": "position",
                 "params": {}
             }
         }
@@ -109,7 +109,7 @@
         "sub chart 1 F,$btc,15",
         "sub orderbook 0 F,$fc,200",
         "sub orderbook 1 F,$btc,200",
-        "sub position"
+        "sub position F.$fc"
     ],
     "theme": {
         "name": "One Double Light",

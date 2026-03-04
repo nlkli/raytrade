@@ -1,7 +1,6 @@
 package comps
 
 import (
-	"errors"
 	"fmt"
 	"nlkli/raytrade/internal/app/core"
 	"time"
@@ -14,8 +13,14 @@ const (
 
 	DEFAULT_ORDERBOOK_VIEW_MODEL = 0
 
-	DEFAULT_CHART_RHD      float32 = 4
-	DEFAULT_ORDER_BOOK_RHD float32 = 4
+	DEFAULT_CHART_RHD     float32 = 4
+	DEFAULT_ORDERBOOK_RHD float32 = 4
+
+	DEFAULT_POSITION_RHD  float32 = 0
+	DEFAULT_POSITION_RHD1 float32 = 2
+
+	DEFAULT_ORDER_RHD  float32 = 0
+	DEFAULT_ORDER_RHD1 float32 = 2
 
 	DEFAULT_CANDLE_WIDTH      float32 = 6.5
 	DEFAULT_CANDLE_WICK_WIDTH float32 = 1.5
@@ -27,15 +32,15 @@ const (
 	DEFAULT_SHIFT_Y float32 = 0
 )
 
-type CompType string
-
-const (
-	SplitterCompType      CompType = "split"
-	ChartCompType         CompType = "chart"
-	OrderBookCompType     CompType = "orderbook"
-	OrderBookPlusCompType CompType = "orderbook_plus"
-	VoidCompType          CompType = "void"
-)
+// type CompType string
+//
+// const (
+// 	SplitterCompType      CompType = "split"
+// 	ChartCompType         CompType = "chart"
+// 	OrderBookCompType     CompType = "orderbook"
+// 	OrderBookPlusCompType CompType = "orderbook_plus"
+// 	VoidCompType          CompType = "void"
+// )
 
 type Comp interface {
 	R() *Rect
@@ -185,7 +190,7 @@ func parseChart(c *core.Component, s *core.State) (Comp, error) {
 }
 
 func parseOrderBook(c *core.Component, s *core.State) (Comp, error) {
-	rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_BOOK_RHD)
+	rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDERBOOK_RHD)
 	vm := getNumberParam(c.Params, "vm", DEFAULT_ORDERBOOK_VIEW_MODEL)
 	showText := getBooleanParam(c.Params, "show_text", true)
 
@@ -214,12 +219,16 @@ func parseOrderBookPlus(c *core.Component, s *core.State) (Comp, error) {
 
 	obA, ok := splitter.A.(*OrderBook)
 	if !ok {
-		return nil, errors.New("type of comp should be orderbook")
+		return &Void{
+			Rect: &Rect{},
+		}, nil
 	}
 
 	obB, ok := splitter.B.(*OrderBook)
 	if !ok {
-		return nil, errors.New("type of comp should be orderbook")
+		return &Void{
+			Rect: &Rect{},
+		}, nil
 	}
 
 	obB.StateIdx = obA.StateIdx
@@ -231,6 +240,28 @@ func parseOrderBookPlus(c *core.Component, s *core.State) (Comp, error) {
 	}
 
 	return orderBookPlus, nil
+}
+
+func parsePosition(c *core.Component, s *core.State) (Comp, error) {
+	rhd := getNumberParam(c.Params, "rhd", DEFAULT_POSITION_RHD)
+	rhd1 := getNumberParam(c.Params, "rhd1", DEFAULT_POSITION_RHD1)
+
+	s.Position.RHD = [2]float32{rhd, rhd1}
+
+	return &Position{
+		Rect: &Rect{},
+	}, nil
+}
+
+func parseOrder(c *core.Component, s *core.State) (Comp, error) {
+	rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_RHD)
+	rhd1 := getNumberParam(c.Params, "rhd1", DEFAULT_ORDER_RHD1)
+
+	s.Order.RHD = [2]float32{rhd, rhd1}
+
+	return &Order{
+		Rect: &Rect{},
+	}, nil
 }
 
 func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, error) {
@@ -249,14 +280,10 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 		return parseOrderBookPlus(c, s)
 
 	case "position":
-		return &Position{
-			Rect: &Rect{},
-		}, nil
+		return parsePosition(c, s)
 
 	case "order":
-		return &Order{
-			Rect: &Rect{},
-		}, nil
+		return parseOrder(c, s)
 
 	default:
 		return &Void{
@@ -309,12 +336,12 @@ func (r *Root) Render(s *core.State) {
 
 	if s.ShowOverlay && r.s.X > 200 {
 		overlayText := fmt.Sprintf(
-			"StartTime: %s\nWindow: %v\nFrameNumber: %v\nFPS: %v\nFrameTime: %v",
+			"StartTime: %s\nWindow: %v\nFrameNumber: %v\nFrameTime: %v\nFPS: %v",
 			s.ST.Format(time.RFC1123),
 			s.WS,
 			s.FN,
-			s.AFPS,
 			s.ATFT,
+			s.AFPS,
 		)
 		overlayTextSize := rl.MeasureTextEx(
 			s.F,

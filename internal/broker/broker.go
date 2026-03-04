@@ -49,6 +49,7 @@ type Broker interface {
 	GetPosition(
 		ctx context.Context,
 		category Category,
+		symbol string,
 	) ([]Position, error)
 
 	GetOpenOrders(

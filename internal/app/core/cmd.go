@@ -247,7 +247,7 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 		filterV, ok := next()
 		if ok {
 			for f := range strings.SplitSeq(filterV, ",") {
-				parts := strings.SplitN(f, ".", 1)
+				parts := strings.SplitN(f, ".", 2)
 				if len(parts) != 2 {
 					return nil, fmt.Errorf("invalid position filter")
 				}

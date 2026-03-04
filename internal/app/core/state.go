@@ -57,15 +57,13 @@ type State struct {
 	BTX   chan<- Task   // Backgorund tx
 	CMDTX chan<- string // CMD tx
 
-	InstrumentInfo map[string]InstrumentInfo
-
 	Select Select
 
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 
 	Position PositionState
-	Order OrderState
+	Order    OrderState
 
 	Chart     []*ChartState
 	OrderBook []*OrderBookState
@@ -79,14 +77,14 @@ type State struct {
 
 type PositionState struct {
 	List []broker.Position
+
+	RHD [2]float32
 }
 
 type OrderState struct {
 	List []broker.Order
-}
 
-type InstrumentInfo struct {
-	TickSize float64
+	RHD [2]float32
 }
 
 type Select struct {

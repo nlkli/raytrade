@@ -288,31 +288,42 @@ func (t *SubPosition) Execute(b *Background) error {
 
 	stream := b.GetOrInitPrivateStream()
 
-	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
-	defer cancel()
+	var position []broker.Position
 
-	position, err := b.broker.GetPosition(ctx, broker.Futures)
-	if err != nil {
-		println(err.Error())
-		return err
+	for _, f := range t.Filter {
+
+		ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+		res, err := b.broker.GetPosition(ctx, broker.Futures, f.Symbol)
+		cancel()
+
+		if err != nil {
+			continue
+		}
+
+		for _, p := range res {
+			if p.Category == f.Category {
+				position = append(position, p)
+			}
+		}
 	}
 
 	b.Push(func(s *State) {
 		s.Position.List = position
 	})
 
-	if b.positionSub != nil {
-		b.positionSub.Stop()
-	}
-	b.positionSub, err = stream.SubscribePosition()
-
+	sub, err := stream.SubscribePosition()
 	if err != nil {
-		println(err.Error())
 		return err
 	}
 
+	if b.positionSub != nil {
+		b.positionSub.Stop()
+	}
+	b.positionSub = sub
+
 	go func() {
 		for d := range b.positionSub.C {
+			fmt.Printf("%+v\n", d)
 			if len(t.Filter) > 0 {
 				if !slices.ContainsFunc(t.Filter, func(e PositionFilter) bool {
 					return e.Category == d.Category && e.Symbol == d.Symbol
@@ -320,6 +331,7 @@ func (t *SubPosition) Execute(b *Background) error {
 					continue
 				}
 			}
+			fmt.Printf("---- %+v\n", d)
 			b.Push(func(s *State) {
 				i := slices.IndexFunc(s.Position.List, func(e broker.Position) bool {
 					return e.CreatedAt.Equal(d.CreatedAt)
@@ -476,6 +488,7 @@ func (b *Background) GetOrInitPrivateStream() broker.PrivateStream {
 
 	if b.privateStream == nil {
 		b.privateStream = b.broker.CreatePrivateStream(nil)
+		time.Sleep(time.Second * 5)
 	}
 
 	return b.privateStream

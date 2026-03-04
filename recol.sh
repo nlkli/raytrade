@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# https://github.com/nlkli/recol
+# https://github.com/jqlang/jq
+
 set -e
 
 if [ $# -eq 0 ]; then
