@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -43,14 +44,17 @@ type CMD struct {
 	Vars     map[string]string
 	Replacer *strings.Replacer
 
+	InitCommands []string
+
 	Slot atomic.Pointer[CommitFn]
 }
 
 func InitCMD(ctx context.Context, c *Config) *CMD {
 
 	cmd := &CMD{
-		Tx:   make(chan string, 32),
-		Vars: c.Vars,
+		Tx:           make(chan string, 32),
+		Vars:         c.Vars,
+		InitCommands: c.InitCommands,
 	}
 
 	cmd.updateReplacer()
@@ -71,6 +75,13 @@ func InitCMD(ctx context.Context, c *Config) *CMD {
 			}
 		}
 	}()
+
+	if len(c.InitCommands) > 0 {
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			cmd.Tx <- "init"
+		}()
+	}
 
 	return cmd
 }
@@ -135,6 +146,11 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 	}
 
 	switch head {
+	case "init":
+		if len(c.InitCommands) > 0 {
+			c.Tx <- strings.Join(c.InitCommands, "|")
+		}
+
 	case "set":
 		varName, ok := next()
 		if !ok {

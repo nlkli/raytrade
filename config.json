@@ -109,7 +109,7 @@
         "sub chart 1 F,$btc,15",
         "sub orderbook 0 F,$fc,200",
         "sub orderbook 1 F,$btc,200",
-        "sub position F.$fc"
+        "sub position F.$fc,F.$btc"
     ],
     "theme": {
         "name": "One Double Light",

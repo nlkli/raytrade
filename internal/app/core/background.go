@@ -288,42 +288,61 @@ func (t *SubPosition) Execute(b *Background) error {
 
 	stream := b.GetOrInitPrivateStream()
 
-	var position []broker.Position
-
-	for _, f := range t.Filter {
-
-		ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
-		res, err := b.broker.GetPosition(ctx, broker.Futures, f.Symbol)
-		cancel()
-
-		if err != nil {
-			continue
-		}
-
-		for _, p := range res {
-			if p.Category == f.Category {
-				position = append(position, p)
-			}
-		}
-	}
-
-	b.Push(func(s *State) {
-		s.Position.List = position
-	})
-
 	sub, err := stream.SubscribePosition()
 	if err != nil {
 		return err
 	}
 
+	b.positionMu.Lock()
 	if b.positionSub != nil {
 		b.positionSub.Stop()
 	}
 	b.positionSub = sub
+	b.positionMu.Unlock()
+
+	done := make(chan struct{}, 1)
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+
+		position := make([]broker.Position, 0, len(t.Filter))
+
+		for {
+			select {
+			case <-ticker.C:
+				for _, f := range t.Filter {
+					ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+					res, err := b.broker.GetPosition(ctx, f.Category, f.Symbol)
+					cancel()
+
+					if err != nil {
+						continue
+					}
+
+					for _, p := range res {
+						position = append(position, p)
+					}
+				}
+
+				if len(position) > 0 {
+					copyP := make([]broker.Position, len(position))
+					copy(copyP, position)
+					b.Push(func(s *State) {
+						s.Position.List = copyP
+					})
+					position = position[:0]
+				}
+			case <-done:
+				return
+			}
+		}
+
+	}()
 
 	go func() {
+		defer close(done)
+
 		for d := range b.positionSub.C {
-			fmt.Printf("%+v\n", d)
 			if len(t.Filter) > 0 {
 				if !slices.ContainsFunc(t.Filter, func(e PositionFilter) bool {
 					return e.Category == d.Category && e.Symbol == d.Symbol
@@ -331,7 +350,6 @@ func (t *SubPosition) Execute(b *Background) error {
 					continue
 				}
 			}
-			fmt.Printf("---- %+v\n", d)
 			b.Push(func(s *State) {
 				i := slices.IndexFunc(s.Position.List, func(e broker.Position) bool {
 					return e.CreatedAt.Equal(d.CreatedAt)
@@ -382,16 +400,20 @@ type Background struct {
 
 	broker broker.Broker
 
-	stream        [MAX_CATEGORY_STREAMS]broker.Stream // public streams
-	privateStream broker.PrivateStream
+	stream   [MAX_CATEGORY_STREAMS]broker.Stream // public streams
+	streamMu sync.Mutex
+
+	privateStream   broker.PrivateStream
+	privateStreamMu sync.Mutex
 
 	positionSub *broker.Subscription[broker.Position]
-	orderSub    *broker.Subscription[broker.Order]
+	positionMu  sync.Mutex
+
+	orderSub *broker.Subscription[broker.Order]
+	orderMu  sync.Mutex
 
 	chartSub     [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[cdl.CandleStreamData]
 	orderBookSub [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[[2][][2]float64]
-
-	mu sync.Mutex
 }
 
 func InitBackground(
@@ -483,8 +505,8 @@ func (b *Background) WatchConfig(ctx context.Context, configPath string) error {
 }
 
 func (b *Background) GetOrInitPrivateStream() broker.PrivateStream {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.privateStreamMu.Lock()
+	defer b.privateStreamMu.Unlock()
 
 	if b.privateStream == nil {
 		b.privateStream = b.broker.CreatePrivateStream(nil)
@@ -495,13 +517,11 @@ func (b *Background) GetOrInitPrivateStream() broker.PrivateStream {
 }
 
 func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.streamMu.Lock()
+	defer b.streamMu.Unlock()
 
-	stream := b.stream[c]
-
-	if stream == nil {
-		stream = b.broker.CreateStream(
+	if b.stream[c] == nil {
+		b.stream[c] = b.broker.CreateStream(
 			c, nil,
 			ws.WithOnConnectFn(func(i int) {
 				b.Push(func(s *State) {
@@ -512,17 +532,15 @@ func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {
 			ws.WithOnDisconnectFn(
 				func(_ int, _ bool) {
 					b.Push(func(s *State) {
-						s.CommandLine.Prompt = "stream Lost. Reconnecting..."
+						s.CommandLine.Prompt = "stream lost. Reconnecting..."
 						s.CommandLine.Color = s.P.Dim.Yellow
 					})
 				},
 			),
 		)
-		b.stream[c] = stream
-		return stream
 	}
 
-	return stream
+	return b.stream[c]
 }
 
 func (b *Background) Push(f CommitFn) {

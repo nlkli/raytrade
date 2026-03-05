@@ -66,7 +66,7 @@ type StreamOrderBookData struct {
 type StreamPositionInfo struct {
 	Category               Category       `json:"category"`
 	Symbol                 string         `json:"symbol"`
-	Side                   string         `json:"side"`
+	Side                   Side           `json:"side"`
 	Size                   string         `json:"size"`
 	PositionIdx            PositionIdx    `json:"positionIdx"`
 	PositionValue          string         `json:"positionValue"`
@@ -86,17 +86,17 @@ type StreamPositionInfo struct {
 	UnrealisedPnl          string         `json:"unrealisedPnl"`
 	CurRealisedPnl         string         `json:"curRealisedPnl"`
 	SessionAvgPrice        string         `json:"sessionAvgPrice"`
-	Delta                  string         `json:"delta"`
-	Gamma                  string         `json:"gamma"`
-	Vega                   string         `json:"vega"`
-	Theta                  string         `json:"theta"`
+	Delta                  string         `json:"delta,omitempty"`
+	Gamma                  string         `json:"gamma,omitempty"`
+	Vega                   string         `json:"vega,omitempty"`
+	Theta                  string         `json:"theta,omitempty"`
 	CumRealisedPnl         string         `json:"cumRealisedPnl"`
 	PositionStatus         PositionStatus `json:"positionStatus"`
 	AdlRankIndicator       int            `json:"adlRankIndicator"`
 	IsReduceOnly           bool           `json:"isReduceOnly"`
 	CreatedTime            string         `json:"createdTime"`
 	UpdatedTime            string         `json:"updatedTime"`
-	Seq                    string         `json:"seq"`
+	Seq                    int64          `json:"seq"`
 	MmrSysUpdatedTime      string         `json:"mmrSysUpdatedTime"`
 	LeverageSysUpdatedTime string         `json:"leverageSysUpdatedTime"`
 	PositionIMByMp         string         `json:"positionIMByMp"`

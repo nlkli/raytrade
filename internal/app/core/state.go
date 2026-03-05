@@ -78,13 +78,13 @@ type State struct {
 type PositionState struct {
 	List []broker.Position
 
-	RHD [2]float32
+	RHD float32
 }
 
 type OrderState struct {
 	List []broker.Order
 
-	RHD [2]float32
+	RHD float32
 }
 
 type Select struct {

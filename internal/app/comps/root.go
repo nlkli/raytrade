@@ -16,11 +16,8 @@ const (
 	DEFAULT_CHART_RHD     float32 = 4
 	DEFAULT_ORDERBOOK_RHD float32 = 4
 
-	DEFAULT_POSITION_RHD  float32 = 0
-	DEFAULT_POSITION_RHD1 float32 = 2
-
-	DEFAULT_ORDER_RHD  float32 = 0
-	DEFAULT_ORDER_RHD1 float32 = 2
+	DEFAULT_POSITION_RHD float32 = 2
+	DEFAULT_ORDER_RHD    float32 = 4
 
 	DEFAULT_CANDLE_WIDTH      float32 = 6.5
 	DEFAULT_CANDLE_WICK_WIDTH float32 = 1.5
@@ -244,9 +241,8 @@ func parseOrderBookPlus(c *core.Component, s *core.State) (Comp, error) {
 
 func parsePosition(c *core.Component, s *core.State) (Comp, error) {
 	rhd := getNumberParam(c.Params, "rhd", DEFAULT_POSITION_RHD)
-	rhd1 := getNumberParam(c.Params, "rhd1", DEFAULT_POSITION_RHD1)
 
-	s.Position.RHD = [2]float32{rhd, rhd1}
+	s.Position.RHD = rhd
 
 	return &Position{
 		Rect: &Rect{},
@@ -255,9 +251,8 @@ func parsePosition(c *core.Component, s *core.State) (Comp, error) {
 
 func parseOrder(c *core.Component, s *core.State) (Comp, error) {
 	rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_RHD)
-	rhd1 := getNumberParam(c.Params, "rhd1", DEFAULT_ORDER_RHD1)
 
-	s.Order.RHD = [2]float32{rhd, rhd1}
+	s.Order.RHD = rhd
 
 	return &Order{
 		Rect: &Rect{},

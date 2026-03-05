@@ -9,7 +9,6 @@ import (
 	"nlkli/raytrade/internal/app/core"
 	"nlkli/raytrade/internal/broker/bybit"
 	"os"
-	"strings"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -87,13 +86,6 @@ func InitApp(ctx context.Context, c *core.Config) *App {
 
 	state.BTX = bg.Tx
 	state.CMDTX = cmd.Tx
-
-	if len(c.InitCommands) > 0 {
-		go func() {
-			time.Sleep(200 * time.Millisecond)
-			cmd.Tx <- strings.Join(c.InitCommands, "|")
-		}()
-	}
 
 	return &App{
 		Root: root,

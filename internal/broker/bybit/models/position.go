@@ -1,7 +1,7 @@
 package models
 
 type PositionInfoResult struct {
-	Category       Category         `json:"category"`
+	Category       Category       `json:"category"`
 	NextPageCursor string         `json:"nextPageCursor"`
 	List           []PositionInfo `json:"list"`
 }
@@ -11,7 +11,7 @@ type PositionInfo struct {
 	RiskID                 int            `json:"riskId"`
 	RiskLimitValue         string         `json:"riskLimitValue"`
 	Symbol                 string         `json:"symbol"`
-	Side                   string         `json:"side"`
+	Side                   Side           `json:"side"`
 	Size                   string         `json:"size"`
 	AvgPrice               string         `json:"avgPrice"`
 	PositionValue          string         `json:"positionValue"`
@@ -29,17 +29,17 @@ type PositionInfo struct {
 	StopLoss               string         `json:"stopLoss"`
 	TrailingStop           string         `json:"trailingStop"`
 	SessionAvgPrice        string         `json:"sessionAvgPrice"`
-	Delta                  string         `json:"delta"`
-	Gamma                  string         `json:"gamma"`
-	Vega                   string         `json:"vega"`
-	Theta                  string         `json:"theta"`
+	Delta                  string `json:"delta,omitempty"`     
+	Gamma                  string `json:"gamma,omitempty"`    
+	Vega                   string `json:"vega,omitempty"`    
+	Theta                  string `json:"theta,omitempty"`  
 	UnrealisedPnl          string         `json:"unrealisedPnl"`
 	CurRealisedPnl         string         `json:"curRealisedPnl"`
 	CumRealisedPnl         string         `json:"cumRealisedPnl"`
 	AdlRankIndicator       int            `json:"adlRankIndicator"`
 	CreatedTime            string         `json:"createdTime"`
 	UpdatedTime            string         `json:"updatedTime"`
-	Seq                    uint64         `json:"seq"`
+	Seq                    int64          `json:"seq"`
 	IsReduceOnly           bool           `json:"isReduceOnly"`
 	MmrSysUpdatedTime      string         `json:"mmrSysUpdatedTime"`
 	LeverageSysUpdatedTime string         `json:"leverageSysUpdatedTime"`

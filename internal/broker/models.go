@@ -80,12 +80,20 @@ type Order struct {
 }
 
 type Position struct {
-	Category   Category
-	Symbol     string
-	Side       Side
-	Size       float64
-	EntryPrice float64
-	TakeProfit float64
-	StopLoss   float64
-	CreatedAt  time.Time
+	Category       Category
+	Symbol         string
+	Side           Side
+	Size           float64
+	EntryPrice     float64
+	PositionValue  float64
+	PositionIM     float64
+	Leverage       int
+	MarkPrice      float64
+	BreakEvenPrice float64
+	UnrealisedPnl  float64
+	RealisedPnl    float64
+	LiqPrice       float64
+	TakeProfit     float64
+	StopLoss       float64
+	CreatedAt      time.Time
 }

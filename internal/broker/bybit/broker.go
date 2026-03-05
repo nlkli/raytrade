@@ -282,56 +282,32 @@ func (b *Broker) GetPosition(
 	var position []broker.Position
 
 	for _, pi := range res.List {
-		var side broker.Side
-		switch pi.Side {
-		case "Buy":
-			side = broker.Long
-		case "Sell":
-			side = broker.Short
-		}
+		var p broker.Position
 
-		size, err := strconv.ParseFloat(pi.Size, 64)
-		if err != nil {
-			return nil, err
+		p.Category = FromLocalCategory(res.Category)
+		p.Symbol = pi.Symbol
+		if pi.Side == models.SideBuy {
+			p.Side = broker.Long
+		} else {
+			p.Side = broker.Short
 		}
+		p.Size, _ = strconv.ParseFloat(pi.Size, 64)
+		p.EntryPrice, _ = strconv.ParseFloat(pi.AvgPrice, 64)
+		p.PositionValue, _ = strconv.ParseFloat(pi.PositionValue, 64)
+		p.PositionIM, _ = strconv.ParseFloat(pi.PositionIM, 64)
+		p.Leverage, _ = strconv.Atoi(pi.Leverage)
+		p.MarkPrice, _ = strconv.ParseFloat(pi.MarkPrice, 64)
+		p.BreakEvenPrice, _ = strconv.ParseFloat(pi.BreakEvenPrice, 64)
+		p.UnrealisedPnl, _ = strconv.ParseFloat(pi.UnrealisedPnl, 64)
+		p.RealisedPnl, _ = strconv.ParseFloat(pi.CurRealisedPnl, 64)
+		p.LiqPrice, _ = strconv.ParseFloat(pi.LiqPrice, 64)
+		p.TakeProfit, _ = strconv.ParseFloat(pi.TakeProfit, 64)
+		p.StopLoss, _ = strconv.ParseFloat(pi.StopLoss, 64)
 
-		entryPrice, err := strconv.ParseFloat(pi.AvgPrice, 64)
-		if err != nil {
-			return nil, err
-		}
+		createdAtUnix, _ := strconv.ParseInt(pi.CreatedTime, 0, 64)
+		p.CreatedAt = time.UnixMilli(createdAtUnix)
 
-		var takeProfit float64
-		if len(pi.TakeProfit) > 0 {
-			takeProfit, err = strconv.ParseFloat(pi.TakeProfit, 64)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		var stopLoss float64
-		if len(pi.StopLoss) > 0 {
-			stopLoss, err = strconv.ParseFloat(pi.StopLoss, 64)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
-		if err != nil {
-			return nil, err
-		}
-		createdAt := time.UnixMilli(createdAtUnix)
-
-		position = append(position, broker.Position{
-			Category:   FromLocalCategory(res.Category),
-			Symbol:     pi.Symbol,
-			Side:       side,
-			Size:       size,
-			EntryPrice: entryPrice,
-			TakeProfit: takeProfit,
-			StopLoss:   stopLoss,
-			CreatedAt:  createdAt,
-		})
+		position = append(position, p)
 	}
 
 	return position, nil
@@ -431,50 +407,39 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 
 		for d := range subCh {
 
-			var pi models.StreamPositionInfo
-			if err := json.Unmarshal(d.Data, &pi); err != nil {
+			var piList []models.StreamPositionInfo
+			if err := json.Unmarshal(d.Data, &piList); err != nil {
 				continue
 			}
 
-			var pos broker.Position
+			for _, pi := range piList {
+				var p broker.Position
 
-			pos.Category = FromLocalCategory(pi.Category)
-			pos.Symbol = pi.Symbol
+				p.Category = FromLocalCategory(pi.Category)
+				p.Symbol = pi.Symbol
+				if pi.Side == models.SideBuy {
+					p.Side = broker.Long
+				} else {
+					p.Side = broker.Short
+				}
+				p.Size, _ = strconv.ParseFloat(pi.Size, 64)
+				p.EntryPrice, _ = strconv.ParseFloat(pi.EntryPrice, 64)
+				p.PositionValue, _ = strconv.ParseFloat(pi.PositionValue, 64)
+				p.PositionIM, _ = strconv.ParseFloat(pi.PositionIM, 64)
+				p.Leverage, _ = strconv.Atoi(pi.Leverage)
+				p.MarkPrice, _ = strconv.ParseFloat(pi.MarkPrice, 64)
+				p.BreakEvenPrice, _ = strconv.ParseFloat(pi.BreakEvenPrice, 64)
+				p.UnrealisedPnl, _ = strconv.ParseFloat(pi.UnrealisedPnl, 64)
+				p.RealisedPnl, _ = strconv.ParseFloat(pi.CurRealisedPnl, 64)
+				p.LiqPrice, _ = strconv.ParseFloat(pi.LiqPrice, 64)
+				p.TakeProfit, _ = strconv.ParseFloat(pi.TakeProfit, 64)
+				p.StopLoss, _ = strconv.ParseFloat(pi.StopLoss, 64)
 
-			switch pi.Side {
-			case "Buy":
-				pos.Side = broker.Long
-			case "Sell":
-				pos.Side = broker.Short
+				createdAtUnix, _ := strconv.ParseInt(pi.CreatedTime, 0, 64)
+				p.CreatedAt = time.UnixMilli(createdAtUnix)
+
+				ch <- p
 			}
-
-			pos.Size, err = strconv.ParseFloat(pi.Size, 64)
-			if err != nil {
-				continue
-			}
-
-			pos.EntryPrice, err = strconv.ParseFloat(pi.EntryPrice, 64)
-			if err != nil {
-				continue
-			}
-
-			pos.TakeProfit, err = strconv.ParseFloat(pi.TakeProfit, 64)
-			if err != nil {
-				continue
-			}
-
-			pos.StopLoss, err = strconv.ParseFloat(pi.StopLoss, 64)
-			if err != nil {
-				continue
-			}
-
-			createdAtUnix, err := strconv.ParseInt(pi.CreatedTime, 0, 64)
-			if err != nil {
-				continue
-			}
-			pos.CreatedAt = time.UnixMilli(createdAtUnix)
-
-			ch <- pos
 		}
 	}()
 
