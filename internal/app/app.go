@@ -97,6 +97,8 @@ func InitApp(ctx context.Context, c *core.Config) *App {
 }
 
 func Run(ctx context.Context, configPath string) {
+	// ctx = context.Background()
+
 	b, err := os.ReadFile(configPath)
 	if err != nil {
 		panic(err)

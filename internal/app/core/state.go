@@ -136,6 +136,10 @@ type ChartState struct {
 	Interval      cdl.Interval
 	LableString   string
 
+	PositionIdx    int
+	PosEntryPriceY float32 // Local y coord
+	ShowPosition   bool
+
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
 

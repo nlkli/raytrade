@@ -45,14 +45,13 @@ func (p *Position) Render(s *core.State) {
 	)
 
 	var offsetY float32
-
+	cursor := rl.Vector2{
+		X: p.p.X + POSITION_CONTENT_PDX, Y: p.p.Y + offsetY,
+	}
 	for _, pi := range ps.List {
-		cursor := rl.Vector2{
-			X: p.p.X + POSITION_CONTENT_PDX, Y: p.p.Y + offsetY,
-		}
 
 		rl.DrawRectangleV(
-			cursor,
+			rl.Vector2{X: p.p.X, Y: cursor.Y},
 			rl.Vector2{X: p.s.X, Y: s.RH},
 			s.P.Bg[0],
 		)
@@ -66,16 +65,19 @@ func (p *Position) Render(s *core.State) {
 			s.P.Dim.Yellow,
 		)
 
-		offsetY += s.RH
+		cursor.Y += s.RH
 
 		if pi.EntryPrice == 0 {
 			continue
 		}
 
-		offsetY += rh1*3 + s.RH
-		cursor.Y += s.RH
+		var sideText string
+		if pi.Side == broker.Long {
+			sideText = "Long"
+		} else {
+			sideText = "Short"
+		}
 
-		sideText := string(pi.Side)
 		var sColor rl.Color
 		if pi.Side == broker.Long {
 			sColor = s.P.Dim.Green
@@ -167,7 +169,52 @@ func (p *Position) Render(s *core.State) {
 			0,
 			s.P.Fg[1],
 		)
+
+		cursor.Y += rh1
+
+		if pi.TakeProfit != 0 {
+			takeProfitText := fmt.Sprintf(
+				"TP: %s",
+				strconv.FormatFloat(pi.TakeProfit, 'f', -1, 64),
+			)
+
+			rl.DrawTextEx(
+				s.F,
+				takeProfitText,
+				cursor,
+				rh1,
+				0,
+				s.P.Dim.Green,
+			)
+
+			cursor.Y += rh1
+		}
+
+		if pi.StopLoss != 0 {
+			stopLossText := fmt.Sprintf(
+				"SL: %s",
+				strconv.FormatFloat(pi.StopLoss, 'f', -1, 64),
+			)
+
+			rl.DrawTextEx(
+				s.F,
+				stopLossText,
+				cursor,
+				rh1,
+				0,
+				s.P.Dim.Red,
+			)
+
+			cursor.Y += rh1
+		}
 	}
+
+	rl.DrawLineEx(
+		rl.Vector2{X: p.p.X, Y: cursor.Y},
+		rl.Vector2{X: p.p.X + p.s.X, Y: cursor.Y},
+		1,
+		s.P.Bg[0],
+	)
 
 	rl.EndScissorMode()
 

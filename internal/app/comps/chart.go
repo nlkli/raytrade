@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"nlkli/raytrade/internal/app/core"
+	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"strconv"
 	"time"
@@ -306,6 +307,31 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, rh float32) {
 		}
 	}
 
+	// Position
+	if cs.ShowPosition &&
+		cs.PositionIdx >= 0 && len(s.Position.List) > cs.PositionIdx {
+
+		pos := s.Position.List[cs.PositionIdx]
+
+		cs.PosEntryPriceY = priceToWorldY(
+			pos.EntryPrice, cs.MaxVisPrice, cs.PxPerPrice,
+		)
+
+		var color rl.Color
+		if pos.Side == broker.Long {
+			color = s.P.Diff.Add
+		} else {
+			color = s.P.Diff.Delete
+		}
+
+		rl.DrawLineEx(
+			rl.Vector2{X: cs.Shift.X, Y: cs.PosEntryPriceY},
+			rl.Vector2{X: c.s.X + cs.Shift.X, Y: cs.PosEntryPriceY},
+			1,
+			color,
+		)
+	}
+
 	// Current price line
 	rl.DrawLineEx(
 		rl.Vector2{X: cs.Shift.X, Y: cs.LastPriceY},
@@ -487,7 +513,7 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState, rh float32) {
 	// Current price position in local coordinates
 	localPriceY := cs.LastPriceY + pb.p.Y - cs.Shift.Y
 
-	rowCenter := rh * .5
+	halfRH := rh * .5
 	// Lables offset x (padding)
 	lable_xPos := pb.p.X + PRICE_BAR_LABLE_XPD
 
@@ -500,7 +526,7 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState, rh float32) {
 
 	// Draw price labels at grid positions
 	for y := pb.s.Y - cs.GridStepY*.5; y > 0; y -= cs.GridStepY {
-		localTextY := y + pb.p.Y - rowCenter
+		localTextY := y + pb.p.Y - halfRH
 
 		yPrice := worldYToPrice(
 			y+cs.Shift.Y, cs.MaxVisPrice, cs.PxPerPrice,
@@ -521,21 +547,44 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState, rh float32) {
 		)
 	}
 
-	// Gradient highlights around current price line
-	rl.DrawRectangleGradientV(
-		int32(pb.p.X),
-		int32(localPriceY-rh-4),
-		int32(pb.s.X),
-		int32(rh+4),
-		s.P.TBg[1],
-		s.P.Bg[1],
-	)
+	// Position entry price lable
+	if cs.PositionIdx >= 0 && len(s.Position.List) > cs.PositionIdx {
+		pos := s.Position.List[cs.PositionIdx]
 
-	rl.DrawRectangleGradientV(
+		priceText := fmt.Sprintf("%.5f", pos.EntryPrice)
+		if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
+			priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
+		}
+
+		localPosEP := cs.PosEntryPriceY + pb.p.Y - cs.Shift.Y
+		localTextY := localPosEP - halfRH
+
+		// Gradient background for position entry price
+		DrawGradientAround(
+			int32(localPosEP),
+			int32(pb.p.X),
+			int32(halfRH)+3,
+			int32(pb.s.X),
+			s.P.Bg[1],
+			s.P.TBg[1],
+		)
+
+		rl.DrawTextEx(
+			s.F,
+			priceText,
+			rl.Vector2{X: lable_xPos, Y: localTextY},
+			rh,
+			0,
+			s.P.Fg[1],
+		)
+	}
+
+	// Gradient around current price line
+	DrawGradientAround(
+		int32(localPriceY),
 		int32(pb.p.X),
-		int32(localPriceY+2),
+		int32(rh)+3,
 		int32(pb.s.X),
-		int32(rh+4),
 		s.P.Bg[1],
 		s.P.TBg[1],
 	)
@@ -567,28 +616,18 @@ func (pb *PriceBar) Render(s *core.State, cs *core.ChartState, rh float32) {
 	// Cursor price indicator
 	if cs.Cursor.Y > 0 {
 		localCursorY := cs.Cursor.Y + pb.p.Y - cs.Shift.Y
-		localTextY := localCursorY - rowCenter
+		localTextY := localCursorY - halfRH
 
 		priceText := fmt.Sprintf("%.5f", cs.CursorPrice)
 		if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
 			priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 		}
 
-		// Gradient background for cursor price
-		rl.DrawRectangleGradientV(
-			int32(pb.p.X),
-			int32(localTextY-3),
-			int32(pb.s.X),
-			int32(rowCenter+3),
-			s.P.TBg[1],
-			s.P.Bg[1],
-		)
-
-		rl.DrawRectangleGradientV(
-			int32(pb.p.X),
+		DrawGradientAround(
 			int32(localCursorY),
+			int32(pb.p.X),
+			int32(halfRH)+3,
 			int32(pb.s.X),
-			int32(rowCenter+3),
 			s.P.Bg[1],
 			s.P.TBg[1],
 		)
@@ -611,6 +650,26 @@ type Crossing struct {
 }
 
 func (cr *Crossing) Render(s *core.State) {
+}
+
+func DrawGradientAround(centerY int32, px, sy, sx int32, color1, color2 rl.Color) {
+	rl.DrawRectangleGradientV(
+		px,
+		centerY-sy,
+		sx,
+		sy,
+		color2,
+		color1,
+	)
+
+	rl.DrawRectangleGradientV(
+		px,
+		centerY,
+		sx,
+		sy,
+		color1,
+		color2,
+	)
 }
 
 // quantizePriceStep rounds price to nice numbers for grid labels

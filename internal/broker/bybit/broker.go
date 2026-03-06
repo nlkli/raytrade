@@ -163,30 +163,214 @@ func (b *Broker) ExtendEndCandles(
 func (b *Broker) PlaceOrder(
 
 	ctx context.Context,
-	category broker.Category,
-	symbol string,
-	side broker.Side,
-	price float64,
-	usdQty float64,
+	LinkId string,
+	params broker.PlaceOrderParams,
 
-) {
+	// id      linkId
+) (string, string, error) {
 
+	rp := &PlaceOrderRequestParams{
+		Category: ToLocalCategory(params.Category),
+		Symbol:   params.Symbol,
+	}
+
+	if params.Side == broker.Long {
+		rp.Side = models.SideBuy
+	} else {
+		rp.Side = models.SideSell
+	}
+
+	if params.IsLeverage != nil {
+		var il int
+		if *params.IsLeverage {
+			il = 1
+		} else {
+			il = 0
+		}
+		rp.IsLeverage = &il
+	}
+
+	switch params.Type {
+	case broker.Limit:
+		rp.OrderType = models.OrderTypeLimit
+	case broker.Market:
+		rp.OrderType = models.OrderTypeMarket
+	}
+
+	rp.Qty = strconv.FormatFloat(params.Qty, 'f', -1, 64)
+
+	if params.MarketUnit != nil {
+		var mu models.MarketUnit
+		switch *params.MarketUnit {
+		case broker.BaseCoin:
+			mu = models.MarketUnitBaseCoin
+		case broker.QuoteCoin:
+			mu = models.MarketUnitQuoteCoin
+		}
+		rp.MarketUnit = &mu
+	}
+
+	if params.Price != nil {
+		price := strconv.FormatFloat(*params.Price, 'f', -1, 64)
+		rp.Price = &price
+	}
+
+	if params.TriggerDirection != nil {
+		var td models.TriggerDirection
+		switch *params.TriggerDirection {
+		case broker.Rise:
+			td = models.TriggerDirectionRise
+		case broker.Fall:
+			td = models.TriggerDirectionFall
+		default:
+			td = 0
+		}
+		rp.TriggerDirection = &td
+	}
+
+	if params.TriggerPrice != nil {
+		triggerPrice := strconv.FormatFloat(*params.TriggerPrice, 'f', -1, 64)
+		rp.TriggerPrice = &triggerPrice
+	}
+
+	if params.TriggerBy != nil {
+		var tb models.TriggerBy
+		switch *params.TriggerBy {
+		case broker.IndexPrice:
+			tb = models.TriggerByIndexPrice
+		case broker.MarkPrice:
+			tb = models.TriggerByMarkPrice
+		case broker.LastPrice:
+			tb = models.TriggerByLastPrice
+		default:
+			tb = ""
+		}
+		rp.TriggerBy = &tb
+	}
+
+	if params.TakeProfit != nil {
+		tp := strconv.FormatFloat(*params.TakeProfit, 'f', -1, 64)
+		rp.TakeProfit = &tp
+	}
+
+	if params.StopLoss != nil {
+		sl := strconv.FormatFloat(*params.StopLoss, 'f', -1, 64)
+		rp.StopLoss = &sl
+	}
+
+	if params.TpTriggerBy != nil {
+		var tb models.TriggerBy
+		switch *params.TpTriggerBy {
+		case broker.IndexPrice:
+			tb = models.TriggerByIndexPrice
+		case broker.MarkPrice:
+			tb = models.TriggerByMarkPrice
+		case broker.LastPrice:
+			tb = models.TriggerByLastPrice
+		default:
+			tb = ""
+		}
+		rp.TpTriggerBy = &tb
+	}
+
+	if params.SlTriggerBy != nil {
+		var tb models.TriggerBy
+		switch *params.SlTriggerBy {
+		case broker.IndexPrice:
+			tb = models.TriggerByIndexPrice
+		case broker.MarkPrice:
+			tb = models.TriggerByMarkPrice
+		case broker.LastPrice:
+			tb = models.TriggerByLastPrice
+		default:
+			tb = ""
+		}
+		rp.SlTriggerBy = &tb
+	}
+
+	if params.ReduceOnly != nil {
+		ro := *params.ReduceOnly
+		rp.ReduceOnly = &ro
+	}
+
+	if params.CloseOnTrigger != nil {
+		cot := *params.CloseOnTrigger
+		rp.CloseOnTrigger = &cot
+	}
+
+	if params.TpslMode != nil {
+		var m models.TpslMode
+		switch *params.TpslMode {
+		case broker.Full:
+			m = models.TpslModeFull
+		case broker.Partial:
+			m = models.TpslModePartial
+		default:
+			m = ""
+		}
+		rp.TpslMode = &m
+	}
+
+	if params.TpLimitPrice != nil {
+		tplp := strconv.FormatFloat(*params.TpLimitPrice, 'f', -1, 64)
+		rp.TpLimitPrice = &tplp
+	}
+
+	if params.SlLimitPrice != nil {
+		sllp := strconv.FormatFloat(*params.SlLimitPrice, 'f', -1, 64)
+		rp.SlLimitPrice = &sllp
+	}
+
+	if params.TpOrderType != nil {
+		var ot models.OrderType
+		switch *params.TpOrderType {
+		case broker.Limit:
+			ot = models.OrderTypeLimit
+		case broker.Market:
+			ot = models.OrderTypeMarket
+		default:
+			ot = ""
+		}
+		rp.TpOrderType = &ot
+	}
+
+	if params.SlOrderType != nil {
+		var ot models.OrderType
+		switch *params.SlOrderType {
+		case broker.Limit:
+			ot = models.OrderTypeLimit
+		case broker.Market:
+			ot = models.OrderTypeMarket
+		default:
+			ot = ""
+		}
+		rp.SlOrderType = &ot
+	}
+
+	res, err := b.c.PlaceOrder(ctx, rp)
+	if err != nil {
+		return "", "", err
+	}
+
+	return res.OrderId, res.OrderLinkId, nil
 }
 
-func (b *Broker) GetOpenOrders(
+func (b *Broker) GetOpenOrder(
 
 	ctx context.Context,
 	category broker.Category,
 	symbol string,
-	limit int,
 
 ) ([]broker.Order, string, error) {
+
+	limit := MAX_ORDERLIST_LIMIT
+
 	res, err := b.c.GetOrderList(
 		ctx,
-		ToLocalCategory(category),
-		&GetOrderListRequestParas{
-			Symbol: &symbol,
-			Limit:  &limit,
+		&GetOrderListRequestParams{
+			Category: ToLocalCategory(category),
+			Symbol:   &symbol,
+			Limit:    &limit,
 			// OpenOnly is default
 		},
 	)
@@ -194,70 +378,119 @@ func (b *Broker) GetOpenOrders(
 		return nil, "", err
 	}
 
-	orderList := make([]broker.Order, len(res.List))
+	order := make([]broker.Order, len(res.List))
 
-	if len(res.List) == 0 {
-		return orderList, "", nil
-	}
+	for i, oi := range res.List {
+		o := &order[i]
 
-	for i, o := range res.List {
-		order := &orderList[i]
+		o.Category = FromLocalCategory(res.Category)
+		o.Symbol = oi.Symbol
 
-		order.Symbol = o.Symbol
+		o.Id = oi.OrderId
+		o.LinkId = oi.OrderLinkId
+		o.Price, _ = strconv.ParseFloat(oi.Price, 64)
+		o.Qty, _ = strconv.ParseFloat(oi.Qty, 64)
 
-		switch o.Side {
-		case "Buy":
-			order.Side = broker.Long
-		case "Sell":
-			order.Side = broker.Short
+		if oi.MarketUnit == models.MarketUnitBaseCoin {
+			o.MarketUnit = broker.BaseCoin
+		} else {
+			o.MarketUnit = broker.QuoteCoin
 		}
 
-		switch o.OrderStatus {
+		if oi.Side == models.SideBuy {
+			o.Side = broker.Long
+		} else {
+			o.Side = broker.Short
+		}
+
+		o.IsLeverage = oi.IsLeverage == "1"
+
+		switch oi.OrderStatus {
 		case models.OrderStatusNew,
 			models.OrderStatusPartiallyFilled,
 			models.OrderStatusUntriggered:
-			order.Status = broker.Open
+			o.Status = broker.Open
 		default:
-			order.Status = broker.Closed
+			o.Status = broker.Closed
 		}
 
-		order.Price, err = strconv.ParseFloat(o.Price, 64)
-		if err != nil {
-			return nil, "", err
+		if oi.OrderType == models.OrderTypeLimit {
+			o.Type = broker.Limit
+		} else {
+			o.Type = broker.Market
 		}
 
-		order.Qty, err = strconv.ParseFloat(o.Qty, 64)
-		if err != nil {
-			return nil, "", err
+		o.AvgPrice, _ = strconv.ParseFloat(oi.AvgPrice, 64)
+		o.LeavesQty, _ = strconv.ParseFloat(oi.LeavesQty, 64)
+		o.LeavesValue, _ = strconv.ParseFloat(oi.LeavesValue, 64)
+		o.ExecQty, _ = strconv.ParseFloat(oi.CumExecQty, 64)
+		o.ExecValue, _ = strconv.ParseFloat(oi.CumExecValue, 64)
+		o.TriggerPrice, _ = strconv.ParseFloat(oi.TriggerPrice, 64)
+		o.TakeProfit, _ = strconv.ParseFloat(oi.TakeProfit, 64)
+		o.StopLoss, _ = strconv.ParseFloat(oi.StopLoss, 64)
+
+		switch oi.TpslMode {
+		case models.TpslModeFull:
+			o.TpslMode = broker.Full
+		case models.TpslModePartial:
+			o.TpslMode = broker.Partial
+		default:
+			o.TpslMode = -1
 		}
 
-		order.ExecQty, err = strconv.ParseFloat(o.CumExecQty, 64)
-		if err != nil {
-			return nil, "", err
+		o.TpLimitPrice, _ = strconv.ParseFloat(oi.TpLimitPrice, 64)
+		o.SlLimitPrice, _ = strconv.ParseFloat(oi.SlLimitPrice, 64)
+
+		switch oi.TpTriggerBy {
+		case models.TriggerByIndexPrice:
+			o.TpTriggerBy = broker.IndexPrice
+		case models.TriggerByMarkPrice:
+			o.TpTriggerBy = broker.MarkPrice
+		case models.TriggerByLastPrice:
+			o.TpTriggerBy = broker.LastPrice
+		default:
+			o.TpTriggerBy = -1
 		}
 
-		order.ExecValue, err = strconv.ParseFloat(o.CumExecValue, 64)
-		if err != nil {
-			return nil, "", err
+		switch oi.SlTriggerBy {
+		case models.TriggerByIndexPrice:
+			o.SlTriggerBy = broker.IndexPrice
+		case models.TriggerByMarkPrice:
+			o.SlTriggerBy = broker.MarkPrice
+		case models.TriggerByLastPrice:
+			o.SlTriggerBy = broker.LastPrice
+		default:
+			o.SlTriggerBy = -1
 		}
 
-		if len(o.AvgPrice) != 0 {
-			ep, err := strconv.ParseFloat(o.AvgPrice, 64)
-			if err != nil {
-				return nil, "", err
-			}
-			order.EntryPrice = ep
+		switch oi.TriggerDirection {
+		case models.TriggerDirectionFall:
+			o.TriggerDirection = broker.Fall
+		case models.TriggerDirectionRise:
+			o.TriggerDirection = broker.Rise
+		default:
+			o.TriggerDirection = -1
 		}
 
-		createdAtUnix, err := strconv.ParseInt(o.CreatedTime, 0, 64)
-		if err != nil {
-			return nil, "", err
+		switch oi.TriggerBy {
+		case models.TriggerByIndexPrice:
+			o.TriggerBy = broker.IndexPrice
+		case models.TriggerByMarkPrice:
+			o.TriggerBy = broker.MarkPrice
+		case models.TriggerByLastPrice:
+			o.TriggerBy = broker.LastPrice
+		default:
+			o.TriggerBy = -1
 		}
 
-		order.CreatedAt = time.UnixMilli(createdAtUnix)
+		o.ReduceOnly = oi.ReduceOnly
+		o.CloseOnTrigger = oi.CloseOnTrigger
+
+		createdAtUnix, _ := strconv.ParseInt(oi.CreatedTime, 0, 64)
+		o.CreatedAt = time.UnixMilli(createdAtUnix)
 	}
 
-	return orderList, res.NextPageCursor, nil
+	return order, res.NextPageCursor, nil
 }
 
 func (b *Broker) GetPosition(
@@ -279,10 +512,10 @@ func (b *Broker) GetPosition(
 		return nil, err
 	}
 
-	var position []broker.Position
+	position := make([]broker.Position, len(res.List))
 
-	for _, pi := range res.List {
-		var p broker.Position
+	for i, pi := range res.List {
+		p := &position[i]
 
 		p.Category = FromLocalCategory(res.Category)
 		p.Symbol = pi.Symbol
@@ -306,8 +539,6 @@ func (b *Broker) GetPosition(
 
 		createdAtUnix, _ := strconv.ParseInt(pi.CreatedTime, 0, 64)
 		p.CreatedAt = time.UnixMilli(createdAtUnix)
-
-		position = append(position, p)
 	}
 
 	return position, nil
@@ -452,7 +683,142 @@ func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.P
 }
 
 func (s *BrokerPrivateStream) SubscribeOrder() (*broker.Subscription[broker.Order], error) {
-	return nil, nil
+	subCh, err := s.stream.Subscribe("order") // All-In-One Topic
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan broker.Order, 1)
+	go func() {
+		defer close(ch)
+
+		for d := range subCh {
+
+			var oiList []models.StreamOrderInfo
+			if err := json.Unmarshal(d.Data, &oiList); err != nil {
+				continue
+			}
+
+			for _, oi := range oiList {
+				var o broker.Order
+
+				o.Category = FromLocalCategory(oi.Category)
+				o.Symbol = oi.Symbol
+
+				o.Id = oi.OrderId
+				o.LinkId = oi.OrderLinkId
+				o.Price, _ = strconv.ParseFloat(oi.Price, 64)
+				o.Qty, _ = strconv.ParseFloat(oi.Qty, 64)
+
+				if oi.MarketUnit == models.MarketUnitBaseCoin {
+					o.MarketUnit = broker.BaseCoin
+				} else {
+					o.MarketUnit = broker.QuoteCoin
+				}
+
+				if oi.Side == models.SideBuy {
+					o.Side = broker.Long
+				} else {
+					o.Side = broker.Short
+				}
+
+				o.IsLeverage = oi.IsLeverage == "1"
+
+				switch oi.OrderStatus {
+				case models.OrderStatusNew,
+					models.OrderStatusPartiallyFilled,
+					models.OrderStatusUntriggered:
+					o.Status = broker.Open
+				default:
+					o.Status = broker.Closed
+				}
+
+				if oi.OrderType == models.OrderTypeLimit {
+					o.Type = broker.Limit
+				} else {
+					o.Type = broker.Market
+				}
+
+				o.AvgPrice, _ = strconv.ParseFloat(oi.AvgPrice, 64)
+				o.LeavesQty, _ = strconv.ParseFloat(oi.LeavesQty, 64)
+				o.LeavesValue, _ = strconv.ParseFloat(oi.LeavesValue, 64)
+				o.ExecQty, _ = strconv.ParseFloat(oi.CumExecQty, 64)
+				o.ExecValue, _ = strconv.ParseFloat(oi.CumExecValue, 64)
+				o.TriggerPrice, _ = strconv.ParseFloat(oi.TriggerPrice, 64)
+				o.TakeProfit, _ = strconv.ParseFloat(oi.TakeProfit, 64)
+				o.StopLoss, _ = strconv.ParseFloat(oi.StopLoss, 64)
+
+				switch oi.TpslMode {
+				case models.TpslModeFull:
+					o.TpslMode = broker.Full
+				case models.TpslModePartial:
+					o.TpslMode = broker.Partial
+				default:
+					o.TpslMode = -1
+				}
+
+				o.TpLimitPrice, _ = strconv.ParseFloat(oi.TpLimitPrice, 64)
+				o.SlLimitPrice, _ = strconv.ParseFloat(oi.SlLimitPrice, 64)
+
+				switch oi.TpTriggerBy {
+				case models.TriggerByIndexPrice:
+					o.TpTriggerBy = broker.IndexPrice
+				case models.TriggerByMarkPrice:
+					o.TpTriggerBy = broker.MarkPrice
+				case models.TriggerByLastPrice:
+					o.TpTriggerBy = broker.LastPrice
+				default:
+					o.TpTriggerBy = -1
+				}
+
+				switch oi.SlTriggerBy {
+				case models.TriggerByIndexPrice:
+					o.SlTriggerBy = broker.IndexPrice
+				case models.TriggerByMarkPrice:
+					o.SlTriggerBy = broker.MarkPrice
+				case models.TriggerByLastPrice:
+					o.SlTriggerBy = broker.LastPrice
+				default:
+					o.SlTriggerBy = -1
+				}
+
+				switch oi.TriggerDirection {
+				case models.TriggerDirectionFall:
+					o.TriggerDirection = broker.Fall
+				case models.TriggerDirectionRise:
+					o.TriggerDirection = broker.Rise
+				default:
+					o.TriggerDirection = -1
+				}
+
+				switch oi.TriggerBy {
+				case models.TriggerByIndexPrice:
+					o.TriggerBy = broker.IndexPrice
+				case models.TriggerByMarkPrice:
+					o.TriggerBy = broker.MarkPrice
+				case models.TriggerByLastPrice:
+					o.TriggerBy = broker.LastPrice
+				default:
+					o.TriggerBy = -1
+				}
+
+				o.ReduceOnly = oi.ReduceOnly
+				o.CloseOnTrigger = oi.CloseOnTrigger
+
+				createdAtUnix, _ := strconv.ParseInt(oi.CreatedTime, 0, 64)
+				o.CreatedAt = time.UnixMilli(createdAtUnix)
+
+				ch <- o
+			}
+		}
+	}()
+
+	return broker.NewBrokerStreamSubscription(
+		ch,
+		func() error {
+			return s.stream.Unsubscribe("position")
+		},
+	), nil
 }
 
 type BrokerStream struct {
@@ -579,8 +945,8 @@ func (s *BrokerStream) SubscribeOrderBook(
 
 		// [bids, asks][][price, size]
 		ob := [2][][2]float64{
-			make([][2]float64, 0, 100),
-			make([][2]float64, 0, 100),
+			make([][2]float64, 0, depth),
+			make([][2]float64, 0, depth),
 		}
 
 		for d := range subCh {

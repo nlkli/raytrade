@@ -44,6 +44,9 @@ type CMD struct {
 	Vars     map[string]string
 	Replacer *strings.Replacer
 
+	GlobalVars   map[string]string
+	GlobReplacer *strings.Replacer
+
 	InitCommands []string
 
 	Slot atomic.Pointer[CommitFn]
@@ -52,12 +55,20 @@ type CMD struct {
 func InitCMD(ctx context.Context, c *Config) *CMD {
 
 	cmd := &CMD{
-		Tx:           make(chan string, 32),
-		Vars:         c.Vars,
+		Tx:   make(chan string, 32),
+		Vars: c.Vars,
+		GlobalVars: map[string]string{
+			"SP":    "", // Selected price
+			"SOI":   "", // Selected order id
+			"SIK":   "", // Selected instrumen key
+			"SOIIK": "", // Selected order id instrumen key
+			"SPIK":  "", // Selected price instrumen key
+		},
 		InitCommands: c.InitCommands,
 	}
 
 	cmd.updateReplacer()
+	cmd.updateGlobReplacer()
 
 	go func() {
 		for {
@@ -68,7 +79,9 @@ func InitCMD(ctx context.Context, c *Config) *CMD {
 				}
 
 				f := cmd.processing(p)
-				cmd.Slot.Store(&f)
+				if f != nil {
+					cmd.Slot.Store(&f)
+				}
 
 			case <-ctx.Done():
 				return
@@ -101,11 +114,22 @@ func (c *CMD) updateReplacer() {
 	c.Replacer = strings.NewReplacer(vars...)
 }
 
+func (c *CMD) updateGlobReplacer() {
+	vars := make([]string, 0, len(c.GlobalVars)*2)
+	for k, v := range c.GlobalVars {
+		vars = append(vars, "$"+k, v)
+	}
+
+	c.GlobReplacer = strings.NewReplacer(vars...)
+}
+
 func (c *CMD) processing(prompt string) CommitFn {
 
 	var commit CommitFn
 
 	for command := range strings.SplitSeq(prompt, "|") {
+
+		command = c.GlobReplacer.Replace(command)
 
 		command = c.Replacer.Replace(command)
 		if strings.ContainsRune(command, '$') {
@@ -151,6 +175,27 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 			c.Tx <- strings.Join(c.InitCommands, "|")
 		}
 
+	case "gset":
+
+		varName, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing variable name for 'gset' command")
+		}
+
+		if _, ok := c.GlobalVars[varName]; !ok {
+			return nil, fmt.Errorf("unknown global variable: %s", varName)
+		}
+
+		varValue, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for variable '%s'", varName)
+		}
+
+		c.GlobalVars[varName] = varValue
+		c.updateGlobReplacer()
+
+		return nil, nil
+
 	case "set":
 		varName, ok := next()
 		if !ok {
@@ -165,11 +210,7 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 		c.Vars[varName] = varValue
 		c.updateReplacer()
 
-		output := fmt.Sprintf("%s=%s", varName, varValue)
-
-		return func(s *State) {
-			s.CommandLine.Prompt = output
-		}, nil
+		return nil, nil
 
 	case "read":
 		varName, ok := next()
@@ -257,8 +298,8 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 		return nil, fmt.Errorf("missing component type for 'sub' command")
 	}
 
-	if compType == "position" {
-		var filter []PositionFilter
+	if compType == "position" || compType == "order" {
+		var filter []InstrumentFilter
 
 		filterV, ok := next()
 		if ok {
@@ -275,18 +316,26 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 
 				symbol := parts[1]
 
-				filter = append(filter, PositionFilter{
+				filter = append(filter, InstrumentFilter{
 					Category: category,
 					Symbol:   symbol,
 				})
 			}
 		}
 
-		c.BTX <- &SubPosition{
-			Filter: filter,
+		if compType == "position" {
+			c.BTX <- &SubPosition{
+				Filter: filter,
+			}
 		}
 
-		return func(s *State) {}, nil
+		if compType == "order" {
+			c.BTX <- &SubOrder{
+				Filter: filter,
+			}
+		}
+
+		return nil, nil
 	}
 
 	compIdxV, ok := next()
@@ -379,7 +428,7 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 		return nil, fmt.Errorf("unknown component type: %s", compType)
 	}
 
-	return func(s *State) {}, nil
+	return nil, nil
 }
 
 func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, error) {

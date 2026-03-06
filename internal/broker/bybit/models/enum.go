@@ -95,15 +95,6 @@ const (
 	PositionIdxHedgeSell PositionIdx = 2 // hedge-mode Sell side
 )
 
-type TpSlTriggerBy string
-
-const (
-	TpSlTriggerByLastPrice  TpSlTriggerBy = "LastPrice"
-	TpSlTriggerByMarkPrice  TpSlTriggerBy = "MarkPrice"
-	TpSlTriggerByIndexPrice TpSlTriggerBy = "IndexPrice"
-	// TpSlTriggerByPrevPrice  TpSlTriggerBy = "PrevPrice"
-)
-
 type SMPType string
 
 const (

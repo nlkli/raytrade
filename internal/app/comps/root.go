@@ -17,7 +17,7 @@ const (
 	DEFAULT_ORDERBOOK_RHD float32 = 4
 
 	DEFAULT_POSITION_RHD float32 = 2
-	DEFAULT_ORDER_RHD    float32 = 4
+	DEFAULT_ORDER_RHD    float32 = 2
 
 	DEFAULT_CANDLE_WIDTH      float32 = 6.5
 	DEFAULT_CANDLE_WICK_WIDTH float32 = 1.5
@@ -166,11 +166,15 @@ func parseChart(c *core.Component, s *core.State) (Comp, error) {
 
 	showLable := getBooleanParam(c.Params, "show_lable", true)
 	showGrid := getBooleanParam(c.Params, "show_grid", true)
+	showPosition := getBooleanParam(c.Params, "show_position", true)
 
 	s.Chart = append(s.Chart, &core.ChartState{
 		Forced: true,
 
 		RHD: rhd,
+
+		PositionIdx:  -1,
+		ShowPosition: showPosition,
 
 		Scale: rl.Vector2{X: sx, Y: sy},
 		Shift: rl.Vector2{X: tx, Y: ty},

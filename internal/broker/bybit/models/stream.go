@@ -146,14 +146,14 @@ type StreamOrderInfo struct {
 	TpslMode              TpslMode              `json:"tpslMode"`
 	TpLimitPrice          string                `json:"tpLimitPrice"`
 	SlLimitPrice          string                `json:"slLimitPrice"`
-	TpTriggerBy           TpSlTriggerBy         `json:"tpTriggerBy"`
-	SlTriggerBy           TpSlTriggerBy         `json:"slTriggerBy"`
+	TpTriggerBy           TriggerBy             `json:"tpTriggerBy"`
+	SlTriggerBy           TriggerBy             `json:"slTriggerBy"`
 	TriggerDirection      TriggerDirection      `json:"triggerDirection"`
 	TriggerBy             TriggerBy             `json:"triggerBy"`
 	LastPriceOnCreated    string                `json:"lastPriceOnCreated"`
 	ReduceOnly            bool                  `json:"reduceOnly"`
 	CloseOnTrigger        bool                  `json:"closeOnTrigger"`
-	PlaceType             string                `json:"placeType"`
+	PlaceType             string                `json:"placeType,omitempty"`
 	SmpType               SMPType               `json:"smpType"`
 	SmpGroup              int                   `json:"smpGroup"`
 	SmpOrderId            string                `json:"smpOrderId"`

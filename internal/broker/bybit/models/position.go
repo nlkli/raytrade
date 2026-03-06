@@ -29,10 +29,10 @@ type PositionInfo struct {
 	StopLoss               string         `json:"stopLoss"`
 	TrailingStop           string         `json:"trailingStop"`
 	SessionAvgPrice        string         `json:"sessionAvgPrice"`
-	Delta                  string `json:"delta,omitempty"`     
-	Gamma                  string `json:"gamma,omitempty"`    
-	Vega                   string `json:"vega,omitempty"`    
-	Theta                  string `json:"theta,omitempty"`  
+	Delta                  string         `json:"delta,omitempty"`
+	Gamma                  string         `json:"gamma,omitempty"`
+	Vega                   string         `json:"vega,omitempty"`
+	Theta                  string         `json:"theta,omitempty"`
 	UnrealisedPnl          string         `json:"unrealisedPnl"`
 	CurRealisedPnl         string         `json:"curRealisedPnl"`
 	CumRealisedPnl         string         `json:"cumRealisedPnl"`
@@ -43,7 +43,7 @@ type PositionInfo struct {
 	IsReduceOnly           bool           `json:"isReduceOnly"`
 	MmrSysUpdatedTime      string         `json:"mmrSysUpdatedTime"`
 	LeverageSysUpdatedTime string         `json:"leverageSysUpdatedTime"`
-	TpslMode               string         `json:"tpslMode"`
+	TpslMode               TpslMode       `json:"tpslMode"`
 	BustPrice              string         `json:"bustPrice"`
 	PositionBalance        string         `json:"positionBalance"`
 	TradeMode              int            `json:"tradeMode"` // Deprecated

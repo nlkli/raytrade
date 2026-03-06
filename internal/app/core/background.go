@@ -168,6 +168,16 @@ func (t *SubChart) Execute(b *Background) error {
 		cs.Symbol = t.Symbol
 		cs.Interval = t.Interval
 
+		pi := slices.IndexFunc(s.Position.List, func(e broker.Position) bool {
+			return cs.InstrumentKey == fmt.Sprintf(
+				"%s.%s",
+				e.Category.AsString(true),
+				e.Symbol,
+			)
+		})
+
+		cs.PositionIdx = pi
+
 		cs.LableString = fmt.Sprintf(
 			"%s.%s.%s", cString, cs.Symbol, iString,
 		)
@@ -275,13 +285,13 @@ func (t *SubOrderBook) Execute(b *Background) error {
 	return nil
 }
 
-type PositionFilter struct {
+type InstrumentFilter struct {
 	Category broker.Category
 	Symbol   string
 }
 
 type SubPosition struct {
-	Filter []PositionFilter
+	Filter []InstrumentFilter
 }
 
 func (t *SubPosition) Execute(b *Background) error {
@@ -300,38 +310,70 @@ func (t *SubPosition) Execute(b *Background) error {
 	b.positionSub = sub
 	b.positionMu.Unlock()
 
+	updatePosition := func(p broker.Position) {
+		b.Push(func(s *State) {
+			i := slices.IndexFunc(
+				s.Position.List,
+				func(e broker.Position) bool {
+					return p.Symbol == e.Symbol &&
+						p.Category == e.Category
+				},
+			)
+			if i >= 0 {
+				s.Position.List[i] = p
+				return
+			}
+			s.Position.List = append(s.Position.List, p)
+			instrumentKey := fmt.Sprintf(
+				"%s.%s",
+				p.Category.AsString(true),
+				p.Symbol,
+			)
+			si := 0
+			for {
+				ci := slices.IndexFunc(s.Chart[si:], func(e *ChartState) bool {
+					return e.InstrumentKey == instrumentKey
+				})
+				if ci >= 0 {
+					s.Chart[ci+si].PositionIdx = len(s.Position.List) - 1
+					si = ci + 1
+					if si >= len(s.Chart) {
+						break
+					}
+					continue
+				}
+				break
+			}
+		})
+	}
+
 	done := make(chan struct{}, 1)
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 
-		position := make([]broker.Position, 0, len(t.Filter))
-
 		for {
+			for _, f := range t.Filter {
+				ctx, cancel := context.WithTimeout(
+					context.Background(),
+					REQUEST_TIMEOUT,
+				)
+				res, err := b.broker.GetPosition(
+					ctx, f.Category, f.Symbol,
+				)
+				cancel()
+
+				if err != nil {
+					continue
+				}
+
+				for _, p := range res {
+					updatePosition(p)
+				}
+			}
+
 			select {
 			case <-ticker.C:
-				for _, f := range t.Filter {
-					ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
-					res, err := b.broker.GetPosition(ctx, f.Category, f.Symbol)
-					cancel()
-
-					if err != nil {
-						continue
-					}
-
-					for _, p := range res {
-						position = append(position, p)
-					}
-				}
-
-				if len(position) > 0 {
-					copyP := make([]broker.Position, len(position))
-					copy(copyP, position)
-					b.Push(func(s *State) {
-						s.Position.List = copyP
-					})
-					position = position[:0]
-				}
 			case <-done:
 				return
 			}
@@ -344,50 +386,107 @@ func (t *SubPosition) Execute(b *Background) error {
 
 		for d := range b.positionSub.C {
 			if len(t.Filter) > 0 {
-				if !slices.ContainsFunc(t.Filter, func(e PositionFilter) bool {
+				if !slices.ContainsFunc(t.Filter, func(e InstrumentFilter) bool {
 					return e.Category == d.Category && e.Symbol == d.Symbol
 				}) {
 					continue
 				}
 			}
-			b.Push(func(s *State) {
-				i := slices.IndexFunc(s.Position.List, func(e broker.Position) bool {
-					return e.CreatedAt.Equal(d.CreatedAt)
-				})
-				if i >= 0 {
-					s.Position.List[i] = d
-					return
-				}
-				s.Position.List = append(s.Position.List, d)
-			})
+			updatePosition(d)
 		}
 	}()
 
 	return nil
 }
 
-type OrderFilter struct {
-	Category broker.Category
-	Symbol   string
-}
-
 type SubOrder struct {
 	Idx    int
-	Filter []PositionFilter
+	Filter []InstrumentFilter
 }
 
 func (t *SubOrder) Execute(b *Background) error {
-	// stream := b.GetOrInitPrivateStream()
+	stream := b.GetOrInitPrivateStream()
 
-	// sub, err := stream.SubscribeOrder()
+	sub, err := stream.SubscribeOrder()
+	if err != nil {
+		return err
+	}
 
-	// if err != nil {
-	// 	return err
-	// }
+	b.orderMu.Lock()
+	if b.orderSub != nil {
+		b.orderSub.Stop()
+	}
+	b.orderSub = sub
+	b.orderMu.Unlock()
+
+	updateOrder := func(o broker.Order) {
+		b.Push(func(s *State) {
+			i := slices.IndexFunc(
+				s.Order.List,
+				func(e broker.Order) bool {
+					return o.Id == e.Id
+				},
+			)
+			if i >= 0 {
+				if o.Status == broker.Closed {
+					s.Order.List = slices.Delete(s.Order.List, i, i+1)
+					return
+				}
+				s.Order.List[i] = o
+				return
+			}
+			s.Order.List = append(s.Order.List, o)
+		})
+	}
+
+	done := make(chan struct{}, 1)
+	go func() {
+		ticker := time.NewTicker(time.Second * 15)
+		defer ticker.Stop()
+
+		for {
+			for _, f := range t.Filter {
+				ctx, cancel := context.WithTimeout(
+					context.Background(),
+					REQUEST_TIMEOUT,
+				)
+				// TODO nextPageCursor
+				res, _, err := b.broker.GetOpenOrder(
+					ctx, f.Category, f.Symbol,
+				)
+				cancel()
+
+				if err != nil {
+					continue
+				}
+
+				for _, o := range res {
+					updateOrder(o)
+				}
+			}
+
+			select {
+			case <-ticker.C:
+			case <-done:
+				return
+			}
+		}
+
+	}()
 
 	go func() {
-		// for _ := range sub.C {
-		// }
+		defer close(done)
+
+		for o := range sub.C {
+			if len(t.Filter) > 0 {
+				if !slices.ContainsFunc(t.Filter, func(e InstrumentFilter) bool {
+					return e.Category == o.Category && e.Symbol == o.Symbol
+				}) {
+					continue
+				}
+			}
+			updateOrder(o)
+		}
 	}()
 
 	return nil

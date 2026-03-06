@@ -13,7 +13,7 @@ type CancelAllOrdersResult struct {
 }
 
 type OrderListResult struct {
-	Category       string      `json:"category"`
+	Category       Category      `json:"category"`
 	NextPageCursor string      `json:"nextPageCursor"`
 	List           []OrderInfo `json:"list"`
 }
@@ -51,8 +51,8 @@ type OrderInfo struct {
 	OcoTriggerBy       string           `json:"ocoTriggerBy"`
 	TpLimitPrice       string           `json:"tpLimitPrice"`
 	SlLimitPrice       string           `json:"slLimitPrice"`
-	TpTriggerBy        TpSlTriggerBy    `json:"tpTriggerBy"`
-	SlTriggerBy        TpSlTriggerBy    `json:"slTriggerBy"`
+	TpTriggerBy        TriggerBy        `json:"tpTriggerBy"`
+	SlTriggerBy        TriggerBy        `json:"slTriggerBy"`
 	TriggerDirection   TriggerDirection `json:"triggerDirection"`
 	TriggerBy          TriggerBy        `json:"triggerBy"`
 	LastPriceOnCreated string           `json:"lastPriceOnCreated"`

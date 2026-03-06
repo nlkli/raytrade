@@ -45,40 +45,116 @@ func (c Category) AsString(short bool) string {
 	}
 }
 
-type Side string
+type Side int
 
 const (
-	Long  Side = "Long"
-	Short Side = "Short"
+	Long Side = iota
+	Short
 )
 
-type OrderType string
+type OrderType int
 
 const (
-	Market OrderType = "Market"
-	Limit  OrderType = "Limit"
+	Market OrderType = iota
+	Limit
 )
 
-type OrderStatus string
+type OrderStatus int
 
 const (
-	Open   OrderStatus = "Open"
-	Closed OrderStatus = "Closed"
+	Open OrderStatus = iota
+	Closed
 )
 
-type Order struct {
-	Category   Category
-	Symbol     string
-	Side       Side
-	Status     OrderStatus
-	Price      float64
-	Qty        float64
-	ExecQty    float64
-	ExecValue  float64
-	EntryPrice float64
-	CreatedAt  time.Time
+type MarketUnit int
+
+const (
+	BaseCoin MarketUnit = iota
+	QuoteCoin
+)
+
+type TriggerBy int
+
+const (
+	LastPrice TriggerBy = iota
+	IndexPrice
+	MarkPrice
+)
+
+type TriggerDirection int
+
+const (
+	Rise TriggerDirection = 1
+	Fall TriggerDirection = 2
+)
+
+type TpslMode int
+
+const (
+	Full    TpslMode = iota
+	Partial TpslMode = iota
+)
+
+// https://bybit-exchange.github.io/docs/v5/order/create-order
+type PlaceOrderParams struct {
+	Category         Category
+	Symbol           string
+	IsLeverage       *bool
+	Side             Side
+	Type             OrderType
+	Qty              float64
+	MarketUnit       *MarketUnit
+	Price            *float64
+	TriggerDirection *TriggerDirection
+	TriggerPrice     *float64
+	TriggerBy        *TriggerBy
+	TakeProfit       *float64
+	StopLoss         *float64
+	TpTriggerBy      *TriggerBy
+	SlTriggerBy      *TriggerBy
+	ReduceOnly       *bool
+	CloseOnTrigger   *bool
+	TpslMode         *TpslMode
+	TpLimitPrice     *float64
+	SlLimitPrice     *float64
+	TpOrderType      *OrderType
+	SlOrderType      *OrderType
 }
 
+// https://bybit-exchange.github.io/docs/v5/order/open-order
+type Order struct {
+	Category         Category
+	Symbol           string
+	Id               string
+	LinkId           string
+	Price            float64
+	Qty              float64
+	MarketUnit       MarketUnit
+	Side             Side
+	IsLeverage       bool
+	Status           OrderStatus
+	Type             OrderType
+	AvgPrice         float64
+	LeavesQty        float64
+	LeavesValue      float64
+	ExecQty          float64
+	ExecValue        float64
+	TriggerPrice     float64
+	TakeProfit       float64
+	StopLoss         float64
+	TpslMode         TpslMode
+	TpLimitPrice     float64
+	SlLimitPrice     float64
+	TpTriggerBy      TriggerBy
+	SlTriggerBy      TriggerBy
+	TriggerDirection TriggerDirection
+	TriggerBy        TriggerBy
+	ReduceOnly       bool
+	CloseOnTrigger   bool
+	CreatedAt        time.Time
+}
+
+// https://bybit-exchange.github.io/docs/v5/position
 type Position struct {
 	Category       Category
 	Symbol         string

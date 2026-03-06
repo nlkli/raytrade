@@ -13,20 +13,20 @@ func TestPos(t *testing.T) {
 	client := bybit.NewClientFromEnv()
 	b := bybit.NewBroker(client)
 
-	pos, err := b.GetPosition(context.Background(), broker.Futures, "FARTCOINUSDT")
+	order, _, err := b.GetOpenOrder(context.Background(), broker.Futures, "FARTCOINUSDT")
 	if err != nil {
-		t.Error(err)
+		fmt.Println("----", err.Error())
 	}
 
-	fmt.Printf("%+v\n", pos)
+	fmt.Printf("%+v\n", order)
 
 	stream := b.CreatePrivateStream(nil)
 
 	time.Sleep(time.Second * 7)
 
-	sub, err := stream.SubscribePosition()
+	sub, err := stream.SubscribeOrder()
 
 	for d := range sub.C {
-		fmt.Printf("%+v", d)
+		fmt.Printf("%+v\n", d)
 	}
 }

@@ -52,11 +52,10 @@ type Broker interface {
 		symbol string,
 	) ([]Position, error)
 
-	GetOpenOrders(
+	GetOpenOrder(
 		ctx context.Context,
 		category Category,
 		symbol string,
-		limit int,
 	) ([]Order, string, error)
 
 	CreateStream(

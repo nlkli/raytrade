@@ -49,8 +49,18 @@
                 "params": {}
             },
             "b": {
-                "type": "position",
-                "params": {}
+                "type": "split",
+                "params": {
+                    "axis": 0
+                },
+                "a": {
+                    "type": "position",
+                    "params": {}
+                },
+                "b": {
+                    "type": "order",
+                    "params": {}
+                }
             }
         }
     },
@@ -107,82 +117,83 @@
     "init_commands": [
         "sub chart 0 F,$fc,1",
         "sub chart 1 F,$btc,15",
-        "sub orderbook 0 F,$fc,200",
-        "sub orderbook 1 F,$btc,200",
-        "sub position F.$fc,F.$btc"
+        "sub orderbook 0 F,$btc,200",
+        "sub orderbook 1 F,$fc,200",
+        "sub position F.$fc,F.$btc",
+        "sub order F.$fc,F.$btc"
     ],
     "theme": {
-        "name": "One Double Light",
-        "is_light": true,
+        "name": "Solarized Dark Higher Contrast",
+        "is_light": false,
         "colors": {
             "background": [
-                "#efefef",
-                "#fafafa",
-                "#ebebeb",
-                "#dbdbdb",
-                "#bfbfbf"
+                "#00161c",
+                "#001e27",
+                "#002a36",
+                "#003646",
+                "#004b62"
             ],
             "foreground": [
-                "#2b2d34",
-                "#383a43",
-                "#696d7e",
-                "#969bb3"
+                "#a8d1d2",
+                "#9cc2c3",
+                "#6d8888",
+                "#425253"
             ],
             "selection": {
-                "bg": "#454e5e",
-                "fg": "#1a1919"
+                "bg": "#003748",
+                "fg": "#7a8f8e"
             },
             "cursor": {
-                "bg": "#1a1919",
-                "fg": "#dbdfe5"
+                "bg": "#f34b00",
+                "fg": "#002831"
             },
             "base": {
-                "black": "#454b58",
-                "red": "#f74840",
-                "green": "#25a343",
-                "yellow": "#cc8100",
-                "blue": "#0087c1",
-                "magenta": "#b50da9",
-                "cyan": "#009ab7",
-                "white": "#c5b2b3",
-                "orange": "#e26520",
-                "pink": "#de7d7a"
+                "black": "#002831",
+                "red": "#d11c24",
+                "green": "#6cbe6c",
+                "yellow": "#a57706",
+                "blue": "#2176c7",
+                "magenta": "#c61c6f",
+                "cyan": "#259286",
+                "white": "#eae3cb",
+                "orange": "#bb4a15",
+                "pink": "#de8078"
             },
             "bright": {
-                "black": "#454b58",
-                "red": "#f74840",
-                "green": "#25a343",
-                "yellow": "#cc8100",
-                "blue": "#0087c1",
-                "magenta": "#b50da9",
-                "cyan": "#009ab7",
-                "white": "#c5b2b3",
-                "orange": "#e26520",
-                "pink": "#de7d7a"
+                "black": "#002831",
+                "red": "#d11c24",
+                "green": "#6cbe6c",
+                "yellow": "#a57706",
+                "blue": "#2176c7",
+                "magenta": "#c61c6f",
+                "cyan": "#259286",
+                "white": "#eae3cb",
+                "orange": "#bb4a15",
+                "pink": "#de8078"
             },
             "dim": {
-                "black": "#3b404b",
-                "red": "#d23d36",
-                "green": "#1f8b39",
-                "yellow": "#ad6e00",
-                "blue": "#0073a4",
-                "magenta": "#9a0b90",
-                "cyan": "#00839c",
-                "white": "#a79798",
-                "orange": "#c0551b",
-                "pink": "#bd6a67"
+                "black": "#00222a",
+                "red": "#b2181f",
+                "green": "#5ca25c",
+                "yellow": "#8c6505",
+                "blue": "#1c64a9",
+                "magenta": "#a8185e",
+                "cyan": "#1f7c72",
+                "white": "#c7c1ad",
+                "orange": "#9f3e12",
+                "pink": "#bc6c66"
             },
             "diff": {
-                "add": "#6bc07f",
-                "delete": "#f8837d",
-                "change": "#53add4",
-                "text": "#d16cc9"
+                "add": "#488955",
+                "delete": "#8c1d25",
+                "change": "#165992",
+                "text": "#771d52"
             },
             "code_selection": [
-                "#dddddf",
-                "#c4c4c4"
+                "#17373e",
+                "#3a291e"
             ],
-            "comment": "#86878c"
+            "comment": "#5e8085"
         }
     }
 }
