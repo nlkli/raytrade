@@ -4,7 +4,7 @@
         "height": 600,
         "title": "raytrade"
     },
-    "target_fps": 90,
+    "target_fps": 60,
     "load_font": "resources/ConcertOne-Regular.ttf",
     "row_height": 20,
     "show_overlay": true,
@@ -13,13 +13,13 @@
         "type": "split",
         "params": {
             "axis": 1,
-            "size": 0.8
+            "size": 0.85
         },
         "a": {
             "type": "split",
             "params": {
                 "axis": 1,
-                "size": 0.1
+                "size": 0.08
             },
             "a": {
                 "type": "orderbook",
@@ -29,21 +29,51 @@
                 "type": "split",
                 "params": {
                     "axis": 0,
-                    "size": 0.5
+                    "size": 0.6
                 },
                 "a": {
-                    "type": "chart",
-                    "params": {}
+                    "type": "split",
+                    "params": {
+                        "axis": 1,
+                        "size": 0.33
+                    },
+                    "a": {
+                        "type": "chart",
+                        "params": {
+                            "sx": 0.33,
+                            "tx": 10
+                        }
+                    },
+                    "b": {
+                        "type": "chart",
+                        "params": {}
+                    }
                 },
                 "b": {
-                    "type": "chart",
-                    "params": {}
+                    "type": "split",
+                    "params": {
+                        "axis": 1,
+                        "size": 0.33
+                    },
+                    "a": {
+                        "type": "chart",
+                        "params": {
+                            "sx": 0.33,
+                            "tx": 10
+                        }
+                    },
+                    "b": {
+                        "type": "chart",
+                        "params": {}
+                    }
                 }
             }
         },
         "b": {
             "type": "split",
-            "params": {},
+            "params": {
+                "size": 0.42
+            },
             "a": {
                 "type": "orderbook",
                 "params": {}
@@ -69,10 +99,37 @@
         "btc": "BTCUSDT",
         "ci": "0",
         "css": "0.09",
-        "cst": "25"
+        "cst": "25",
+        "instrument": "F,FARTCOINUSDT",
+        "order_qty": "35",
+        "place_long_limit_order_by_select_price": "porder L $instrument,L,$order_qty,BC,SP",
+        "place_short_limit_order_by_select_price": "porder L $instrument,S,$order_qty,BC,SP",
+        "place_long_limit_order_by_best_price": "porder L $instrument,L,$order_qty,BC,AP,0",
+        "place_short_limit_order_by_best_price": "porder L $instrument,S,$order_qty,BC,BP,0",
+        "cancel_selected_order": "corder SO"
     },
     "leader_key": " ",
     "binds": [
+        [
+            "<leader>c",
+            "$cancel_selected_order"
+        ],
+        [
+            "<leader>l",
+            "$place_long_limit_order_by_best_price"
+        ],
+        [
+            "<leader>s",
+            "$place_short_limit_order_by_best_price"
+        ],
+        [
+            ")",
+            "$place_long_limit_order_by_select_price"
+        ],
+        [
+            "(",
+            "$place_short_limit_order_by_select_price"
+        ],
         [
             "f",
             "sub chart $ci F,$fc,5"
@@ -87,7 +144,7 @@
         ],
         [
             "2",
-            "set ci 1"
+            "set ci 3"
         ],
         [
             "]",
@@ -115,85 +172,87 @@
         ]
     ],
     "init_commands": [
-        "sub chart 0 F,$fc,1",
-        "sub chart 1 F,$btc,15",
+        "sub chart 0 F,$fc,15",
+        "sub chart 1 F,$fc,1",
+        "sub chart 2 F,$btc,60",
+        "sub chart 3 F,$btc,15",
         "sub orderbook 0 F,$btc,200",
         "sub orderbook 1 F,$fc,200",
         "sub position F.$fc,F.$btc",
         "sub order F.$fc,F.$btc"
     ],
     "theme": {
-        "name": "Solarized Dark Higher Contrast",
+        "name": "Treehouse",
         "is_light": false,
         "colors": {
             "background": [
-                "#00161c",
-                "#001e27",
-                "#002a36",
-                "#003646",
-                "#004b62"
+                "#0e0e0e",
+                "#191919",
+                "#282828",
+                "#383838",
+                "#545454"
             ],
             "foreground": [
-                "#a8d1d2",
-                "#9cc2c3",
-                "#6d8888",
-                "#425253"
+                "#87795e",
+                "#786b53",
+                "#3d372a",
+                "#080705"
             ],
             "selection": {
-                "bg": "#003748",
-                "fg": "#7a8f8e"
+                "bg": "#786b53",
+                "fg": "#fac800"
             },
             "cursor": {
-                "bg": "#f34b00",
-                "fg": "#002831"
+                "bg": "#fac814",
+                "fg": "#191919"
             },
             "base": {
-                "black": "#002831",
-                "red": "#d11c24",
-                "green": "#6cbe6c",
-                "yellow": "#a57706",
-                "blue": "#2176c7",
-                "magenta": "#c61c6f",
-                "cyan": "#259286",
-                "white": "#eae3cb",
-                "orange": "#bb4a15",
-                "pink": "#de8078"
+                "black": "#321300",
+                "red": "#b2270e",
+                "green": "#44a900",
+                "yellow": "#aa820c",
+                "blue": "#58859a",
+                "magenta": "#97363d",
+                "cyan": "#b25a1e",
+                "white": "#786b53",
+                "orange": "#ae550d",
+                "pink": "#954931"
             },
             "bright": {
-                "black": "#002831",
-                "red": "#d11c24",
-                "green": "#6cbe6c",
-                "yellow": "#a57706",
-                "blue": "#2176c7",
-                "magenta": "#c61c6f",
-                "cyan": "#259286",
-                "white": "#eae3cb",
-                "orange": "#bb4a15",
-                "pink": "#de8078"
+                "black": "#321300",
+                "red": "#b2270e",
+                "green": "#44a900",
+                "yellow": "#aa820c",
+                "blue": "#58859a",
+                "magenta": "#97363d",
+                "cyan": "#b25a1e",
+                "white": "#786b53",
+                "orange": "#ae550d",
+                "pink": "#954931"
             },
             "dim": {
-                "black": "#00222a",
-                "red": "#b2181f",
-                "green": "#5ca25c",
-                "yellow": "#8c6505",
-                "blue": "#1c64a9",
-                "magenta": "#a8185e",
-                "cyan": "#1f7c72",
-                "white": "#c7c1ad",
-                "orange": "#9f3e12",
-                "pink": "#bc6c66"
+                "black": "#2b1000",
+                "red": "#97210c",
+                "green": "#3a9000",
+                "yellow": "#916f0a",
+                "blue": "#4b7183",
+                "magenta": "#802e34",
+                "cyan": "#974d1a",
+                "white": "#665b47",
+                "orange": "#94480b",
+                "pink": "#7f3e29"
             },
             "diff": {
-                "add": "#488955",
-                "delete": "#8c1d25",
-                "change": "#165992",
-                "text": "#771d52"
+                "add": "#367908",
+                "delete": "#802212",
+                "change": "#43616f",
+                "text": "#652a2f"
             },
             "code_selection": [
-                "#17373e",
-                "#3a291e"
+                "#272522",
+                "#4f4318"
             ],
-            "comment": "#5e8085"
+            "comment": "#524a3c"
         }
     }
 }

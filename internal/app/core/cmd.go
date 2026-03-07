@@ -44,8 +44,8 @@ type CMD struct {
 	Vars     map[string]string
 	Replacer *strings.Replacer
 
-	GlobalVars   map[string]string
-	GlobReplacer *strings.Replacer
+	// GlobalVars   map[string]string
+	// GlobReplacer *strings.Replacer
 
 	InitCommands []string
 
@@ -55,20 +55,13 @@ type CMD struct {
 func InitCMD(ctx context.Context, c *Config) *CMD {
 
 	cmd := &CMD{
-		Tx:   make(chan string, 32),
-		Vars: c.Vars,
-		GlobalVars: map[string]string{
-			"SP":    "", // Selected price
-			"SOI":   "", // Selected order id
-			"SIK":   "", // Selected instrumen key
-			"SOIIK": "", // Selected order id instrumen key
-			"SPIK":  "", // Selected price instrumen key
-		},
+		Tx:           make(chan string, 32),
+		Vars:         c.Vars,
 		InitCommands: c.InitCommands,
 	}
 
 	cmd.updateReplacer()
-	cmd.updateGlobReplacer()
+	// cmd.updateGlobReplacer()
 
 	go func() {
 		for {
@@ -114,14 +107,14 @@ func (c *CMD) updateReplacer() {
 	c.Replacer = strings.NewReplacer(vars...)
 }
 
-func (c *CMD) updateGlobReplacer() {
-	vars := make([]string, 0, len(c.GlobalVars)*2)
-	for k, v := range c.GlobalVars {
-		vars = append(vars, "$"+k, v)
-	}
-
-	c.GlobReplacer = strings.NewReplacer(vars...)
-}
+// func (c *CMD) updateGlobReplacer() {
+// 	vars := make([]string, 0, len(c.GlobalVars)*2)
+// 	for k, v := range c.GlobalVars {
+// 		vars = append(vars, "$"+k, v)
+// 	}
+//
+// 	c.GlobReplacer = strings.NewReplacer(vars...)
+// }
 
 func (c *CMD) processing(prompt string) CommitFn {
 
@@ -129,7 +122,7 @@ func (c *CMD) processing(prompt string) CommitFn {
 
 	for command := range strings.SplitSeq(prompt, "|") {
 
-		command = c.GlobReplacer.Replace(command)
+		// command = c.GlobReplacer.Replace(command)
 
 		command = c.Replacer.Replace(command)
 		if strings.ContainsRune(command, '$') {
@@ -175,26 +168,26 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 			c.Tx <- strings.Join(c.InitCommands, "|")
 		}
 
-	case "gset":
+	// case "gset":
 
-		varName, ok := next()
-		if !ok {
-			return nil, fmt.Errorf("missing variable name for 'gset' command")
-		}
+	// 	varName, ok := next()
+	// 	if !ok {
+	// 		return nil, fmt.Errorf("missing variable name for 'gset' command")
+	// 	}
 
-		if _, ok := c.GlobalVars[varName]; !ok {
-			return nil, fmt.Errorf("unknown global variable: %s", varName)
-		}
+	// 	if _, ok := c.GlobalVars[varName]; !ok {
+	// 		return nil, fmt.Errorf("unknown global variable: %s", varName)
+	// 	}
 
-		varValue, ok := next()
-		if !ok {
-			return nil, fmt.Errorf("missing value for variable '%s'", varName)
-		}
+	// 	varValue, ok := next()
+	// 	if !ok {
+	// 		return nil, fmt.Errorf("missing value for variable '%s'", varName)
+	// 	}
 
-		c.GlobalVars[varName] = varValue
-		c.updateGlobReplacer()
+	// 	c.GlobalVars[varName] = varValue
+	// 	c.updateGlobReplacer()
 
-		return nil, nil
+	// 	return nil, nil
 
 	case "set":
 		varName, ok := next()
@@ -274,6 +267,14 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 			s.CommandLine.Color = s.P.Fg[1]
 		}, nil
 
+	case "porder":
+
+		return c.translatePlaceOrder(next)
+
+	case "corder":
+
+		return c.translateCancelOrder(next)
+
 	case "sub":
 
 		return c.translateSubCommand(next)
@@ -290,6 +291,187 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 	}
 
 	return nil, fmt.Errorf("unknown command: %s", head)
+}
+
+func (c *CMD) translateCancelOrder(next func() (string, bool)) (CommitFn, error) {
+	paramsV, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing cancel order parameters")
+	}
+
+	paramsIter := strings.SplitSeq(paramsV, ",")
+	nextP, stopP := iter.Pull(paramsIter)
+	defer stopP()
+
+	orderByV, ok := nextP()
+	if !ok {
+		return nil, fmt.Errorf("missing order by")
+	}
+
+	var orderBy OrderBy
+	var orderByValue any
+
+	switch orderByV {
+	case "0", "I", "Idx", "Index":
+		orderBy = OrderIndex
+		idxV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing order index")
+		}
+		idx, err := strconv.Atoi(idxV)
+		if err != nil {
+			return nil, fmt.Errorf("invalid order index: %s", idxV)
+		}
+		orderByValue = idx
+
+	case "1", "SO", "SelectedOrder":
+		orderBy = SelectedOrder
+
+	case "2", "FO", "FirstOrder":
+		orderBy = FirstOrder
+
+	case "3", "LO", "LastOrder":
+		orderBy = LastOrder
+	}
+
+	c.BTX <- &CancelOrder{
+		OrderBy:      orderBy,
+		OrderByValue: orderByValue,
+	}
+
+	return nil, nil
+}
+
+// porder L F,BRCUSDT,0,10,1,0,70000
+func (c *CMD) translatePlaceOrder(next func() (string, bool)) (CommitFn, error) {
+	orderType, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing order type")
+	}
+
+	paramsV, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing order parameters")
+	}
+
+	paramsIter := strings.SplitSeq(paramsV, ",")
+	nextP, stopP := iter.Pull(paramsIter)
+	defer stopP()
+
+	switch orderType {
+	case "0", "L", "Limit":
+		category, symbol, err := parseInstrumentFromParams(nextP)
+		if err != nil {
+			return nil, err
+		}
+
+		sideV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing side")
+		}
+
+		var side broker.Side
+		switch sideV {
+		case "0", "L", "Long", "Buy":
+			side = broker.Long
+		case "1", "S", "Short", "Sell":
+			side = broker.Short
+		default:
+			return nil, fmt.Errorf("invalid side: %s", sideV)
+		}
+
+		qtyV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing quantity")
+		}
+
+		qty, err := strconv.ParseFloat(qtyV, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid quantity: %s", qtyV)
+		}
+
+		marketUnitV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing market unit")
+		}
+
+		var marketUnit broker.MarketUnit
+		switch marketUnitV {
+		case "0", "BC", "BaseCoin":
+			marketUnit = broker.BaseCoin
+		case "1", "QC", "QuoteCoin":
+			marketUnit = broker.QuoteCoin
+		default:
+			return nil, fmt.Errorf("invalid market unit: %s", marketUnitV)
+		}
+
+		orderPriceDataV, ok := nextP()
+		if !ok {
+			return nil, fmt.Errorf("missing price data type")
+		}
+
+		var priceBy OrderPriceBy
+		var priceByValue any
+
+		switch orderPriceDataV {
+		case "0", "P", "Price":
+			priceBy = Price
+			priceStr, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing price value")
+			}
+			price, err := strconv.ParseFloat(priceStr, 64)
+			if err != nil {
+				return nil, fmt.Errorf("invalid price: %s", priceStr)
+			}
+			priceByValue = price
+
+		case "1", "SP", "SelectedPrice":
+			priceBy = SelectedPrice
+
+		case "2", "BP", "BidPrice":
+			priceBy = BidPrice
+			idxV, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing bid index")
+			}
+			idx, err := strconv.Atoi(idxV)
+			if err != nil {
+				return nil, fmt.Errorf("invalid bid index: %s", idxV)
+			}
+			priceByValue = idx
+
+		case "3", "AP", "AskPrice":
+			priceBy = AskPrice
+			idxV, ok := nextP()
+			if !ok {
+				return nil, fmt.Errorf("missing ask index")
+			}
+			idx, err := strconv.Atoi(idxV)
+			if err != nil {
+				return nil, fmt.Errorf("invalid ask index: %s", idxV)
+			}
+			priceByValue = idx
+
+		default:
+			return nil, fmt.Errorf("invalid price data type: %s", orderPriceDataV)
+		}
+
+		c.BTX <- &PlaceLimitOrder{
+			Category:     category,
+			Symbol:       symbol,
+			Side:         side,
+			Qty:          qty,
+			MarketUnit:   marketUnit,
+			PriceBy:      priceBy,
+			PriceByValue: priceByValue,
+		}
+
+		return nil, nil
+
+	default:
+		return nil, fmt.Errorf("invalid order type: %s", orderType)
+	}
 }
 
 func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) {
@@ -361,19 +543,9 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 	switch compType {
 
 	case "chart":
-		categoryV, ok := nextP()
-		if !ok {
-			return nil, fmt.Errorf("missing category for chart component")
-		}
-
-		category, err := broker.CategoryFromString(categoryV)
+		category, symbol, err := parseInstrumentFromParams(nextP)
 		if err != nil {
-			return nil, fmt.Errorf("invalid category: %s", categoryV)
-		}
-
-		symbol, ok := nextP()
-		if !ok {
-			return nil, fmt.Errorf("missing symbol for chart component")
+			return nil, err
 		}
 
 		intervalV, ok := nextP()
@@ -393,19 +565,10 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 			Interval: interval,
 		}
 	case "orderbook":
-		categoryV, ok := nextP()
-		if !ok {
-			return nil, fmt.Errorf("missing category for orderbook component")
-		}
 
-		category, err := broker.CategoryFromString(categoryV)
+		category, symbol, err := parseInstrumentFromParams(nextP)
 		if err != nil {
-			return nil, fmt.Errorf("invalid category: %s", categoryV)
-		}
-
-		symbol, ok := nextP()
-		if !ok {
-			return nil, fmt.Errorf("missing symbol for orderbook component")
+			return nil, err
 		}
 
 		depthV, ok := nextP()
@@ -570,6 +733,25 @@ func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, erro
 	default:
 		return nil, fmt.Errorf("unknown chart parameter: %s", param)
 	}
+}
+
+func parseInstrumentFromParams(nextP func() (string, bool)) (broker.Category, string, error) {
+	categoryV, ok := nextP()
+	if !ok {
+		return -1, "", fmt.Errorf("missing category")
+	}
+
+	category, err := broker.CategoryFromString(categoryV)
+	if err != nil {
+		return -1, "", fmt.Errorf("invalid category: %s", categoryV)
+	}
+
+	symbol, ok := nextP()
+	if !ok {
+		return -1, "", fmt.Errorf("missing symbol")
+	}
+
+	return category, symbol, nil
 }
 
 func parseFloatValue(v string, f *float64) (err error) {

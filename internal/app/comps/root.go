@@ -313,6 +313,8 @@ type Root struct {
 
 	EntryComp Comp
 	Footer    Footer
+
+	overlayTextV rl.Vector2
 }
 
 func (r *Root) Render(s *core.State) {
@@ -342,15 +344,17 @@ func (r *Root) Render(s *core.State) {
 			s.ATFT,
 			s.AFPS,
 		)
-		overlayTextSize := rl.MeasureTextEx(
-			s.F,
-			overlayText,
-			s.RH,
-			0,
-		)
+		if s.ThrottlingF {
+			r.overlayTextV = rl.MeasureTextEx(
+				s.F,
+				overlayText,
+				s.RH,
+				0,
+			)
+		}
 		rl.DrawRectangleV(
 			rl.Vector2{X: ROOT_PADDING, Y: ROOT_PADDING},
-			overlayTextSize,
+			r.overlayTextV,
 			s.P.OverlayBg,
 		)
 		rl.DrawTextEx(

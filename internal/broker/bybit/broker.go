@@ -160,13 +160,13 @@ func (b *Broker) ExtendEndCandles(
 	return res, nil
 }
 
+// id linkId
 func (b *Broker) PlaceOrder(
 
 	ctx context.Context,
 	LinkId string,
 	params broker.PlaceOrderParams,
 
-	// id      linkId
 ) (string, string, error) {
 
 	rp := &PlaceOrderRequestParams{
@@ -222,8 +222,6 @@ func (b *Broker) PlaceOrder(
 			td = models.TriggerDirectionRise
 		case broker.Fall:
 			td = models.TriggerDirectionFall
-		default:
-			td = 0
 		}
 		rp.TriggerDirection = &td
 	}
@@ -242,8 +240,6 @@ func (b *Broker) PlaceOrder(
 			tb = models.TriggerByMarkPrice
 		case broker.LastPrice:
 			tb = models.TriggerByLastPrice
-		default:
-			tb = ""
 		}
 		rp.TriggerBy = &tb
 	}
@@ -267,8 +263,6 @@ func (b *Broker) PlaceOrder(
 			tb = models.TriggerByMarkPrice
 		case broker.LastPrice:
 			tb = models.TriggerByLastPrice
-		default:
-			tb = ""
 		}
 		rp.TpTriggerBy = &tb
 	}
@@ -282,8 +276,6 @@ func (b *Broker) PlaceOrder(
 			tb = models.TriggerByMarkPrice
 		case broker.LastPrice:
 			tb = models.TriggerByLastPrice
-		default:
-			tb = ""
 		}
 		rp.SlTriggerBy = &tb
 	}
@@ -305,8 +297,6 @@ func (b *Broker) PlaceOrder(
 			m = models.TpslModeFull
 		case broker.Partial:
 			m = models.TpslModePartial
-		default:
-			m = ""
 		}
 		rp.TpslMode = &m
 	}
@@ -328,8 +318,6 @@ func (b *Broker) PlaceOrder(
 			ot = models.OrderTypeLimit
 		case broker.Market:
 			ot = models.OrderTypeMarket
-		default:
-			ot = ""
 		}
 		rp.TpOrderType = &ot
 	}
@@ -341,13 +329,41 @@ func (b *Broker) PlaceOrder(
 			ot = models.OrderTypeLimit
 		case broker.Market:
 			ot = models.OrderTypeMarket
-		default:
-			ot = ""
 		}
 		rp.SlOrderType = &ot
 	}
 
 	res, err := b.c.PlaceOrder(ctx, rp)
+	if err != nil {
+		return "", "", err
+	}
+
+	return res.OrderId, res.OrderLinkId, nil
+}
+
+func (b *Broker) CancelOrder(
+
+	ctx context.Context,
+	category broker.Category,
+	symbol string,
+	id string,
+	linkId string,
+
+) (string, string, error) {
+	params := &CancelOrderRequestParams{
+		Category: ToLocalCategory(category),
+		Symbol:   symbol,
+	}
+
+	if len(id) > 0 {
+		params.OrderId = &id
+	}
+
+	if len(linkId) > 0 {
+		params.OrderLinkId = &linkId
+	}
+
+	res, err := b.c.CancelOrder(ctx, params)
 	if err != nil {
 		return "", "", err
 	}

@@ -26,23 +26,212 @@ type Task interface {
 	Execute(*Background) error
 }
 
-type PlaceOrder struct {
-	Category     broker.Category
-	Symbol       string
-	UseMargin    bool
-	Side         broker.Side
-	Type         broker.OrderType
-	Qty          float64
-	IsCoinQty    bool
-	Price        float64
-	TriggerPrice float64
-	TriggerBy    string
-	TakeProfit   float64
-	StopLoss     float64
+type SelectInstrumentPrice struct {
+	Category broker.Category
+	Symbol   string
+	Price    float64
 }
 
-func (t *PlaceOrder) Execute(b *Background) error {
+func (t *SelectInstrumentPrice) Execute(b *Background) error {
+	b.GetOrInitInstrumentInfo(t.Category, t.Symbol).SelectedPrice.Store(&t.Price)
 	return nil
+}
+
+type SelectOrder struct {
+	Order *broker.Order
+}
+
+func (t *SelectOrder) Execute(b *Background) error {
+	b.selectedOrder.Store(t.Order)
+	return nil
+}
+
+type SelectPosition struct {
+	Position *broker.Position
+}
+
+func (t *SelectPosition) Execute(b *Background) error {
+	b.selectedPosition.Store(t.Position)
+	return nil
+}
+
+type OrderBy int
+
+const (
+	OrderIndex OrderBy = iota
+	SelectedOrder
+	FirstOrder
+	LastOrder
+)
+
+type CancelOrder struct {
+	OrderBy      OrderBy
+	OrderByValue any
+}
+
+func (t *CancelOrder) Execute(b *Background) error {
+	var co *broker.Order
+	switch t.OrderBy {
+	case OrderIndex:
+		idx, ok := t.OrderByValue.(int)
+		if !ok {
+			return fmt.Errorf("order index must be int")
+		}
+
+		orderPtr := b.order.Load()
+		if orderPtr == nil {
+			return fmt.Errorf("no orders")
+		}
+
+		order := *orderPtr
+
+		if idx < 0 || idx >= len(order) {
+			return fmt.Errorf("order index out of range")
+		}
+		co = &order[idx]
+
+	case SelectedOrder:
+		so := b.selectedOrder.Load()
+
+		if so == nil {
+			return fmt.Errorf("no selected order")
+		}
+		co = so
+
+	case FirstOrder:
+		orderPtr := b.order.Load()
+		if orderPtr == nil {
+			return fmt.Errorf("no orders")
+		}
+
+		order := *orderPtr
+
+		if len(order) == 0 {
+			return fmt.Errorf("no orders")
+		}
+		co = &order[0]
+
+	case LastOrder:
+		orderPtr := b.order.Load()
+		if orderPtr == nil {
+			return fmt.Errorf("no orders")
+		}
+
+		order := *orderPtr
+
+		n := len(order)
+		if n == 0 {
+			return fmt.Errorf("no orders")
+		}
+		co = &order[n-1]
+
+	}
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		REQUEST_TIMEOUT,
+	)
+	_, _, err := b.broker.CancelOrder(
+		ctx, co.Category, co.Symbol, co.Id, "",
+	)
+	cancel()
+
+	return err
+}
+
+type OrderPriceBy int
+
+const (
+	Price OrderPriceBy = iota
+	SelectedPrice
+	BidPrice
+	AskPrice
+)
+
+type PlaceLimitOrder struct {
+	Category broker.Category
+	Symbol   string
+
+	Side broker.Side
+
+	Qty        float64
+	MarketUnit broker.MarketUnit
+
+	PriceBy      OrderPriceBy
+	PriceByValue any
+}
+
+func (t *PlaceLimitOrder) Execute(b *Background) error {
+	params := broker.PlaceOrderParams{
+		Category:   t.Category,
+		Symbol:     t.Symbol,
+		Side:       t.Side,
+		Type:       broker.Limit,
+		Qty:        t.Qty,
+		MarketUnit: &t.MarketUnit,
+	}
+
+	// fmt.Printf("%+v\n", params)
+	// fmt.Printf("%v\n", t.Qty)
+	// fmt.Printf("%v\n\n", t.MarketUnit)
+
+	var price float64
+	switch t.PriceBy {
+	case Price:
+		p, ok := t.PriceByValue.(float64)
+		if !ok {
+			return fmt.Errorf("price must be float64")
+		}
+		price = p
+
+	case SelectedPrice:
+		instrument := b.GetInstrumentInfo(t.Category, t.Symbol)
+		if instrument == nil {
+			return fmt.Errorf("instrument not found")
+		}
+		sp := instrument.SelectedPrice.Load()
+		if sp == nil {
+			return fmt.Errorf("select price not set")
+		}
+		price = *sp
+
+	case BidPrice, AskPrice:
+		instrument := b.GetInstrumentInfo(t.Category, t.Symbol)
+		if instrument == nil {
+			return fmt.Errorf("instrument not found")
+		}
+
+		ob := instrument.OrderBook.Load()
+		if ob == nil {
+			return fmt.Errorf("order book not available")
+		}
+
+		sideIndex := 0 // bids
+		if t.PriceBy == AskPrice {
+			sideIndex = 1 // asks
+		}
+
+		entries := (*ob)[sideIndex]
+
+		idx, ok := t.PriceByValue.(int)
+		if !ok {
+			return fmt.Errorf("price index must be int")
+		}
+
+		if idx < 0 || idx >= len(entries) {
+			return fmt.Errorf("price index out of range")
+		}
+
+		price = entries[idx][0]
+	}
+
+	params.Price = &price
+
+	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+	_, _, err := b.broker.PlaceOrder(ctx, "", params)
+	cancel()
+
+	return err
 }
 
 type ExtendStartCandles struct {
@@ -252,12 +441,14 @@ func (t *SubOrderBook) Execute(b *Background) error {
 		)
 	}
 
+	instrumentKey := fmt.Sprintf(
+		"%s.%s", t.Category.AsString(true), t.Symbol,
+	)
+
 	b.Push(func(s *State) {
 		obS := s.OrderBook[t.Idx]
 
-		obS.InstrumentKey = fmt.Sprintf(
-			"%s.%s", t.Category.AsString(true), t.Symbol,
-		)
+		obS.InstrumentKey = instrumentKey
 		obS.Category = t.Category
 		obS.Symbol = t.Symbol
 
@@ -270,7 +461,11 @@ func (t *SubOrderBook) Execute(b *Background) error {
 	b.orderBookSub[t.Idx] = sub
 
 	go func() {
+		instrument := b.GetOrInitInstrumentInfo(t.Category, t.Symbol)
+
 		for d := range sub.C {
+			instrument.OrderBook.Store(&d)
+
 			b.Push(func(s *State) {
 				obS := s.OrderBook[t.Idx]
 
@@ -311,7 +506,21 @@ func (t *SubPosition) Execute(b *Background) error {
 	b.positionMu.Unlock()
 
 	updatePosition := func(p broker.Position) {
+		if p.Size == 0 { // empty pos
+			return
+		}
+
+		b.GetOrInitInstrumentInfo(p.Category, p.Symbol).Position.Store(&p)
+
+		instrumentKey := fmt.Sprintf(
+			"%s.%s",
+			p.Category.AsString(true),
+			p.Symbol,
+		)
+
 		b.Push(func(s *State) {
+			s.Position.Forced = true
+
 			i := slices.IndexFunc(
 				s.Position.List,
 				func(e broker.Position) bool {
@@ -319,30 +528,18 @@ func (t *SubPosition) Execute(b *Background) error {
 						p.Category == e.Category
 				},
 			)
+
 			if i >= 0 {
 				s.Position.List[i] = p
 				return
 			}
+
 			s.Position.List = append(s.Position.List, p)
-			instrumentKey := fmt.Sprintf(
-				"%s.%s",
-				p.Category.AsString(true),
-				p.Symbol,
-			)
-			si := 0
-			for {
-				ci := slices.IndexFunc(s.Chart[si:], func(e *ChartState) bool {
-					return e.InstrumentKey == instrumentKey
-				})
-				if ci >= 0 {
-					s.Chart[ci+si].PositionIdx = len(s.Position.List) - 1
-					si = ci + 1
-					if si >= len(s.Chart) {
-						break
-					}
-					continue
+
+			for _, ch := range s.Chart {
+				if ch.InstrumentKey == instrumentKey {
+					ch.PositionIdx = len(s.Position.List) - 1
 				}
-				break
 			}
 		})
 	}
@@ -419,32 +616,15 @@ func (t *SubOrder) Execute(b *Background) error {
 	b.orderSub = sub
 	b.orderMu.Unlock()
 
-	updateOrder := func(o broker.Order) {
-		b.Push(func(s *State) {
-			i := slices.IndexFunc(
-				s.Order.List,
-				func(e broker.Order) bool {
-					return o.Id == e.Id
-				},
-			)
-			if i >= 0 {
-				if o.Status == broker.Closed {
-					s.Order.List = slices.Delete(s.Order.List, i, i+1)
-					return
-				}
-				s.Order.List[i] = o
-				return
-			}
-			s.Order.List = append(s.Order.List, o)
-		})
-	}
-
 	done := make(chan struct{}, 1)
 	go func() {
 		ticker := time.NewTicker(time.Second * 15)
 		defer ticker.Stop()
 
+	loop:
 		for {
+			var orderList []broker.Order
+
 			for _, f := range t.Filter {
 				ctx, cancel := context.WithTimeout(
 					context.Background(),
@@ -457,13 +637,17 @@ func (t *SubOrder) Execute(b *Background) error {
 				cancel()
 
 				if err != nil {
-					continue
+					continue loop
 				}
 
-				for _, o := range res {
-					updateOrder(o)
-				}
+				orderList = append(orderList, res...)
 			}
+
+			b.Push(func(s *State) {
+				s.Order.List = orderList
+				b.order.Store(&s.Order.List)
+				s.Order.Forced = true
+			})
 
 			select {
 			case <-ticker.C:
@@ -485,11 +669,46 @@ func (t *SubOrder) Execute(b *Background) error {
 					continue
 				}
 			}
-			updateOrder(o)
+
+			b.Push(func(s *State) {
+				s.Order.Forced = true
+				i := slices.IndexFunc(
+					s.Order.List,
+					func(e broker.Order) bool {
+						return o.Id == e.Id
+					},
+				)
+				if i >= 0 {
+					if o.Status == broker.Closed || o.LeavesQty == 0 {
+						s.Order.List = append(
+							s.Order.List[:i],
+							s.Order.List[i+1:]...,
+						)
+						b.order.Store(&s.Order.List)
+						return
+					}
+					s.Order.List[i] = o
+					return
+				}
+				if o.Status != broker.Closed {
+					s.Order.List = append([]broker.Order{o}, s.Order.List...)
+					b.order.Store(&s.Order.List)
+				}
+			})
 		}
 	}()
 
 	return nil
+}
+
+type InstrumentInfo struct {
+	Key      string
+	Category broker.Category
+	Symbol   string
+
+	Position      atomic.Pointer[broker.Position]
+	OrderBook     atomic.Pointer[[2][][2]float64]
+	SelectedPrice atomic.Pointer[float64]
 }
 
 type Background struct {
@@ -513,6 +732,14 @@ type Background struct {
 
 	chartSub     [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[cdl.CandleStreamData]
 	orderBookSub [MAX_TOPIC_SUBSCRIPTIONS]*broker.Subscription[[2][][2]float64]
+
+	instrument   []*InstrumentInfo
+	instrumentMu sync.Mutex
+
+	order         atomic.Pointer[[]broker.Order]
+	selectedOrder atomic.Pointer[broker.Order]
+
+	selectedPosition atomic.Pointer[broker.Position]
 }
 
 func InitBackground(
@@ -572,6 +799,42 @@ func InitBackground(
 	}()
 
 	return bg
+}
+
+func (b *Background) GetInstrumentInfo(c broker.Category, symbol string) *InstrumentInfo {
+	b.instrumentMu.Lock()
+	defer b.instrumentMu.Unlock()
+
+	ii := slices.IndexFunc(b.instrument, func(e *InstrumentInfo) bool {
+		return e.Category == c && e.Symbol == symbol
+	})
+
+	if ii < 0 {
+		return nil
+	}
+
+	return b.instrument[ii]
+}
+
+func (b *Background) GetOrInitInstrumentInfo(c broker.Category, symbol string) *InstrumentInfo {
+	b.instrumentMu.Lock()
+	defer b.instrumentMu.Unlock()
+
+	ii := slices.IndexFunc(b.instrument, func(e *InstrumentInfo) bool {
+		return e.Category == c && e.Symbol == symbol
+	})
+
+	if ii < 0 {
+		instrument := &InstrumentInfo{
+			Key:      fmt.Sprintf("%s.%s", c.AsString(true), symbol),
+			Category: c,
+			Symbol:   symbol,
+		}
+		b.instrument = append(b.instrument, instrument)
+		return instrument
+	}
+
+	return b.instrument[ii]
 }
 
 func (b *Background) WatchConfig(ctx context.Context, configPath string) error {

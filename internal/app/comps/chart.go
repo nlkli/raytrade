@@ -7,6 +7,7 @@ import (
 	"nlkli/raytrade/internal/broker"
 	"nlkli/raytrade/internal/cdl"
 	"strconv"
+	"strings"
 	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -162,6 +163,13 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, rh float32) {
 
 		timeStep := quantizeTimeStep(s.RH * 6 * cs.SecPerPx)
 		cs.GridStepX = timeStep * (1 / cs.SecPerPx)
+
+		ps := strconv.FormatFloat(candles[n-1].O, 'f', -1, 64)
+		pp := len(ps) - (strings.IndexByte(ps, '.') + 1)
+		cs.PricePrecision = max(cs.PricePrecision, pp)
+		ps = strconv.FormatFloat(candles[n-1].C, 'f', -1, 64)
+		pp = len(ps) - (strings.IndexByte(ps, '.') + 1)
+		cs.PricePrecision = max(cs.PricePrecision, pp)
 	} else {
 		visPriceRng := cs.RngP / float64(sf.Y)
 		cs.MaxVisPrice = cs.MidP + visPriceRng*0.5
@@ -400,8 +408,13 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, rh float32) {
 		)
 
 		if s.E.Mouse.Click[0] {
-			s.Select.Price.InstrumentKey = cs.InstrumentKey
-			s.Select.Price.Value = cs.CursorPrice
+			ratio := math.Pow(10, float64(cs.PricePrecision))
+			rp := math.Round(cs.CursorPrice*ratio) / ratio
+			s.BTX <- &core.SelectInstrumentPrice{
+				Category: cs.Category,
+				Symbol:   cs.Symbol,
+				Price:    rp,
+			}
 		}
 
 		// Horizontal line

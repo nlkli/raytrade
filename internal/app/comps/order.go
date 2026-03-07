@@ -13,8 +13,17 @@ const (
 	ORDER_CONTENT_PDX float32 = 4 // padding
 )
 
+type orderForcedData struct {
+	headerInfo string
+	qtyInfo    string
+	priceInfo  string
+	height     float32
+}
+
 type Order struct {
 	*Rect
+
+	forcedData []orderForcedData
 }
 
 func (o *Order) R() *Rect {
@@ -23,12 +32,39 @@ func (o *Order) R() *Rect {
 
 func (o *Order) Render(s *core.State) {
 
-	os := s.Order
+	os := &s.Order
 
 	rh1 := s.RH - os.RHD
 
 	if len(s.Order.List) == 0 {
 		return
+	}
+
+	if os.Forced {
+		o.forcedData = o.forcedData[:0]
+
+		for i, oi := range os.List {
+			var fd orderForcedData
+
+			fd.headerInfo = fmt.Sprintf("%d.%s", i, oi.Symbol)
+
+			fd.qtyInfo = fmt.Sprintf(
+				"S: %s (%s)",
+				strconv.FormatFloat(oi.LeavesQty, 'f', -1, 64),
+				strconv.FormatFloat(oi.LeavesValue, 'f', -1, 64),
+			)
+
+			fd.priceInfo = fmt.Sprintf(
+				"P: %s",
+				strconv.FormatFloat(oi.Price, 'f', -1, 64),
+			)
+
+			fd.height = s.RH + rh1*3
+
+			o.forcedData = append(o.forcedData, fd)
+		}
+
+		os.Forced = false
 	}
 
 	rl.BeginScissorMode(
@@ -38,11 +74,11 @@ func (o *Order) Render(s *core.State) {
 		int32(o.s.Y),
 	)
 
-	var offsetY float32
 	cursor := rl.Vector2{
-		X: o.p.X + ORDER_CONTENT_PDX, Y: o.p.Y + offsetY,
+		X: o.p.X + ORDER_CONTENT_PDX, Y: o.p.Y + os.OffsetY,
 	}
-	for _, oi := range os.List {
+	for i, oi := range os.List {
+		fd := o.forcedData[i]
 
 		rl.DrawRectangleV(
 			rl.Vector2{X: o.p.X, Y: cursor.Y},
@@ -52,7 +88,7 @@ func (o *Order) Render(s *core.State) {
 
 		rl.DrawTextEx(
 			s.F,
-			oi.Symbol,
+			fd.headerInfo,
 			cursor,
 			s.RH,
 			0,
@@ -86,15 +122,9 @@ func (o *Order) Render(s *core.State) {
 
 		cursor.Y += rh1
 
-		sizeText := fmt.Sprintf(
-			"S: %s (%s)",
-			strconv.FormatFloat(oi.LeavesQty, 'f', -1, 64),
-			strconv.FormatFloat(oi.LeavesValue, 'f', -1, 64),
-		)
-
 		rl.DrawTextEx(
 			s.F,
-			sizeText,
+			fd.qtyInfo,
 			cursor,
 			rh1,
 			0,
@@ -103,14 +133,9 @@ func (o *Order) Render(s *core.State) {
 
 		cursor.Y += rh1
 
-		priceText := fmt.Sprintf(
-			"P: %s",
-			strconv.FormatFloat(oi.Price, 'f', -1, 64),
-		)
-
 		rl.DrawTextEx(
 			s.F,
-			priceText,
+			fd.priceInfo,
 			cursor,
 			rh1,
 			0,
@@ -118,6 +143,28 @@ func (o *Order) Render(s *core.State) {
 		)
 
 		cursor.Y += rh1
+	}
+
+	if !s.E.Mouse.Captured && o.Rect.ContainsV(s.E.Mouse.Pos) {
+		if s.E.Mouse.HoldLeft {
+			os.OffsetY -= s.E.Mouse.Delta.Y
+		}
+
+		if s.E.Mouse.Click[0] && s.E.Mouse.Pos.Y >= o.p.Y+os.OffsetY {
+			cursorY := o.p.Y + os.OffsetY
+			for i := range os.List {
+				fd := o.forcedData[i]
+				cursorY += fd.height
+				if s.E.Mouse.Pos.Y < cursorY {
+					s.BTX <- &core.SelectOrder{
+						Order: &os.List[i],
+					}
+					break
+				}
+			}
+		}
+
+		s.E.Mouse.Captured = true
 	}
 
 	rl.DrawLineEx(

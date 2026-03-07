@@ -264,14 +264,18 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 				if s.E.Mouse.Pos.Y < ob.ySep {
 					askIdx := int((ob.ySep - s.E.Mouse.Pos.Y - 1) / ob.RH)
 					if len(obS.Asks) > askIdx {
-						s.Select.Price.InstrumentKey = obS.InstrumentKey
-						s.Select.Price.Value = obS.Asks[askIdx][0]
+						s.BTX <- &core.SelectInstrumentPrice{
+							Category: obS.Category,
+							Symbol:   obS.Symbol,
+							Price:    obS.Asks[askIdx][0],
+						}
 					}
 				} else {
 					bidIdx := int((s.E.Mouse.Pos.Y - ob.ySep + 1) / ob.RH)
-					if len(obS.Asks) > bidIdx {
-						s.Select.Price.InstrumentKey = obS.InstrumentKey
-						s.Select.Price.Value = obS.Bids[bidIdx][0]
+					s.BTX <- &core.SelectInstrumentPrice{
+						Category: obS.Category,
+						Symbol:   obS.Symbol,
+						Price:    obS.Bids[bidIdx][0],
 					}
 				}
 			}
@@ -451,13 +455,19 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 				idx := int((s.E.Mouse.Pos.Y - ob.p.Y) / ob.RH)
 				if s.E.Mouse.Pos.X > ob.xSep {
 					if len(obS.Asks) > idx {
-						s.Select.Price.InstrumentKey = obS.InstrumentKey
-						s.Select.Price.Value = obS.Asks[idx][0]
+						s.BTX <- &core.SelectInstrumentPrice{
+							Category: obS.Category,
+							Symbol:   obS.Symbol,
+							Price:    obS.Asks[idx][0],
+						}
 					}
 				} else {
 					if len(obS.Asks) > idx {
-						s.Select.Price.InstrumentKey = obS.InstrumentKey
-						s.Select.Price.Value = obS.Bids[idx][0]
+						s.BTX <- &core.SelectInstrumentPrice{
+							Category: obS.Category,
+							Symbol:   obS.Symbol,
+							Price:    obS.Bids[idx][0],
+						}
 					}
 				}
 			}

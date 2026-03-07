@@ -58,6 +58,21 @@ type Broker interface {
 		symbol string,
 	) ([]Order, string, error)
 
+	// id linkId
+	PlaceOrder(
+		ctx context.Context,
+		LinkId string,
+		params PlaceOrderParams,
+	) (string, string, error)
+
+	CancelOrder(
+		ctx context.Context,
+		category Category,
+		symbol string,
+		id string, // or
+		linkId string,
+	) (string, string, error)
+
 	CreateStream(
 		category Category,
 		onConnected ws.OnConnectedFn,

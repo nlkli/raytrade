@@ -57,8 +57,6 @@ type State struct {
 	BTX   chan<- Task   // Backgorund tx
 	CMDTX chan<- string // CMD tx
 
-	Select Select
-
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 
@@ -68,43 +66,31 @@ type State struct {
 	Chart     []*ChartState
 	OrderBook []*OrderBookState
 
-	Bg BackgroundState
-
 	ShowOverlay bool
 
 	Cache Cache
 }
 
 type PositionState struct {
-	List []broker.Position
+	Forced bool // Forced update
 
 	RHD float32
+	List []broker.Position
+	OffsetY float32 // for scroll y
 }
 
 type OrderState struct {
+	Forced bool // Forced update
+
+	RHD     float32
 	List []broker.Order
-
-	RHD float32
-}
-
-type Select struct {
-	OrderId struct {
-		InstrumentKey string
-		Value         float64
-	}
-	Price struct {
-		InstrumentKey string
-		Value         float64
-	}
+	OffsetY float32 // for scroll y
 }
 
 type Cache struct {
 	M      map[string]any
 	Static struct {
 	}
-}
-
-type BackgroundState struct {
 }
 
 type StatusLineState struct {
@@ -145,8 +131,9 @@ type ChartState struct {
 
 	ShowLable bool
 
-	LastPrice  float64 // Last price
-	LastPriceY float32 // Last price y coord
+	LastPrice      float64 // Last price
+	LastPriceY     float32 // Last price y coord
+	PricePrecision int
 
 	Cursor      rl.Vector2
 	CursorPrice float64
