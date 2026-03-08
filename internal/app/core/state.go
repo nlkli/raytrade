@@ -74,8 +74,8 @@ type State struct {
 type PositionState struct {
 	Forced bool // Forced update
 
-	RHD float32
-	List []broker.Position
+	RHD     float32
+	List    []broker.Position
 	OffsetY float32 // for scroll y
 }
 
@@ -83,7 +83,7 @@ type OrderState struct {
 	Forced bool // Forced update
 
 	RHD     float32
-	List []broker.Order
+	List    []broker.Order
 	OffsetY float32 // for scroll y
 }
 
@@ -123,8 +123,11 @@ type ChartState struct {
 	LableString   string
 
 	PositionIdx    int
-	PosEntryPriceY float32 // Local y coord
+	// PosEntryPriceY float32 // Local y coord
 	ShowPosition   bool
+
+	// OrderPrice [][2]float64 // Price and coord y
+	ShowOrder  bool
 
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
@@ -132,7 +135,7 @@ type ChartState struct {
 	ShowLable bool
 
 	LastPrice      float64 // Last price
-	LastPriceY     float32 // Last price y coord
+	// LastPriceY     float32 // Last price y coord
 	PricePrecision int
 
 	Cursor      rl.Vector2
@@ -152,20 +155,23 @@ type ChartState struct {
 	MidP       float64 // Average price
 	RngP       float64 // Price range (MaxP - MinP)
 
-	MaxVisPrice float64 // Topmost visible price value
-	PxPerPrice  float64 // Conversion factor: pixels per one price unit
+	// MaxVisPrice float64 // Topmost visible price value
+	// PxPerPrice  float64 // Conversion factor: pixels per one price unit
 
-	StartSec float32 // Unix timestamp (sec) of first visible candle
-	SecPerPx float32 // Conversion factor: seconds per one pixel
+	// StartSec float32 // Unix timestamp (sec) of first visible candle
+	// SecPerPx float32 // Conversion factor: seconds per one pixel
 
 	ShowGrid  bool    // Toggle grid visibility
-	GridStepY float32 // Pixels between horizontal grid lines (quantized)
-	GridStepX float32 // Pixels between vertical grid lines (quantized)
+	// GridStepY float32 // Pixels between horizontal grid lines (quantized)
+	// GridStepX float32 // Pixels between vertical grid lines (quantized)
 
 	Levels []float64 // Price levels
 
 	Lines        [][2]rl.Vector2
 	IsLineDuring bool
+
+	ShowPriceBar bool
+	ShowTimeLine bool
 }
 
 type OrderBookState struct {

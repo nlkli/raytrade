@@ -324,13 +324,13 @@ func (c *CMD) translateCancelOrder(next func() (string, bool)) (CommitFn, error)
 		}
 		orderByValue = idx
 
-	case "1", "SO", "SelectedOrder":
+	case "1", "S", "Selected":
 		orderBy = SelectedOrder
 
-	case "2", "FO", "FirstOrder":
+	case "2", "F", "First":
 		orderBy = FirstOrder
 
-	case "3", "LO", "LastOrder":
+	case "3", "L", "Last":
 		orderBy = LastOrder
 	}
 

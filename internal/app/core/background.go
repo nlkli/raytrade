@@ -368,7 +368,7 @@ func (t *SubChart) Execute(b *Background) error {
 		cs.PositionIdx = pi
 
 		cs.LableString = fmt.Sprintf(
-			"%s.%s.%s", cString, cs.Symbol, iString,
+			"%d.%s.%s.%s", t.Idx, cString, cs.Symbol, iString,
 		)
 
 		cs.SecInterval = float32(t.Interval.AsSeconds())

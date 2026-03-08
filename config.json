@@ -59,7 +59,10 @@
                         "type": "chart",
                         "params": {
                             "sx": 0.33,
-                            "tx": 10
+                            "tx": 10,
+                            "show_price_bar": false,
+                            "show_time_line": false,
+                            "show_grid": false
                         }
                     },
                     "b": {
@@ -97,22 +100,37 @@
     "vars": {
         "fc": "FARTCOINUSDT",
         "btc": "BTCUSDT",
-        "ci": "0",
-        "css": "0.09",
-        "cst": "25",
+        "chart_scale_size": "0.09",
         "instrument": "F,FARTCOINUSDT",
         "order_qty": "35",
         "place_long_limit_order_by_select_price": "porder L $instrument,L,$order_qty,BC,SP",
         "place_short_limit_order_by_select_price": "porder L $instrument,S,$order_qty,BC,SP",
         "place_long_limit_order_by_best_price": "porder L $instrument,L,$order_qty,BC,AP,0",
         "place_short_limit_order_by_best_price": "porder L $instrument,S,$order_qty,BC,BP,0",
-        "cancel_selected_order": "corder SO"
+        "cancel_selected_order": "corder S",
+        "cancel_first_order": "corder F"
     },
     "leader_key": " ",
     "binds": [
         [
-            "<leader>c",
+            "r",
+            "read order_qty"
+        ],
+        [
+            "1",
+            "set order_qty 35"
+        ],
+        [
+            "2",
+            "set order_qty 50"
+        ],
+        [
+            "<leader>x",
             "$cancel_selected_order"
+        ],
+        [
+            "<leader>c",
+            "$cancel_first_order"
         ],
         [
             "<leader>l",
@@ -123,52 +141,28 @@
             "$place_short_limit_order_by_best_price"
         ],
         [
-            ")",
+            "K",
             "$place_long_limit_order_by_select_price"
         ],
         [
-            "(",
+            "J",
             "$place_short_limit_order_by_select_price"
         ],
         [
-            "f",
-            "sub chart $ci F,$fc,5"
-        ],
-        [
-            "b",
-            "sub chart $ci F,$btc,5"
-        ],
-        [
-            "1",
-            "set ci 0"
-        ],
-        [
-            "2",
-            "set ci 3"
-        ],
-        [
             "]",
-            "chart $ci sx +$css"
+            "chart $ci sx +$chart_scale_size"
         ],
         [
             "[",
-            "chart $ci sx -$css"
+            "chart $ci sx -$chart_scale_size"
         ],
         [
             "}",
-            "chart $ci sy +$css"
+            "chart $ci sy +$chart_scale_size"
         ],
         [
             "{",
-            "chart $ci sy -$css"
-        ],
-        [
-            "t]",
-            "chart $ci tx +$cst"
-        ],
-        [
-            "t[",
-            "chart $ci tx -$cst"
+            "chart $ci sy -$chart_scale_size"
         ]
     ],
     "init_commands": [
@@ -182,77 +176,77 @@
         "sub order F.$fc,F.$btc"
     ],
     "theme": {
-        "name": "Treehouse",
+        "name": "Mirage",
         "is_light": false,
         "colors": {
             "background": [
-                "#0e0e0e",
-                "#191919",
-                "#282828",
-                "#383838",
-                "#545454"
+                "#161f2d",
+                "#1b2738",
+                "#223247",
+                "#2a3c57",
+                "#375073"
             ],
             "foreground": [
-                "#87795e",
-                "#786b53",
-                "#3d372a",
-                "#080705"
+                "#b3c0cf",
+                "#a6b2c0",
+                "#737c85",
+                "#454a50"
             ],
             "selection": {
-                "bg": "#786b53",
-                "fg": "#fac800"
+                "bg": "#273951",
+                "fg": "#d3dbe5"
             },
             "cursor": {
-                "bg": "#fac814",
-                "fg": "#191919"
+                "bg": "#ddb3ff",
+                "fg": "#ffffff"
             },
             "base": {
-                "black": "#321300",
-                "red": "#b2270e",
-                "green": "#44a900",
-                "yellow": "#aa820c",
-                "blue": "#58859a",
-                "magenta": "#97363d",
-                "cyan": "#b25a1e",
-                "white": "#786b53",
-                "orange": "#ae550d",
-                "pink": "#954931"
+                "black": "#011627",
+                "red": "#ff9999",
+                "green": "#85cc95",
+                "yellow": "#ffd700",
+                "blue": "#7fb5ff",
+                "magenta": "#ddb3ff",
+                "cyan": "#21c7a8",
+                "white": "#ffffff",
+                "orange": "#ffb84d",
+                "pink": "#ffcccc"
             },
             "bright": {
-                "black": "#321300",
-                "red": "#b2270e",
-                "green": "#44a900",
-                "yellow": "#aa820c",
-                "blue": "#58859a",
-                "magenta": "#97363d",
-                "cyan": "#b25a1e",
-                "white": "#786b53",
-                "orange": "#ae550d",
-                "pink": "#954931"
+                "black": "#011627",
+                "red": "#ff9999",
+                "green": "#85cc95",
+                "yellow": "#ffd700",
+                "blue": "#7fb5ff",
+                "magenta": "#ddb3ff",
+                "cyan": "#21c7a8",
+                "white": "#ffffff",
+                "orange": "#ffb84d",
+                "pink": "#ffcccc"
             },
             "dim": {
-                "black": "#2b1000",
-                "red": "#97210c",
-                "green": "#3a9000",
-                "yellow": "#916f0a",
-                "blue": "#4b7183",
-                "magenta": "#802e34",
-                "cyan": "#974d1a",
-                "white": "#665b47",
-                "orange": "#94480b",
-                "pink": "#7f3e29"
+                "black": "#011321",
+                "red": "#d98282",
+                "green": "#71ad7f",
+                "yellow": "#d9b700",
+                "blue": "#6c9ad9",
+                "magenta": "#bc98d9",
+                "cyan": "#1ca98f",
+                "white": "#d9d9d9",
+                "orange": "#d99c41",
+                "pink": "#d9adad"
             },
             "diff": {
-                "add": "#367908",
-                "delete": "#802212",
-                "change": "#43616f",
-                "text": "#652a2f"
+                "add": "#629676",
+                "delete": "#b47379",
+                "change": "#5e86bd",
+                "text": "#8f7baf"
             },
             "code_selection": [
-                "#272522",
-                "#4f4318"
+                "#303c4c",
+                "#4a4968"
             ],
-            "comment": "#524a3c"
+            "comment": "#6e7a8a"
         }
     }
 }

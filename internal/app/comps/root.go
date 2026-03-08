@@ -23,7 +23,7 @@ const (
 	DEFAULT_CANDLE_WICK_WIDTH float32 = 1.5
 	DEFAULT_CANDLE_GAP        float32 = 2
 
-	DEFAULT_SCALE_X float32 = .9
+	DEFAULT_SCALE_X float32 = .7
 	DEFAULT_SCALE_Y float32 = .8
 	DEFAULT_SHIFT_X float32 = 60
 	DEFAULT_SHIFT_Y float32 = 0
@@ -167,14 +167,16 @@ func parseChart(c *core.Component, s *core.State) (Comp, error) {
 	showLable := getBooleanParam(c.Params, "show_lable", true)
 	showGrid := getBooleanParam(c.Params, "show_grid", true)
 	showPosition := getBooleanParam(c.Params, "show_position", true)
+	showOrder := getBooleanParam(c.Params, "show_order", true)
+	showPriceBar := getBooleanParam(c.Params, "show_price_bar", true)
+	showTimeLine := getBooleanParam(c.Params, "show_time_line", true)
 
 	s.Chart = append(s.Chart, &core.ChartState{
 		Forced: true,
 
 		RHD: rhd,
 
-		PositionIdx:  -1,
-		ShowPosition: showPosition,
+		PositionIdx: -1,
 
 		Scale: rl.Vector2{X: sx, Y: sy},
 		Shift: rl.Vector2{X: tx, Y: ty},
@@ -183,8 +185,12 @@ func parseChart(c *core.Component, s *core.State) (Comp, error) {
 		CWW: cww,
 		CG:  cg,
 
-		ShowLable: showLable,
-		ShowGrid:  showGrid,
+		ShowLable:    showLable,
+		ShowGrid:     showGrid,
+		ShowPosition: showPosition,
+		ShowOrder:    showOrder,
+		ShowPriceBar: showPriceBar,
+		ShowTimeLine: showTimeLine,
 	})
 
 	return chart, nil
@@ -247,6 +253,7 @@ func parsePosition(c *core.Component, s *core.State) (Comp, error) {
 	rhd := getNumberParam(c.Params, "rhd", DEFAULT_POSITION_RHD)
 
 	s.Position.RHD = rhd
+	s.Position.Forced = true
 
 	return &Position{
 		Rect: &Rect{},
@@ -257,6 +264,7 @@ func parseOrder(c *core.Component, s *core.State) (Comp, error) {
 	rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDER_RHD)
 
 	s.Order.RHD = rhd
+	s.Order.Forced = true
 
 	return &Order{
 		Rect: &Rect{},
