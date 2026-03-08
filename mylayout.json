@@ -1,0 +1,96 @@
+{
+    "base": {
+        "type": "split",
+        "params": {
+            "axis": 1,
+            "size": 0.9
+        },
+        "a": {
+            "type": "split",
+            "params": {
+                "axis": 1,
+                "size": 0.3
+            },
+            "a": {
+                "type": "split",
+                "params": {
+                    "axis": 0,
+                    "size": 0.7
+                },
+                "a": {
+                    "type": "split",
+                    "params": {
+                        "axis": 1,
+                        "size": 0.33
+                    },
+                    "a": {
+                        "type": "chart",
+                        "params": {
+                            "sx": 0.2,
+                            "tx": 10,
+                            "show_price_bar": false,
+                            "show_time_line": false,
+                            "show_grid": false
+                        }
+                    },
+                    "b": {
+                        "type": "chart",
+                        "params": {}
+                    }
+                }
+            },
+            "b": {
+                "type": "split",
+                "params": {
+                    "axis": 0,
+                    "size": 0.7
+                },
+                "a": {
+                    "type": "split",
+                    "params": {
+                        "axis": 1,
+                        "size": 0.33
+                    },
+                    "a": {
+                        "type": "chart",
+                        "params": {
+                            "sx": 0.2,
+                            "tx": 10,
+                            "show_price_bar": false,
+                            "show_time_line": false,
+                            "show_grid": false
+                        }
+                    },
+                    "b": {
+                        "type": "chart",
+                        "params": {}
+                    }
+                }
+            }
+        }
+    },
+    "b": {
+        "type": "split",
+        "params": {
+            "size": 0.45
+        },
+        "a": {
+            "type": "orderbook",
+            "params": {}
+        },
+        "b": {
+            "type": "split",
+            "params": {
+                "axis": 0.2
+            },
+            "a": {
+                "type": "position",
+                "params": {}
+            },
+            "b": {
+                "type": "order",
+                "params": {}
+            }
+        }
+    }
+}

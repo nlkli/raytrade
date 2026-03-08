@@ -114,7 +114,7 @@ func (ch *Chart) Render(s *core.State) {
 	rl.DrawRectangleGradientH(
 		int32(ch.p.X),
 		int32(ch.p.Y),
-		8,
+		6,
 		int32(ch.s.Y),
 		s.P.Bg[1],
 		s.P.TBg[1],
@@ -369,16 +369,16 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 			pos.UnrealisedPnl,
 		)
 
-		textInfoW := s.TextNumSV.X * float32(len(textInfo)) * ls.rhScale
+        textInfoW := rl.MeasureTextEx(s.F, textInfo, ls.rh, 0).X
 
 		var color rl.Color
 		var colorT rl.Color
 		if pos.Side == broker.Long {
 			color = s.P.Diff.Add
-			colorT = s.P.Dim.Green
+			colorT = s.P.Bright.Green
 		} else {
 			color = s.P.Diff.Delete
-			colorT = s.P.Dim.Red
+			colorT = s.P.Bright.Red
 		}
 
 		rl.DrawTextEx(
@@ -391,7 +391,7 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 		)
 
 		rl.DrawLineEx(
-			rl.Vector2{X: cs.Shift.X + textInfoW + 4, Y: ls.posEntryPriceY},
+			rl.Vector2{X: cs.Shift.X + textInfoW + 6, Y: ls.posEntryPriceY},
 			rl.Vector2{X: c.s.X + cs.Shift.X, Y: ls.posEntryPriceY},
 			1,
 			color,
@@ -436,10 +436,10 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 			var colorT rl.Color
 			if oi.side == broker.Long {
 				color = s.P.Diff.Add
-				colorT = s.P.Dim.Green
+				colorT = s.P.Bright.Green
 			} else {
 				color = s.P.Diff.Delete
-				colorT = s.P.Dim.Red
+				colorT = s.P.Bright.Red
 			}
 
 			rl.DrawTextEx(
@@ -551,6 +551,27 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 			1,
 			s.P.Bg[4],
 		)
+
+		if !cs.ShowPriceBar {
+			priceText := fmt.Sprintf("%.5f", cs.CursorPrice)
+			if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
+				priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
+			}
+			priceTextW := s.TextNumSV.X*
+				float32(len(priceText))*ls.rhScale
+			rl.DrawTextEx(
+				s.F,
+				priceText,
+				rl.Vector2{
+					X: c.s.X + cs.Shift.X - priceTextW,
+					Y: wm.Y - ls.rh,
+				},
+				ls.rh,
+				0,
+				s.P.Base.Orange,
+			)
+
+		}
 
 		if s.E.Mouse.HoldLeft {
 
