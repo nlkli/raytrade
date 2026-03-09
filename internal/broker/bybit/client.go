@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 )
 
@@ -162,7 +163,7 @@ func (c *Client) CreatePublicStreamV2(
 
 ) *StreamV2 {
 	url := fmt.Sprintf("%s/v5/public/%s", STREAM_MAINNET, category)
-	return NewStreamV2(url, tx, onConnected, opts...)
+	return NewStreamV2(url, tx, onConnected, nil, opts...)
 }
 
 func (c *Client) CreatePrivateStreamV2(
@@ -177,7 +178,8 @@ func (c *Client) CreatePrivateStreamV2(
 	return NewStreamV2(
 		url,
 		tx,
-		func(sendCh chan<- []byte, n int) error {
+		nil,
+		func(conn *websocket.Conn, sendCh chan<- []byte, n int) error {
 			recvWindow, err := strconv.Atoi(c.recvWindow)
 			if err != nil {
 				return err
@@ -206,8 +208,10 @@ func (c *Client) CreatePrivateStreamV2(
 
 			sendCh <- b
 
+			time.Sleep(time.Second * 5)
+
 			if onConnected != nil {
-				if err := onConnected(sendCh, n); err != nil {
+				if err := onConnected(conn, sendCh, n); err != nil {
 					return err
 				}
 			}

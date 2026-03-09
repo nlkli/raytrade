@@ -9,9 +9,10 @@ import (
 )
 
 type MessageHandlerFn func(int, []byte) (any, bool)
-type OnConnectedFn func(chan<- []byte, int) error
+type OnConnectedFn func(*websocket.Conn, chan<- []byte, int) error
 type OnConnectFn func(int)
 type OnDisconnectFn func(int, bool)
+type OnFirstMessage func(*websocket.Conn, int, []byte)
 
 type Policy struct {
 	Dialer *websocket.Dialer
@@ -20,6 +21,7 @@ type Policy struct {
 	MessageHandler MessageHandlerFn
 	OnConnect      OnConnectFn
 	OnDisconnect   OnDisconnectFn
+	OnFirstMessage OnFirstMessage
 
 	ReconnectTimeout time.Duration
 	PingInterval     time.Duration
@@ -44,8 +46,6 @@ func NewPolicy(
 
 		OnConnected:    onConnected,
 		MessageHandler: messageHandler,
-		OnConnect:      nil,
-		OnDisconnect:   nil,
 
 		ReconnectTimeout: 200 * time.Millisecond,
 		PingInterval:     15 * time.Second,
@@ -74,6 +74,12 @@ func WithOnDisconnectFn(f OnDisconnectFn) PolicyOption {
 func WithOnConnectFn(f OnConnectFn) PolicyOption {
 	return func(p *Policy) {
 		p.OnConnect = f
+	}
+}
+
+func WithOnFirstMessage(f OnFirstMessage) PolicyOption {
+	return func(p *Policy) {
+		p.OnFirstMessage = f
 	}
 }
 
@@ -135,6 +141,7 @@ func NewConnV2(
 
 			done := make(chan struct{}, 1)
 			wg.Go(func() {
+
 				ticker := time.NewTicker(policy.PingInterval)
 				defer ticker.Stop()
 
@@ -189,14 +196,13 @@ func NewConnV2(
 			})
 
 			if policy.OnConnected != nil {
-				err := policy.OnConnected(tx, n-1)
+				err := policy.OnConnected(conn, tx, n-1)
 				if err != nil {
 					done <- struct{}{}
 					continue
 				}
 			}
 
-			conn.SetReadDeadline(time.Now().Add(policy.PingInterval * 2))
 			conn.SetPongHandler(func(string) error {
 				conn.SetReadDeadline(time.Now().Add(policy.PingInterval * 2))
 				return nil
@@ -206,6 +212,15 @@ func NewConnV2(
 				conn.SetWriteDeadline(time.Now().Add(policy.WriteTimeout))
 				return conn.WriteMessage(websocket.PongMessage, nil)
 			})
+
+			if policy.OnFirstMessage != nil {
+				mt, b, err := conn.ReadMessage()
+				if err != nil {
+					done <- struct{}{}
+					break
+				}
+				policy.OnFirstMessage(conn, mt, b)
+			}
 
 			for {
 				mt, b, err := conn.ReadMessage()

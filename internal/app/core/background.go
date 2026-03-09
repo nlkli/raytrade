@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"golang.org/x/exp/slices"
 )
 
@@ -871,8 +872,12 @@ func (b *Background) GetOrInitPrivateStream() broker.PrivateStream {
 	defer b.privateStreamMu.Unlock()
 
 	if b.privateStream == nil {
-		b.privateStream = b.broker.CreatePrivateStream(nil)
-		time.Sleep(time.Second * 5)
+		b.privateStream = b.broker.CreatePrivateStream(
+			func(conn *websocket.Conn, _ chan<- []byte, _ int) error {
+				return nil
+			},
+		)
+		time.Sleep(time.Second*5)
 	}
 
 	return b.privateStream
@@ -884,7 +889,10 @@ func (b *Background) GetOrInitStream(c broker.Category) broker.Stream {
 
 	if b.stream[c] == nil {
 		b.stream[c] = b.broker.CreateStream(
-			c, nil,
+			c,
+			func(conn *websocket.Conn, _ chan<- []byte, _ int) error {
+				return nil
+			},
 			ws.WithOnConnectFn(func(i int) {
 				b.Push(func(s *State) {
 					s.CommandLine.Prompt = "stream connection established"

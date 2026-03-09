@@ -122,19 +122,19 @@ type ChartState struct {
 	Interval      cdl.Interval
 	LableString   string
 
-	PositionIdx    int
+	PositionIdx int
 	// PosEntryPriceY float32 // Local y coord
-	ShowPosition   bool
+	ShowPosition bool
 
 	// OrderPrice [][2]float64 // Price and coord y
-	ShowOrder  bool
+	ShowOrder bool
 
 	Scale rl.Vector2 // X: candle scale, Y: price scale
 	Shift rl.Vector2 // Pan offset (X: time, Y: price)
 
 	ShowLable bool
 
-	LastPrice      float64 // Last price
+	LastPrice float64 // Last price
 	// LastPriceY     float32 // Last price y coord
 	PricePrecision int
 
@@ -161,7 +161,7 @@ type ChartState struct {
 	// StartSec float32 // Unix timestamp (sec) of first visible candle
 	// SecPerPx float32 // Conversion factor: seconds per one pixel
 
-	ShowGrid  bool    // Toggle grid visibility
+	ShowGrid bool // Toggle grid visibility
 	// GridStepY float32 // Pixels between horizontal grid lines (quantized)
 	// GridStepX float32 // Pixels between vertical grid lines (quantized)
 
@@ -172,6 +172,8 @@ type ChartState struct {
 
 	ShowPriceBar bool
 	ShowTimeLine bool
+
+	// SMA *ta.SMA
 }
 
 type OrderBookState struct {
@@ -189,6 +191,8 @@ type OrderBookState struct {
 
 	Bids [][2]float64
 	Asks [][2]float64
+
+	ShowOrder bool
 }
 
 func (s *State) ApplyNewRH(rh float32) {

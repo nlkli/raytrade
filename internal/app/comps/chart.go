@@ -49,6 +49,9 @@ type chartLocalState struct {
 	endCandleIdx int
 
 	localOrder []chartLocalOrder
+
+	// waitExtendCandlesF bool
+	// prevFrameCandlesN int
 }
 
 func (s *chartLocalState) priceToWorldY(p float64) float32 {
@@ -146,6 +149,7 @@ func (ch *Chart) Render(s *core.State) {
 
 	if ch.c.endCandleIdx >= n && !cs.ExtendCandlesF {
 		cs.ExtendCandlesF = true
+		// ls.waitExtendCandlesF = true
 		s.BTX <- &core.ExtendStartCandles{
 			Idx:      ch.StateIdx,
 			Category: cs.Category,
@@ -156,9 +160,16 @@ func (ch *Chart) Render(s *core.State) {
 		}
 	}
 
+	// if !cs.ExtendCandlesF && ls.waitExtendCandlesF {
+	//     cs.SMA = ta.NewSMA()
+	// 	ls.waitExtendCandlesF = false
+	// }
+
 	if cs.Forced {
 		cs.Forced = false
 	}
+
+	// ls.prevFrameCandlesN = n
 }
 
 func priceToWorldY(price float64, maxVisible float64, scale float64) float32 {
@@ -369,7 +380,7 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 			pos.UnrealisedPnl,
 		)
 
-        textInfoW := rl.MeasureTextEx(s.F, textInfo, ls.rh, 0).X
+		textInfoW := rl.MeasureTextEx(s.F, textInfo, ls.rh, 0).X
 
 		var color rl.Color
 		var colorT rl.Color
@@ -557,8 +568,8 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 			if len(priceText) > PRICE_BAR_MAX_CONTENT_CAP {
 				priceText = priceText[:PRICE_BAR_MAX_CONTENT_CAP]
 			}
-			priceTextW := s.TextNumSV.X*
-				float32(len(priceText))*ls.rhScale
+			priceTextW := s.TextNumSV.X *
+				float32(len(priceText)) * ls.rhScale
 			rl.DrawTextEx(
 				s.F,
 				priceText,

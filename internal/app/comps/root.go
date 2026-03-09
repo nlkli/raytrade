@@ -204,8 +204,8 @@ func parseOrderBook(c *core.Component, s *core.State) (Comp, error) {
 	orderBook := &OrderBook{
 		Rect:     &Rect{},
 		StateIdx: len(s.OrderBook),
-		VM:       vm,
-		ShowText: showText,
+		vm:       vm,
+		showText: showText,
 	}
 
 	s.OrderBook = append(s.OrderBook, &core.OrderBookState{

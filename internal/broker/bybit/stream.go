@@ -9,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 var globReqID atomic.Uint64
@@ -47,6 +49,7 @@ func NewStreamV2(
 	url string,
 	tx chan []byte,
 	onConnected ws.OnConnectedFn,
+	privateAuth ws.OnConnectedFn,
 
 	opts ...ws.PolicyOption,
 
@@ -63,7 +66,14 @@ func NewStreamV2(
 		tx,
 		0,
 		ws.NewPolicy(
-			func(sendCh chan<- []byte, n int) error {
+			func(conn *websocket.Conn, sendCh chan<- []byte, n int) error {
+
+				if privateAuth != nil {
+					if err := privateAuth(conn, sendCh, n); err != nil {
+						return err
+					}
+				}
+
 				if n > 0 {
 					topics := s.Topics()
 					if len(topics) == 0 {
@@ -82,7 +92,7 @@ func NewStreamV2(
 				}
 
 				if onConnected != nil {
-					if err := onConnected(sendCh, n); err != nil {
+					if err := onConnected(conn, sendCh, n); err != nil {
 						return err
 					}
 				}
