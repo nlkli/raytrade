@@ -52,6 +52,14 @@ BYBIT_API_SECRET=your_api_secret_here
 
 ## Demo
 
+### Order and position
+*9 марта 2026, 23:23*
+
+Выставление и отмена лимитных заказов
+
+Позиция
+![order-and-pos](https://github.com/nlkli/assetsrepo/blob/main/raytrade.demo/order-and-pos-o.gif)
+
 ### Watch Config
 *1 марта 2026, 18:09*
 

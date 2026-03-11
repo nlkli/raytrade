@@ -178,9 +178,10 @@ type ChartState struct {
 
 type OrderBookState struct {
 	Forced    bool // Forced update
-	PlusCompI int
 
 	RHD float32
+
+	VM int
 
 	ShiftY  float32 // for scroll centered
 	OffsetY float32 // for scroll split

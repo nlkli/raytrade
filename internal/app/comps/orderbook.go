@@ -16,18 +16,6 @@ const (
 	ORDER_BOOK_TEXT_XPD float32 = 4 // Padding
 )
 
-type OrderBookPlus struct {
-	splitter *Splitter
-}
-
-func (ob *OrderBookPlus) R() *Rect {
-	return ob.splitter.Rect
-}
-
-func (ob *OrderBookPlus) Render(s *core.State) {
-	ob.splitter.Render(s)
-}
-
 type orderBookLocalOrder struct {
 	price float64
 }
@@ -36,9 +24,6 @@ type OrderBook struct {
 	*Rect
 
 	StateIdx int
-
-	vm       int
-	showText bool
 
 	rh float32
 
@@ -66,7 +51,7 @@ func (ob *OrderBook) R() *Rect {
 func (ob *OrderBook) Render(s *core.State) {
 	obS := s.OrderBook[ob.StateIdx]
 
-	switch ob.vm {
+	switch obS.VM {
 	case 0:
 		ob.RenderCenteredView(s, obS)
 	default:
@@ -74,15 +59,7 @@ func (ob *OrderBook) Render(s *core.State) {
 	}
 
 	if obS.Forced {
-		switch obS.PlusCompI {
-		case 0:
-			obS.Forced = false
-		case 1:
-			obS.PlusCompI++
-		case 2:
-			obS.PlusCompI--
-			obS.Forced = false
-		}
+		obS.Forced = false
 	}
 }
 
@@ -122,173 +99,122 @@ func (ob *OrderBook) RenderCenteredView(s *core.State, obS *core.OrderBookState)
 
 	maxSizeW := ob.s.X - 1
 
-	if ob.showText {
+	for i := range ob.cap {
+		offsetY := 2 + float32(i)*ob.rh
 
-		for i := range ob.cap {
-			offsetY := 2 + float32(i)*ob.rh
+		bid := obS.Bids[i]
 
-			bid := obS.Bids[i]
+		bidSizeRatio := float32(bid[1] / ob.maxBidS)
+		bidSizeW := maxSizeW * bidSizeRatio
 
-			bidSizeRatio := float32(bid[1] / ob.maxBidS)
-			bidSizeW := maxSizeW * bidSizeRatio
+		bidPos := rl.Vector2{X: ob.p.X, Y: ob.ySep + offsetY}
 
-			bidPos := rl.Vector2{X: ob.p.X, Y: ob.ySep + offsetY}
+		rl.DrawRectangleV(
+			bidPos,
+			rl.Vector2{X: bidSizeW, Y: ob.rh},
+			s.P.Diff.Add,
+		)
 
-			rl.DrawRectangleV(
-				bidPos,
-				rl.Vector2{X: bidSizeW, Y: ob.rh},
-				s.P.Diff.Add,
-			)
+		rl.DrawTextEx(
+			s.F,
+			ob.bidsText[i][1],
+			rl.Vector2{
+				X: bidPos.X + ORDER_BOOK_TEXT_XPD,
+				Y: bidPos.Y,
+			},
+			ob.rh,
+			0,
+			s.P.Fg[2],
+		)
 
-			rl.DrawTextEx(
-				s.F,
-				ob.bidsText[i][1],
-				rl.Vector2{
-					X: bidPos.X + ORDER_BOOK_TEXT_XPD,
-					Y: bidPos.Y,
-				},
-				ob.rh,
-				0,
-				s.P.Fg[2],
-			)
+		rl.DrawTextEx(
+			s.F,
+			ob.bidsText[i][0],
+			rl.Vector2{
+				X: ob.p.X + ob.s.X -
+					ob.bidsPriceTextW[i] - ORDER_BOOK_TEXT_XPD,
+				Y: bidPos.Y,
+			},
+			ob.rh,
+			0,
+			s.P.Fg[1],
+		)
 
-			rl.DrawTextEx(
-				s.F,
-				ob.bidsText[i][0],
-				rl.Vector2{
-					X: ob.p.X + ob.s.X -
-						ob.bidsPriceTextW[i] - ORDER_BOOK_TEXT_XPD,
-					Y: bidPos.Y,
-				},
-				ob.rh,
-				0,
-				s.P.Fg[1],
-			)
+		rl.DrawLineEx(
+			rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.rh},
+			rl.Vector2{X: ob.p.X + ob.s.X, Y: bidPos.Y + ob.rh},
+			1,
+			s.P.Bg[0],
+		)
 
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.rh},
-				rl.Vector2{X: ob.p.X + ob.s.X, Y: bidPos.Y + ob.rh},
-				1,
-				s.P.Bg[0],
-			)
+		ask := obS.Asks[i]
 
-			ask := obS.Asks[i]
+		askSizeRatio := float32(ask[1] / ob.maxAskS)
+		askSizeW := ob.s.X * askSizeRatio
 
-			askSizeRatio := float32(ask[1] / ob.maxAskS)
-			askSizeW := ob.s.X * askSizeRatio
+		askPos := rl.Vector2{X: ob.p.X, Y: ob.ySep - offsetY - ob.rh}
 
-			askPos := rl.Vector2{X: ob.p.X, Y: ob.ySep - offsetY - ob.rh}
+		rl.DrawRectangleV(
+			askPos,
+			rl.Vector2{X: askSizeW, Y: ob.rh},
+			s.P.Diff.Delete,
+		)
 
-			rl.DrawRectangleV(
-				askPos,
-				rl.Vector2{X: askSizeW, Y: ob.rh},
-				s.P.Diff.Delete,
-			)
+		rl.DrawTextEx(
+			s.F,
+			ob.asksText[i][1],
+			rl.Vector2{
+				X: askPos.X + ORDER_BOOK_TEXT_XPD,
+				Y: askPos.Y,
+			},
+			ob.rh,
+			0,
+			s.P.Fg[2],
+		)
 
-			rl.DrawTextEx(
-				s.F,
-				ob.asksText[i][1],
-				rl.Vector2{
-					X: askPos.X + ORDER_BOOK_TEXT_XPD,
-					Y: askPos.Y,
-				},
-				ob.rh,
-				0,
-				s.P.Fg[2],
-			)
+		rl.DrawTextEx(
+			s.F,
+			ob.asksText[i][0],
+			rl.Vector2{
+				X: ob.p.X + ob.s.X -
+					ob.asksPriceTextW[i] - ORDER_BOOK_TEXT_XPD,
+				Y: askPos.Y,
+			},
+			ob.rh,
+			0,
+			s.P.Fg[1],
+		)
 
-			rl.DrawTextEx(
-				s.F,
-				ob.asksText[i][0],
-				rl.Vector2{
-					X: ob.p.X + ob.s.X -
-						ob.asksPriceTextW[i] - ORDER_BOOK_TEXT_XPD,
-					Y: askPos.Y,
-				},
-				ob.rh,
-				0,
-				s.P.Fg[1],
-			)
-
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.p.X, Y: askPos.Y},
-				rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y},
-				1,
-				s.P.Bg[0],
-			)
-		}
-
-	} else {
-
-		for i := range ob.cap {
-			offsetY := 2 + float32(i)*ob.rh
-
-			bid := obS.Bids[i]
-
-			bidSizeRatio := float32(bid[1] / ob.maxBidS)
-			bidSizeW := maxSizeW * bidSizeRatio
-
-			bidPos := rl.Vector2{X: ob.p.X, Y: ob.ySep + offsetY}
-
-			rl.DrawRectangleV(
-				bidPos,
-				rl.Vector2{X: bidSizeW, Y: ob.rh},
-				s.P.Diff.Add,
-			)
-
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.rh},
-				rl.Vector2{X: ob.p.X + ob.s.X, Y: bidPos.Y + ob.rh},
-				1,
-				s.P.Bg[0],
-			)
-
-			ask := obS.Asks[i]
-
-			askSizeRatio := float32(ask[1] / ob.maxAskS)
-			askSizeW := ob.s.X * askSizeRatio
-
-			askPos := rl.Vector2{X: ob.p.X, Y: ob.ySep - offsetY - ob.rh}
-
-			rl.DrawRectangleV(
-				askPos,
-				rl.Vector2{X: askSizeW, Y: ob.rh},
-				s.P.Diff.Delete,
-			)
-
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.p.X, Y: askPos.Y},
-				rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y},
-				1,
-				s.P.Bg[0],
-			)
-		}
-
+		rl.DrawLineEx(
+			rl.Vector2{X: ob.p.X, Y: askPos.Y},
+			rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y},
+			1,
+			s.P.Bg[0],
+		)
 	}
-
-// 	if obS.ShowOrder {
-// 
-// 		if s.Order.Forced {
-// 			ob.localOrder = ob.localOrder[:0]
-// 			for i, oi := range s.Order.List {
-// 				if oi.Category != obS.Category ||
-// 					oi.Symbol != obS.Symbol ||
-// 					oi.Price <= 0 {
-// 					continue
-// 				}
-// 
-// 				ob.localOrder = append(
-// 					ob.localOrder,
-// 					orderBookLocalOrder{
-// 						price: oi.Price,
-// 					},
-// 				)
-// 			}
-// 
-// 		}
-// 
-// 	}
-// 
+	// 	if obS.ShowOrder {
+	//
+	// 		if s.Order.Forced {
+	// 			ob.localOrder = ob.localOrder[:0]
+	// 			for i, oi := range s.Order.List {
+	// 				if oi.Category != obS.Category ||
+	// 					oi.Symbol != obS.Symbol ||
+	// 					oi.Price <= 0 {
+	// 					continue
+	// 				}
+	//
+	// 				ob.localOrder = append(
+	// 					ob.localOrder,
+	// 					orderBookLocalOrder{
+	// 						price: oi.Price,
+	// 					},
+	// 				)
+	// 			}
+	//
+	// 		}
+	//
+	// 	}
+	//
 	if !s.E.Mouse.Captured && ob.ContainsV(s.E.Mouse.Pos) {
 
 		if s.E.Mouse.HoldLeft {
@@ -350,128 +276,77 @@ func (ob *OrderBook) RenderSplitView(s *core.State, obS *core.OrderBookState) {
 
 	maxSizeW := halfX - 1
 
-	if ob.showText {
-		for i := range ob.cap {
-			offsetY := float32(i)*ob.rh + obS.OffsetY
+	for i := range ob.cap {
+		offsetY := float32(i)*ob.rh + obS.OffsetY
 
-			bid := obS.Bids[i]
-			bidSizeRatio := float32(bid[1] / ob.maxBidS)
-			bidSizeW := maxSizeW * bidSizeRatio
+		bid := obS.Bids[i]
+		bidSizeRatio := float32(bid[1] / ob.maxBidS)
+		bidSizeW := maxSizeW * bidSizeRatio
 
-			bidPos := rl.Vector2{
-				X: ob.xSep - bidSizeW - 2,
-				Y: ob.p.Y + offsetY,
-			}
-
-			rl.DrawRectangleV(
-				bidPos,
-				rl.Vector2{X: bidSizeW, Y: ob.rh},
-				s.P.Diff.Add,
-			)
-
-			rl.DrawTextEx(
-				s.F,
-				ob.bidsText[i][0],
-				rl.Vector2{
-					X: ob.xSep - ORDER_BOOK_TEXT_XPD - ob.bidsPriceTextW[i],
-					Y: bidPos.Y,
-				},
-				ob.rh,
-				0,
-				s.P.Fg[1],
-			)
-
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.rh},
-				rl.Vector2{X: ob.xSep, Y: bidPos.Y + ob.rh},
-				1,
-				s.P.Bg[0],
-			)
-
-			ask := obS.Asks[i]
-			askSizeRatio := float32(ask[1] / ob.maxAskS)
-			askSizeW := halfX * askSizeRatio
-
-			askPos := rl.Vector2{
-				X: ob.xSep + 2,
-				Y: ob.p.Y + offsetY,
-			}
-
-			rl.DrawRectangleV(
-				askPos,
-				rl.Vector2{X: askSizeW, Y: ob.rh},
-				s.P.Diff.Delete,
-			)
-
-			rl.DrawTextEx(
-				s.F,
-				ob.asksText[i][0],
-				rl.Vector2{
-					X: ob.xSep + ORDER_BOOK_TEXT_XPD,
-					Y: askPos.Y,
-				},
-				ob.rh,
-				0,
-				s.P.Fg[1],
-			)
-
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.xSep, Y: askPos.Y + ob.rh},
-				rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y + ob.rh},
-				1,
-				s.P.Bg[0],
-			)
+		bidPos := rl.Vector2{
+			X: ob.xSep - bidSizeW - 2,
+			Y: ob.p.Y + offsetY,
 		}
-	} else {
-		for i := range ob.cap {
-			offsetY := float32(i)*ob.rh + obS.OffsetY
 
-			bid := obS.Bids[i]
-			bidSizeRatio := float32(bid[1] / ob.maxBidS)
-			bidSizeW := maxSizeW * bidSizeRatio
+		rl.DrawRectangleV(
+			bidPos,
+			rl.Vector2{X: bidSizeW, Y: ob.rh},
+			s.P.Diff.Add,
+		)
 
-			bidPos := rl.Vector2{
-				X: ob.xSep - bidSizeW - 2,
-				Y: ob.p.Y + offsetY,
-			}
+		rl.DrawTextEx(
+			s.F,
+			ob.bidsText[i][0],
+			rl.Vector2{
+				X: ob.xSep - ORDER_BOOK_TEXT_XPD - ob.bidsPriceTextW[i],
+				Y: bidPos.Y,
+			},
+			ob.rh,
+			0,
+			s.P.Fg[1],
+		)
 
-			rl.DrawRectangleV(
-				bidPos,
-				rl.Vector2{X: bidSizeW, Y: ob.rh},
-				s.P.Diff.Add,
-			)
+		rl.DrawLineEx(
+			rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.rh},
+			rl.Vector2{X: ob.xSep, Y: bidPos.Y + ob.rh},
+			1,
+			s.P.Bg[0],
+		)
 
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.p.X, Y: bidPos.Y + ob.rh},
-				rl.Vector2{X: ob.xSep, Y: bidPos.Y + ob.rh},
-				1,
-				s.P.Bg[0],
-			)
+		ask := obS.Asks[i]
+		askSizeRatio := float32(ask[1] / ob.maxAskS)
+		askSizeW := halfX * askSizeRatio
 
-			ask := obS.Asks[i]
-			askSizeRatio := float32(ask[1] / ob.maxAskS)
-			askSizeW := halfX * askSizeRatio
-
-			askPos := rl.Vector2{
-				X: ob.xSep + 2,
-				Y: ob.p.Y + offsetY,
-			}
-
-			rl.DrawRectangleV(
-				askPos,
-				rl.Vector2{X: askSizeW, Y: ob.rh},
-				s.P.Diff.Delete,
-			)
-
-			rl.DrawLineEx(
-				rl.Vector2{X: ob.xSep, Y: askPos.Y + ob.rh},
-				rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y + ob.rh},
-				1,
-				s.P.Bg[0],
-			)
+		askPos := rl.Vector2{
+			X: ob.xSep + 2,
+			Y: ob.p.Y + offsetY,
 		}
+
+		rl.DrawRectangleV(
+			askPos,
+			rl.Vector2{X: askSizeW, Y: ob.rh},
+			s.P.Diff.Delete,
+		)
+
+		rl.DrawTextEx(
+			s.F,
+			ob.asksText[i][0],
+			rl.Vector2{
+				X: ob.xSep + ORDER_BOOK_TEXT_XPD,
+				Y: askPos.Y,
+			},
+			ob.rh,
+			0,
+			s.P.Fg[1],
+		)
+
+		rl.DrawLineEx(
+			rl.Vector2{X: ob.xSep, Y: askPos.Y + ob.rh},
+			rl.Vector2{X: ob.p.X + ob.s.X, Y: askPos.Y + ob.rh},
+			1,
+			s.P.Bg[0],
+		)
 	}
-
 	// Vertical center line
 	rl.DrawLineEx(
 		rl.Vector2{X: ob.xSep, Y: ob.p.Y},
@@ -520,91 +395,72 @@ func (ob *OrderBook) UpdateOrderBookState(s *core.State, obS *core.OrderBookStat
 	ob.maxBidS = 0
 	ob.maxAskS = 0
 
-	if ob.showText {
+	ob.bidsPriceTextW = ob.bidsPriceTextW[:0]
+	ob.asksPriceTextW = ob.asksPriceTextW[:0]
 
-		ob.bidsPriceTextW = ob.bidsPriceTextW[:0]
-		ob.asksPriceTextW = ob.asksPriceTextW[:0]
+	ob.bidsText = ob.bidsText[:0]
+	ob.asksText = ob.asksText[:0]
 
-		ob.bidsText = ob.bidsText[:0]
-		ob.asksText = ob.asksText[:0]
+	rhScale := ob.rh / float32(s.F.BaseSize)
 
-		rhScale := ob.rh / float32(s.F.BaseSize)
+	for i := range ob.cap {
+		bid := obS.Bids[i]
+		bidPrice, bidSize := bid[0], bid[1]
 
-		for i := range ob.cap {
-			bid := obS.Bids[i]
-			bidPrice, bidSize := bid[0], bid[1]
-
-			if bidSize > ob.maxBidS {
-				ob.maxBidS = bidSize
-			}
-
-			bidPriceText := strconv.FormatFloat(bidPrice, 'f', -1, 64)
-
-			var bidPriceTextW float32
-			if bidPrice != float64(int(bidPrice)) {
-				bidPriceTextW = s.TextNumSV.X*
-					float32(len(bidPriceText)-1)*rhScale +
-					s.TextDotW*rhScale
-			} else {
-				bidPriceTextW = s.TextNumSV.X *
-					float32(len(bidPriceText)) * rhScale
-			}
-
-			ob.bidsPriceTextW = append(
-				ob.bidsPriceTextW, bidPriceTextW,
-			)
-
-			bidSizeText := strconv.FormatFloat(bidSize, 'f', -1, 64)
-
-			ob.bidsText = append(
-				ob.bidsText, [2]string{bidPriceText, bidSizeText},
-			)
-
-			ask := obS.Asks[i]
-			askPrice, askSize := ask[0], ask[1]
-
-			if askSize > ob.maxAskS {
-				ob.maxAskS = askSize
-			}
-
-			askPriceText := strconv.FormatFloat(askPrice, 'f', -1, 64)
-
-			var askPriceTextW float32
-			if askPrice != float64(int(askPrice)) {
-				askPriceTextW = s.TextNumSV.X*
-					float32(len(askPriceText)-1)*rhScale +
-					s.TextDotW*rhScale
-			} else {
-				askPriceTextW = s.TextNumSV.X *
-					float32(len(askPriceText)) * rhScale
-			}
-
-			ob.asksPriceTextW = append(
-				ob.asksPriceTextW, askPriceTextW,
-			)
-
-			askSizeText := strconv.FormatFloat(askSize, 'f', -1, 64)
-
-			ob.asksText = append(
-				ob.asksText, [2]string{askPriceText, askSizeText},
-			)
+		if bidSize > ob.maxBidS {
+			ob.maxBidS = bidSize
 		}
 
-	} else {
+		bidPriceText := strconv.FormatFloat(bidPrice, 'f', -1, 64)
 
-		for i := range ob.cap {
-			bidSize := obS.Bids[i][1]
-
-			if bidSize > ob.maxBidS {
-				ob.maxBidS = bidSize
-			}
-
-			askSize := obS.Asks[i][1]
-
-			if askSize > ob.maxAskS {
-				ob.maxAskS = askSize
-			}
+		var bidPriceTextW float32
+		if bidPrice != float64(int(bidPrice)) {
+			bidPriceTextW = s.TextNumSV.X*
+				float32(len(bidPriceText)-1)*rhScale +
+				s.TextDotW*rhScale
+		} else {
+			bidPriceTextW = s.TextNumSV.X *
+				float32(len(bidPriceText)) * rhScale
 		}
 
+		ob.bidsPriceTextW = append(
+			ob.bidsPriceTextW, bidPriceTextW,
+		)
+
+		bidSizeText := strconv.FormatFloat(bidSize, 'f', -1, 64)
+
+		ob.bidsText = append(
+			ob.bidsText, [2]string{bidPriceText, bidSizeText},
+		)
+
+		ask := obS.Asks[i]
+		askPrice, askSize := ask[0], ask[1]
+
+		if askSize > ob.maxAskS {
+			ob.maxAskS = askSize
+		}
+
+		askPriceText := strconv.FormatFloat(askPrice, 'f', -1, 64)
+
+		var askPriceTextW float32
+		if askPrice != float64(int(askPrice)) {
+			askPriceTextW = s.TextNumSV.X*
+				float32(len(askPriceText)-1)*rhScale +
+				s.TextDotW*rhScale
+		} else {
+			askPriceTextW = s.TextNumSV.X *
+				float32(len(askPriceText)) * rhScale
+		}
+
+		ob.asksPriceTextW = append(
+			ob.asksPriceTextW, askPriceTextW,
+		)
+
+		askSizeText := strconv.FormatFloat(askSize, 'f', -1, 64)
+
+		ob.asksText = append(
+			ob.asksText, [2]string{askPriceText, askSizeText},
+		)
 	}
+
 }

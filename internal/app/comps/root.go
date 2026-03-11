@@ -199,54 +199,19 @@ func parseChart(c *core.Component, s *core.State) (Comp, error) {
 func parseOrderBook(c *core.Component, s *core.State) (Comp, error) {
 	rhd := getNumberParam(c.Params, "rhd", DEFAULT_ORDERBOOK_RHD)
 	vm := getNumberParam(c.Params, "vm", DEFAULT_ORDERBOOK_VIEW_MODEL)
-	showText := getBooleanParam(c.Params, "show_text", true)
 
 	orderBook := &OrderBook{
 		Rect:     &Rect{},
 		StateIdx: len(s.OrderBook),
-		vm:       vm,
-		showText: showText,
 	}
 
 	s.OrderBook = append(s.OrderBook, &core.OrderBookState{
 		Forced: true,
 		RHD:    rhd,
+		VM:     vm,
 	})
 
 	return orderBook, nil
-}
-
-func parseOrderBookPlus(c *core.Component, s *core.State) (Comp, error) {
-	comp, err := parseSplitter(c, s)
-	if err != nil {
-		return nil, err
-	}
-
-	splitter := comp.(*Splitter)
-
-	obA, ok := splitter.A.(*OrderBook)
-	if !ok {
-		return &Void{
-			Rect: &Rect{},
-		}, nil
-	}
-
-	obB, ok := splitter.B.(*OrderBook)
-	if !ok {
-		return &Void{
-			Rect: &Rect{},
-		}, nil
-	}
-
-	obB.StateIdx = obA.StateIdx
-	s.OrderBook = s.OrderBook[:len(s.OrderBook)-1]
-	s.OrderBook[len(s.OrderBook)-1].PlusCompI = 1
-
-	orderBookPlus := &OrderBookPlus{
-		splitter: splitter,
-	}
-
-	return orderBookPlus, nil
 }
 
 func parsePosition(c *core.Component, s *core.State) (Comp, error) {
@@ -282,9 +247,6 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 	case "orderbook":
 		return parseOrderBook(c, s)
-
-	case "orderbook_plus":
-		return parseOrderBookPlus(c, s)
 
 	case "position":
 		return parsePosition(c, s)
