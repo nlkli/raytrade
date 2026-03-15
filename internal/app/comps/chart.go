@@ -531,25 +531,22 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 			timeX := (float32(ei.Time.UnixMilli()/1000) - ls.startSec) / ls.secPerPx
 			priceY := ls.priceToWorldY(ei.Price)
 
-			var eColor rl.Color
-			var rotate float32
 			if ei.Side == broker.Long {
-				eColor = s.P.Base.Cyan
-                rotate = 45
+				rl.DrawTriangle(
+					rl.Vector2{X: float32(timeX - stepX), Y: float32(priceY)},
+					rl.Vector2{X: float32(timeX), Y: float32(priceY)},
+					rl.Vector2{X: float32(timeX - stepX*.5), Y: float32(priceY - stepX)},
+					s.P.Base.Cyan,
+				)
 			} else {
-				eColor = s.P.Base.Magenta
-                rotate = -45
+				rl.DrawTriangle(
+					rl.Vector2{X: float32(timeX - stepX), Y: float32(priceY)},
+					rl.Vector2{X: float32(timeX - stepX*.5), Y: float32(priceY + stepX)},
+					rl.Vector2{X: float32(timeX), Y: float32(priceY)},
+					s.P.Base.Magenta,
+				)
 			}
 
-			rl.DrawRectanglePro(
-				rl.Rectangle{
-					X: timeX - stepX, Y: priceY,
-					Width: stepX, Height: 2,
-				},
-				rl.Vector2{X: timeX - stepX, Y: priceY},
-				rotate,
-				eColor,
-			)
 		}
 
 	}

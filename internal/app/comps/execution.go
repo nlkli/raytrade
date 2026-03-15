@@ -73,7 +73,9 @@ func (e *Execution) Render(s *core.State) {
 	cursor := rl.Vector2{
 		X: e.p.X + POSITION_CONTENT_PDX, Y: e.p.Y + es.OffsetY,
 	}
-	for i, ei := range es.List {
+
+	for i := len(es.List) - 1; i >= 0; i-- {
+		ei := es.List[i]
 
 		fd := e.forcedData[i]
 
