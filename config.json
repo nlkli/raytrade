@@ -88,18 +88,30 @@
                     "params": {}
                 },
                 "b": {
-                    "type": "order",
-                    "params": {}
+                    "type": "split",
+                    "params": {
+                        "axis": 0,
+                        "size": 0.8
+                    },
+                    "a": {
+                        "type": "order",
+                        "params": {}
+                    },
+                    "b": {
+                        "type": "execution",
+                        "params": {}
+                    }
                 }
             }
         }
     },
     "vars": {
-        "fc": "FARTCOINUSDT",
+        "coin": "TRUMPUSDT",
         "btc": "BTCUSDT",
         "chart_scale_size": "0.09",
-        "instrument": "F,FARTCOINUSDT",
-        "order_qty": "35",
+        "ci": "1",
+        "instrument": "F,TRUMPUSDT",
+        "order_qty": "2",
         "place_long_limit_order_by_select_price": "porder L $instrument,L,$order_qty,BC,SP",
         "place_short_limit_order_by_select_price": "porder L $instrument,S,$order_qty,BC,SP",
         "place_long_limit_order_by_best_price": "porder L $instrument,L,$order_qty,BC,AP,0",
@@ -110,16 +122,28 @@
     "leader_key": " ",
     "binds": [
         [
+            "u",
+            "ulines"
+        ],
+        [
             "r",
             "read order_qty"
         ],
         [
             "1",
-            "set order_qty 35"
+            "set order_qty 2"
         ],
         [
             "2",
-            "set order_qty 50"
+            "set order_qty 4"
+        ],
+        [
+            "3",
+            "set order_qty 8"
+        ],
+        [
+            "4",
+            "set order_qty 16"
         ],
         [
             "<leader>x",
@@ -138,11 +162,11 @@
             "$place_short_limit_order_by_best_price"
         ],
         [
-            "K",
+            "L",
             "$place_long_limit_order_by_select_price"
         ],
         [
-            "J",
+            "S",
             "$place_short_limit_order_by_select_price"
         ],
         [
@@ -163,13 +187,14 @@
         ]
     ],
     "init_commands": [
-        "sub chart 0 F,$fc,15",
-        "sub chart 1 F,$fc,1",
+        "sub chart 0 F,$coin,15",
+        "sub chart 1 F,$coin,1",
         "sub chart 2 F,$btc,240",
         "sub chart 3 F,$btc,15",
-        "sub orderbook 0 F,$fc,200",
-        "sub position F.$fc",
-        "sub order F.$fc"
+        "sub orderbook 0 F,$coin,200",
+        "sub position F.$coin",
+        "sub execution F.$coin",
+        "sub order F.$coin"
     ],
     "theme": {
         "name": "Mirage",

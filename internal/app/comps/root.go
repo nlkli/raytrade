@@ -16,8 +16,9 @@ const (
 	DEFAULT_CHART_RHD     float32 = 4
 	DEFAULT_ORDERBOOK_RHD float32 = 4
 
-	DEFAULT_POSITION_RHD float32 = 2
-	DEFAULT_ORDER_RHD    float32 = 2
+	DEFAULT_EXECUTION_RHD float32 = 2
+	DEFAULT_POSITION_RHD  float32 = 2
+	DEFAULT_ORDER_RHD     float32 = 2
 
 	DEFAULT_CANDLE_WIDTH      float32 = 6.5
 	DEFAULT_CANDLE_WICK_WIDTH float32 = 1.5
@@ -168,6 +169,7 @@ func parseChart(c *core.Component, s *core.State) (Comp, error) {
 	showGrid := getBooleanParam(c.Params, "show_grid", true)
 	showPosition := getBooleanParam(c.Params, "show_position", true)
 	showOrder := getBooleanParam(c.Params, "show_order", true)
+	showExecution := getBooleanParam(c.Params, "show_execution", true)
 	showPriceBar := getBooleanParam(c.Params, "show_price_bar", true)
 	showTimeLine := getBooleanParam(c.Params, "show_time_line", true)
 
@@ -185,12 +187,13 @@ func parseChart(c *core.Component, s *core.State) (Comp, error) {
 		CWW: cww,
 		CG:  cg,
 
-		ShowLable:    showLable,
-		ShowGrid:     showGrid,
-		ShowPosition: showPosition,
-		ShowOrder:    showOrder,
-		ShowPriceBar: showPriceBar,
-		ShowTimeLine: showTimeLine,
+		ShowLable:     showLable,
+		ShowGrid:      showGrid,
+		ShowExecution: showExecution,
+		ShowPosition:  showPosition,
+		ShowOrder:     showOrder,
+		ShowPriceBar:  showPriceBar,
+		ShowTimeLine:  showTimeLine,
 	})
 
 	return chart, nil
@@ -212,6 +215,17 @@ func parseOrderBook(c *core.Component, s *core.State) (Comp, error) {
 	})
 
 	return orderBook, nil
+}
+
+func parseExecution(c *core.Component, s *core.State) (Comp, error) {
+	rhd := getNumberParam(c.Params, "rhd", DEFAULT_EXECUTION_RHD)
+
+	s.Execution.RHD = rhd
+	s.Execution.Forced = true
+
+	return &Execution{
+		Rect: &Rect{},
+	}, nil
 }
 
 func parsePosition(c *core.Component, s *core.State) (Comp, error) {
@@ -247,6 +261,9 @@ func parseComponentFromLayuotConfig(c *core.Component, s *core.State) (Comp, err
 
 	case "orderbook":
 		return parseOrderBook(c, s)
+
+	case "execution":
+		return parseExecution(c, s)
 
 	case "position":
 		return parsePosition(c, s)

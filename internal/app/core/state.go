@@ -60,8 +60,9 @@ type State struct {
 	StatusLine  StatusLineState
 	CommandLine CommandLineState
 
-	Position PositionState
-	Order    OrderState
+	Position  PositionState
+	Order     OrderState
+	Execution ExecutionState
 
 	Chart     []*ChartState
 	OrderBook []*OrderBookState
@@ -69,6 +70,14 @@ type State struct {
 	ShowOverlay bool
 
 	Cache Cache
+}
+
+type ExecutionState struct {
+	Forced bool // Forced update
+
+	RHD     float32
+	List    []broker.Execution
+	OffsetY float32 // for scroll y
 }
 
 type PositionState struct {
@@ -121,6 +130,8 @@ type ChartState struct {
 	Symbol        string
 	Interval      cdl.Interval
 	LableString   string
+
+	ShowExecution bool
 
 	PositionIdx int
 	// PosEntryPriceY float32 // Local y coord
@@ -177,7 +188,7 @@ type ChartState struct {
 }
 
 type OrderBookState struct {
-	Forced    bool // Forced update
+	Forced bool // Forced update
 
 	RHD float32
 
@@ -252,6 +263,9 @@ func InitState(c *Config) *State {
 		CommandLine: CommandLineState{
 			History: make([]string, 0, COMMAND_LINE_HISTORY_CAP),
 		},
+
+		// Chart:     make([]*ChartState, MAX_TOPIC_SUBSCRIPTIONS),
+		// OrderBook: make([]*OrderBookState, MAX_TOPIC_SUBSCRIPTIONS),
 
 		Cache: Cache{
 			M: make(map[string]any),

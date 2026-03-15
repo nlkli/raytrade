@@ -283,6 +283,10 @@ func (c *CMD) translateV2(args iter.Seq[string]) (CommitFn, error) {
 
 		return c.translateChartCommands(next)
 
+	case "orderbook":
+
+		return c.translateOrderBookCommands(next)
+
 	case "overlay":
 		return func(s *State) {
 			s.ShowOverlay = !s.ShowOverlay
@@ -480,7 +484,10 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 		return nil, fmt.Errorf("missing component type for 'sub' command")
 	}
 
-	if compType == "position" || compType == "order" {
+	if compType == "position" ||
+		compType == "order" ||
+		compType == "execution" {
+
 		var filter []InstrumentFilter
 
 		filterV, ok := next()
@@ -514,6 +521,13 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 		if compType == "order" {
 			c.BTX <- &SubOrder{
 				Filter: filter,
+			}
+		}
+
+		if compType == "execution" {
+			c.BTX <- &SubExecution{
+				Filter: filter,
+				Limit:  200,
 			}
 		}
 
@@ -592,6 +606,61 @@ func (c *CMD) translateSubCommand(next func() (string, bool)) (CommitFn, error) 
 	}
 
 	return nil, nil
+}
+
+func (c *CMD) translateOrderBookCommands(next func() (string, bool)) (CommitFn, error) {
+
+	idxV, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing orderbook index for 'chart' command")
+	}
+
+	idx, err := strconv.Atoi(idxV)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chart orderbook: %s", idxV)
+	}
+
+	param, ok := next()
+	if !ok {
+		return nil, fmt.Errorf("missing parameter for orderbook %d", idx)
+	}
+
+	switch param {
+	case "rhd":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for orderbook %d parameter '%s'", idx, param)
+		}
+
+		return func(s *State) {
+			obS := s.OrderBook[idx]
+			rhd := float64(obS.RHD)
+			if err := parseFloatValue(value, &rhd); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+			obS.RHD = float32(rhd)
+			obS.Forced = true
+		}, nil
+
+	case "vm":
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for orderbook %d parameter '%s'", idx, param)
+		}
+		return func(s *State) {
+			obS := s.OrderBook[idx]
+			switch value {
+			case "1":
+				obS.VM = 1
+			default:
+				obS.VM = 0
+			}
+			obS.Forced = true
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unknown orderbook parameter: %s", param)
+	}
 }
 
 func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, error) {
@@ -689,6 +758,20 @@ func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, erro
 			cs.Shift.Y = float32(ty)
 			cs.Forced = true
 		}, nil
+	case "cg": // candle gap
+		value, ok := next()
+		if !ok {
+			return nil, fmt.Errorf("missing value for chart %d parameter '%s'", idx, param)
+		}
+
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cg := float64(cs.CG)
+			if err := parseFloatValue(value, &cg); err != nil {
+				CommitCommandLineError(err.Error())(s)
+			}
+			cs.CG = float32(cg)
+		}, nil
 	case "uline":
 		return func(s *State) {
 			cs := s.Chart[idx]
@@ -730,6 +813,42 @@ func (c *CMD) translateChartCommands(next func() (string, bool)) (CommitFn, erro
 			cs := s.Chart[idx]
 			cs.Levels = cs.Levels[:0]
 		}, nil
+	case "show_execution":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.ShowExecution = !cs.ShowExecution
+		}, nil
+	case "show_position":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.ShowPosition = !cs.ShowPosition
+		}, nil
+	case "show_order":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.ShowOrder = !cs.ShowOrder
+		}, nil
+	case "show_lable":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.ShowLable = !cs.ShowLable
+		}, nil
+	case "show_grid":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.ShowGrid = !cs.ShowGrid
+		}, nil
+	case "show_price_bar":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.ShowPriceBar = !cs.ShowPriceBar
+		}, nil
+	case "show_time_line":
+		return func(s *State) {
+			cs := s.Chart[idx]
+			cs.ShowTimeLine = !cs.ShowTimeLine
+		}, nil
+
 	default:
 		return nil, fmt.Errorf("unknown chart parameter: %s", param)
 	}

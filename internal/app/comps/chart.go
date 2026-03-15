@@ -172,14 +172,6 @@ func (ch *Chart) Render(s *core.State) {
 	// ls.prevFrameCandlesN = n
 }
 
-func priceToWorldY(price float64, maxVisible float64, scale float64) float32 {
-	return float32((maxVisible - price) * scale)
-}
-
-func worldYToPrice(y float32, maxVisible float64, scale float64) float64 {
-	return maxVisible - float64(y)/scale
-}
-
 type Canvas struct {
 	*Rect
 
@@ -527,6 +519,39 @@ func (c *Canvas) Render(s *core.State, cs *core.ChartState, ls *chartLocalState)
 			rl.Vector2{X: cw, Y: bodyH},
 			color,
 		)
+	}
+
+	if cs.ShowExecution {
+
+		for _, ei := range s.Execution.List {
+			if ei.Category != cs.Category || ei.Symbol != cs.Symbol {
+				continue
+			}
+
+			timeX := (float32(ei.Time.UnixMilli()/1000) - ls.startSec) / ls.secPerPx
+			priceY := ls.priceToWorldY(ei.Price)
+
+			var eColor rl.Color
+			var rotate float32
+			if ei.Side == broker.Long {
+				eColor = s.P.Base.Cyan
+                rotate = 45
+			} else {
+				eColor = s.P.Base.Magenta
+                rotate = -45
+			}
+
+			rl.DrawRectanglePro(
+				rl.Rectangle{
+					X: timeX - stepX, Y: priceY,
+					Width: stepX, Height: 2,
+				},
+				rl.Vector2{X: timeX - stepX, Y: priceY},
+				rotate,
+				eColor,
+			)
+		}
+
 	}
 
 	// Mouse crosshair

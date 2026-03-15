@@ -161,3 +161,39 @@ type StreamOrderInfo struct {
 	UpdatedTime           string                `json:"updatedTime"`
 	CumFeeDetail          json.RawMessage       `json:"cumFeeDetail"`
 }
+
+// https://bybit-exchange.github.io/docs/v5/websocket/private/execution
+type StreamExecutionInfo struct {
+	Category        Category  `json:"category"`
+	Symbol          string    `json:"symbol"`
+	IsLeverage      string    `json:"isLeverage"` // "0" or "1"
+	OrderId         string    `json:"orderId"`
+	OrderLinkId     string    `json:"orderLinkId"`
+	Side            Side      `json:"side"`
+	OrderPrice      string    `json:"orderPrice"`
+	OrderQty        string    `json:"orderQty"`
+	LeavesQty       string    `json:"leavesQty"`
+	CreateType      string    `json:"createType,omitempty"` // Spot, Option do not have this key
+	OrderType       OrderType `json:"orderType"`
+	StopOrderType   string    `json:"stopOrderType,omitempty"` // If the order is not stop order, any type is not returned
+	ExecFee         string    `json:"execFee"`
+	ExecId          string    `json:"execId"`
+	ExecPrice       string    `json:"execPrice"`
+	ExecQty         string    `json:"execQty"`
+	ExecPnl         string    `json:"execPnl"` // Profit and Loss for each close position execution
+	ExecType        string    `json:"execType"`
+	ExecValue       string    `json:"execValue"`
+	ExecTime        string    `json:"execTime"` // Executed timestamp (ms)
+	IsMaker         bool      `json:"isMaker"`  // true: maker, false: taker
+	FeeRate         string    `json:"feeRate"`
+	TradeIv         string    `json:"tradeIv,omitempty"`         // Implied volatility, valid for option
+	MarkIv          string    `json:"markIv,omitempty"`          // Implied volatility of mark price, valid for option
+	MarkPrice       string    `json:"markPrice,omitempty"`       // Mark price of the symbol when executing, valid for option
+	IndexPrice      string    `json:"indexPrice,omitempty"`      // Index price of the symbol when executing, valid for option
+	UnderlyingPrice string    `json:"underlyingPrice,omitempty"` // Underlying price of the symbol when executing, valid for option
+	BlockTradeId    string    `json:"blockTradeId"`
+	ClosedSize      string    `json:"closedSize"`
+	ExtraFees       any       `json:"extraFees"` // Can be string or array, depends on the response
+	Seq             int64     `json:"seq"`
+	FeeCurrency     string    `json:"feeCurrency"`
+}

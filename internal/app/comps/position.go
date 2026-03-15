@@ -28,7 +28,6 @@ type positionForcedData struct {
 type Position struct {
 	*Rect
 
-	rhScale    float32
 	forcedData []positionForcedData
 }
 
@@ -40,10 +39,7 @@ func (p *Position) Render(s *core.State) {
 	ps := &s.Position
 
 	rh1 := s.RH - ps.RHD
-
-	if s.WRF || s.RH_Dirty {
-		p.rhScale = rh1 / float32(s.F.BaseSize)
-	}
+	rhScale := rh1 / float32(s.F.BaseSize)
 
 	if len(ps.List) == 0 {
 		return
@@ -55,7 +51,9 @@ func (p *Position) Render(s *core.State) {
 		for i, pi := range ps.List {
 			var fd positionForcedData
 
-			fd.headerInfo = fmt.Sprintf("%d.%s", i, pi.Symbol)
+			fd.headerInfo = fmt.Sprintf(
+				"%d.%s.%s", i, pi.Category.AsString(true), pi.Symbol,
+			)
 
 			if pi.PositionIM != 0 {
 				fd.roi = (pi.UnrealisedPnl / pi.PositionIM) * 100
@@ -169,7 +167,7 @@ func (p *Position) Render(s *core.State) {
 			fmt.Sprintf("X%d", pi.Leverage),
 			rl.Vector2{
 				X: cursor.X + s.TextNumSV.X*
-					float32(len(sideText)+1)*p.rhScale,
+					float32(len(sideText)+1)*rhScale,
 				Y: cursor.Y,
 			},
 			rh1,

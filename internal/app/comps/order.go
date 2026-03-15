@@ -46,7 +46,9 @@ func (o *Order) Render(s *core.State) {
 		for i, oi := range os.List {
 			var fd orderForcedData
 
-			fd.headerInfo = fmt.Sprintf("%d.%s", i, oi.Symbol)
+			fd.headerInfo = fmt.Sprintf(
+				"%d.%s.%s", i, oi.Category.AsString(true), oi.Symbol,
+				)
 
 			fd.qtyInfo = fmt.Sprintf(
 				"S: %s (%s)",

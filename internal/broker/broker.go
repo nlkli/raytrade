@@ -150,6 +150,7 @@ type Stream interface {
 type PrivateStream interface {
 	SubscribePosition() (*Subscription[Position], error)
 	SubscribeOrder() (*Subscription[Order], error)
+	SubscribeExecution() (*Subscription[Execution], error)
 
 	Close()
 }

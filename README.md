@@ -118,31 +118,31 @@ BYBIT_API_SECRET=your_api_secret_here
 ## SCC
 
 ```text
-Wed Mar  4 21:51:47 MSK 2026
+Thu Mar 12 01:24:28 MSK 2026
 ───────────────────────────────────────────────────────────────────────────────
 Language                 Files     Lines   Blanks  Comments     Code Complexity
 ───────────────────────────────────────────────────────────────────────────────
-Go                          34      7702     1403       369     5930        827
-JSON                         1       188        0         0      188          0
+Go                          37      9017     1641       351     7025       1084
+JSON                         2       344        0         0      344          0
 License                      1        21        4         0       17          0
 Makefile                     1        15        5         0       10          0
-Markdown                     1       195       41         0      154          0
+Markdown                     1       203       44         0      159          0
 Shell                        1        15        4         3        8          1
 ───────────────────────────────────────────────────────────────────────────────
-Total                       39      8136     1457       372     6307        828
+Total                       43      9615     1698       354     7563       1085
 ───────────────────────────────────────────────────────────────────────────────
-Estimated Cost to Develop (organic) $186,813
-Estimated Schedule Effort (organic) 7.27 months
-Estimated People Required (organic) 2.28
+Estimated Cost to Develop (organic) $226,060
+Estimated Schedule Effort (organic) 7.82 months
+Estimated People Required (organic) 2.57
 ───────────────────────────────────────────────────────────────────────────────
-Processed 180539 bytes, 0.181 megabytes (SI)
+Processed 208314 bytes, 0.208 megabytes (SI)
 ───────────────────────────────────────────────────────────────────────────────
 ```
 
 ## Tree
 
 ```text
-Mon Mar  2 00:07:11 MSK 2026
+Thu Mar 12 01:24:28 MSK 2026
 .
 ├── LICENSE
 ├── Makefile
@@ -169,6 +169,8 @@ Mon Mar  2 00:07:11 MSK 2026
 │   │       ├── palette.go
 │   │       └── state.go
 │   ├── broker
+│   │   ├── binance
+│   │   │   └── broker.go
 │   │   ├── broker.go
 │   │   ├── bybit
 │   │   │   ├── broker.go
@@ -187,17 +189,26 @@ Mon Mar  2 00:07:11 MSK 2026
 │   ├── cdl
 │   │   ├── cdl.go
 │   │   ├── csv.go
-│   │   └── interval.go
+│   │   ├── interval.go
+│   │   └── ta
+│   │       ├── ma.go
+│   │       └── ta.go
 │   ├── utils
 │   │   └── utils.go
 │   └── ws
 │       └── ws.go
 ├── main.go
 ├── main_test.go
+├── mylayout.json
 ├── recol.sh
 └── resources
+    ├── ChangaOne-Regular.ttf
     ├── ComicRelief-Bold.ttf
-    └── ComicRelief-Regular.ttf
+    ├── ComicRelief-Regular.ttf
+    ├── ConcertOne-Regular.ttf
+    ├── Jersey15-Regular.ttf
+    ├── Micro5-Regular.ttf
+    └── Ubuntu-Bold.ttf
 
-12 directories, 43 files
+14 directories, 52 files
 ```

@@ -173,3 +173,15 @@ type Position struct {
 	StopLoss       float64
 	CreatedAt      time.Time
 }
+
+type Execution struct {
+	Category    Category
+	Symbol      string
+	Side        Side
+	Qty         float64
+	Price       float64
+	OrderId     string
+	OrderLinkId string
+	IsMaker     bool
+	Time        time.Time
+}

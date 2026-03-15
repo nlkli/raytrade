@@ -642,6 +642,55 @@ func (s *BrokerPrivateStream) Close() {
 	s.once.Do(func() { close(s.tx) })
 }
 
+func (s *BrokerPrivateStream) SubscribeExecution() (*broker.Subscription[broker.Execution], error) {
+	subCh, err := s.stream.Subscribe("execution") // All-In-One Topic
+	if err != nil {
+		return nil, err
+	}
+
+	ch := make(chan broker.Execution, 1)
+	go func() {
+		defer close(ch)
+
+		for d := range subCh {
+
+			var exList []models.StreamExecutionInfo
+			if err := json.Unmarshal(d.Data, &exList); err != nil {
+				continue
+			}
+
+			for _, ei := range exList {
+				var e broker.Execution
+
+				e.Category = FromLocalCategory(ei.Category)
+				e.Symbol = ei.Symbol
+				if ei.Side == models.SideBuy {
+					e.Side = broker.Long
+				} else {
+					e.Side = broker.Short
+				}
+				e.Qty, _ = strconv.ParseFloat(ei.ExecQty, 64)
+				e.Price, _ = strconv.ParseFloat(ei.ExecPrice, 64)
+				e.OrderId = ei.OrderId
+				e.OrderLinkId = ei.OrderLinkId
+				e.IsMaker = ei.IsMaker
+
+				createdAtUnix, _ := strconv.ParseInt(ei.ExecTime, 0, 64)
+				e.Time = time.UnixMilli(createdAtUnix)
+
+				ch <- e
+			}
+		}
+	}()
+
+	return broker.NewBrokerStreamSubscription(
+		ch,
+		func() error {
+			return s.stream.Unsubscribe("execution")
+		},
+	), nil
+}
+
 func (s *BrokerPrivateStream) SubscribePosition() (*broker.Subscription[broker.Position], error) {
 	subCh, err := s.stream.Subscribe("position") // All-In-One Topic
 	if err != nil {

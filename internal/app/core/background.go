@@ -20,7 +20,7 @@ import (
 const (
 	REQUEST_TIMEOUT         = time.Second * 3
 	MAX_CATEGORY_STREAMS    = 4
-	MAX_TOPIC_SUBSCRIPTIONS = 16
+	MAX_TOPIC_SUBSCRIPTIONS = 24
 )
 
 type Task interface {
@@ -172,10 +172,6 @@ func (t *PlaceLimitOrder) Execute(b *Background) error {
 		MarketUnit: &t.MarketUnit,
 	}
 
-	// fmt.Printf("%+v\n", params)
-	// fmt.Printf("%v\n", t.Qty)
-	// fmt.Printf("%v\n\n", t.MarketUnit)
-
 	var price float64
 	switch t.PriceBy {
 	case Price:
@@ -246,7 +242,13 @@ type ExtendStartCandles struct {
 
 func (t *ExtendStartCandles) Execute(b *Background) error {
 	defer b.Push(func(s *State) {
-		s.Chart[t.Idx].ExtendCandlesF = false
+		cs := s.Chart[t.Idx]
+
+		if cs == nil {
+			return
+		}
+
+		cs.ExtendCandlesF = false
 	})
 
 	if len(t.Candles) == 0 {
@@ -290,6 +292,10 @@ loop:
 				b.Push(func(s *State) {
 					cs := s.Chart[t.Idx]
 
+					if cs == nil {
+						return
+					}
+
 					if cs.ExtendCandlesF {
 						cs.Candles = exCandles[:len(exCandles)-startCandles]
 						startCandles = len(cs.Candles)
@@ -320,6 +326,10 @@ type SubChart struct {
 func (t *SubChart) Execute(b *Background) error {
 	stream := b.GetOrInitStream(t.Category)
 
+	if b.chartSub[t.Idx] != nil {
+		b.chartSub[t.Idx].Stop()
+	}
+
 	sub, err := stream.SubscribeCandle(t.Symbol, t.Interval)
 	if err != nil {
 		return fmt.Errorf(
@@ -331,22 +341,16 @@ func (t *SubChart) Execute(b *Background) error {
 		)
 	}
 
-	if b.chartSub[t.Idx] != nil {
-		if err = b.chartSub[t.Idx].Stop(); err != nil {
-			sub.Stop()
-			return fmt.Errorf(
-				"candle unsubscribtion error: %e",
-				err,
-			)
-		}
-	}
-
 	b.chartSub[t.Idx] = sub
 
 	first := <-sub.C
 
 	b.Push(func(s *State) {
 		cs := s.Chart[t.Idx]
+
+		if cs == nil {
+			return
+		}
 
 		cString := t.Category.AsString(true)
 		iString := t.Interval.AsString()
@@ -390,6 +394,10 @@ func (t *SubChart) Execute(b *Background) error {
 				b.Push(func(s *State) {
 					cs := s.Chart[t.Idx]
 
+					if cs == nil {
+						return
+					}
+
 					cs.LastPrice = d.Candle.C
 
 					n := len(cs.Candles)
@@ -408,6 +416,10 @@ func (t *SubChart) Execute(b *Background) error {
 
 			b.Push(func(s *State) {
 				cs := s.Chart[t.Idx]
+
+				if cs == nil {
+					return
+				}
 
 				cs.LastPrice = d.Candle.C
 				cs.Candles[len(cs.Candles)-1] = d.Candle
@@ -434,6 +446,10 @@ func (t *SubOrderBook) Execute(b *Background) error {
 
 	stream := b.GetOrInitStream(t.Category)
 
+	if b.orderBookSub[t.Idx] != nil {
+		b.orderBookSub[t.Idx].Stop()
+	}
+
 	sub, err := stream.SubscribeOrderBook(t.Symbol, t.Depth)
 	if err != nil {
 		return fmt.Errorf(
@@ -449,6 +465,10 @@ func (t *SubOrderBook) Execute(b *Background) error {
 	b.Push(func(s *State) {
 		obS := s.OrderBook[t.Idx]
 
+		if obS == nil {
+			return
+		}
+
 		obS.InstrumentKey = instrumentKey
 		obS.Category = t.Category
 		obS.Symbol = t.Symbol
@@ -456,9 +476,6 @@ func (t *SubOrderBook) Execute(b *Background) error {
 		obS.Forced = true
 	})
 
-	if b.orderBookSub[t.Idx] != nil {
-		b.orderBookSub[t.Idx].Stop()
-	}
 	b.orderBookSub[t.Idx] = sub
 
 	go func() {
@@ -469,6 +486,10 @@ func (t *SubOrderBook) Execute(b *Background) error {
 
 			b.Push(func(s *State) {
 				obS := s.OrderBook[t.Idx]
+
+				if obS == nil {
+					return
+				}
 
 				obS.Bids = d[0]
 				obS.Asks = d[1]
@@ -486,6 +507,55 @@ type InstrumentFilter struct {
 	Symbol   string
 }
 
+type SubExecution struct {
+	Filter []InstrumentFilter
+	Limit  int
+}
+
+func (t *SubExecution) Execute(b *Background) error {
+
+	stream := b.GetOrInitPrivateStream()
+
+	b.executionMu.Lock()
+
+	if b.executionSub != nil {
+		b.executionSub.Stop()
+	}
+
+	sub, err := stream.SubscribeExecution()
+	if err != nil {
+		return err
+	}
+
+	b.executionSub = sub
+
+	b.executionMu.Unlock()
+
+	go func() {
+		for d := range b.executionSub.C {
+			if len(t.Filter) > 0 {
+				if !slices.ContainsFunc(t.Filter, func(e InstrumentFilter) bool {
+					return e.Category == d.Category && e.Symbol == d.Symbol
+				}) {
+					continue
+				}
+			}
+			b.Push(func(s *State) {
+				if len(s.Execution.List) > t.Limit*2 {
+					s.Execution.List = append(
+						[]broker.Execution{},
+						s.Execution.List[t.Limit:]...,
+					)
+				}
+				s.Execution.List = append(s.Execution.List, d)
+				s.Execution.Forced = true
+			})
+		}
+	}()
+
+	return nil
+}
+
 type SubPosition struct {
 	Filter []InstrumentFilter
 }
@@ -494,23 +564,22 @@ func (t *SubPosition) Execute(b *Background) error {
 
 	stream := b.GetOrInitPrivateStream()
 
+	b.positionMu.Lock()
+
+	if b.positionSub != nil {
+		b.positionSub.Stop()
+	}
+
 	sub, err := stream.SubscribePosition()
 	if err != nil {
 		return err
 	}
 
-	b.positionMu.Lock()
-	if b.positionSub != nil {
-		b.positionSub.Stop()
-	}
 	b.positionSub = sub
+
 	b.positionMu.Unlock()
 
 	updatePosition := func(p broker.Position) {
-		if p.Size == 0 { // empty pos
-			return
-		}
-
 		b.GetOrInitInstrumentInfo(p.Category, p.Symbol).Position.Store(&p)
 
 		instrumentKey := fmt.Sprintf(
@@ -605,16 +674,19 @@ type SubOrder struct {
 func (t *SubOrder) Execute(b *Background) error {
 	stream := b.GetOrInitPrivateStream()
 
+	b.orderMu.Lock()
+
+	if b.orderSub != nil {
+		b.orderSub.Stop()
+	}
+
 	sub, err := stream.SubscribeOrder()
 	if err != nil {
 		return err
 	}
 
-	b.orderMu.Lock()
-	if b.orderSub != nil {
-		b.orderSub.Stop()
-	}
 	b.orderSub = sub
+
 	b.orderMu.Unlock()
 
 	done := make(chan struct{}, 1)
@@ -724,6 +796,9 @@ type Background struct {
 
 	privateStream   broker.PrivateStream
 	privateStreamMu sync.Mutex
+
+	executionSub *broker.Subscription[broker.Execution]
+	executionMu  sync.Mutex
 
 	positionSub *broker.Subscription[broker.Position]
 	positionMu  sync.Mutex
@@ -877,7 +952,7 @@ func (b *Background) GetOrInitPrivateStream() broker.PrivateStream {
 				return nil
 			},
 		)
-		time.Sleep(time.Second*5)
+		time.Sleep(time.Second * 5)
 	}
 
 	return b.privateStream
