@@ -106,12 +106,12 @@
         }
     },
     "vars": {
-        "coin": "TRUMPUSDT",
+        "coin": "FARTCOINUSDT",
         "btc": "BTCUSDT",
         "chart_scale_size": "0.09",
         "ci": "1",
-        "instrument": "F,TRUMPUSDT",
-        "order_qty": "2",
+        "instrument": "F,FARTCOINUSDT",
+        "order_qty": "40",
         "place_long_limit_order_by_select_price": "porder L $instrument,L,$order_qty,BC,SP",
         "place_short_limit_order_by_select_price": "porder L $instrument,S,$order_qty,BC,SP",
         "place_long_limit_order_by_best_price": "porder L $instrument,L,$order_qty,BC,AP,0",
@@ -122,6 +122,10 @@
     "leader_key": " ",
     "binds": [
         [
+            "e",
+            "chart $ci show_execution"
+        ],
+        [
             "u",
             "ulines"
         ],
@@ -131,19 +135,19 @@
         ],
         [
             "1",
-            "set order_qty 2"
+            "set order_qty 40"
         ],
         [
             "2",
-            "set order_qty 4"
+            "set order_qty 80"
         ],
         [
             "3",
-            "set order_qty 8"
+            "set order_qty 120"
         ],
         [
             "4",
-            "set order_qty 16"
+            "set order_qty 240"
         ],
         [
             "<leader>x",

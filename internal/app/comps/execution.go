@@ -133,6 +133,14 @@ func (e *Execution) Render(s *core.State) {
 		cursor.Y += rh
 	}
 
+	if !s.E.Mouse.Captured && e.Rect.ContainsV(s.E.Mouse.Pos) {
+		if s.E.Mouse.HoldLeft {
+			es.OffsetY -= s.E.Mouse.Delta.Y
+		}
+
+		s.E.Mouse.Captured = true
+	}
+
 	rl.DrawLineEx(
 		rl.Vector2{X: e.p.X, Y: cursor.Y},
 		rl.Vector2{X: e.p.X + e.s.X, Y: cursor.Y},
