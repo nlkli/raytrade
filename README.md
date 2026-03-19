@@ -118,24 +118,23 @@ BYBIT_API_SECRET=your_api_secret_here
 ## SCC
 
 ```text
-Thu Mar 12 01:24:28 MSK 2026
+Thu Mar 19 22:04:14 MSK 2026
 ───────────────────────────────────────────────────────────────────────────────
 Language                 Files     Lines   Blanks  Comments     Code Complexity
 ───────────────────────────────────────────────────────────────────────────────
-Go                          37      9017     1641       351     7025       1084
-JSON                         2       344        0         0      344          0
+Go                          38      9516     1735       351     7430       1155
+JSON                         2       373        0         0      373          0
 License                      1        21        4         0       17          0
-Makefile                     1        15        5         0       10          0
-Markdown                     1       203       44         0      159          0
+Markdown                     1       195       44         0      151          0
 Shell                        1        15        4         3        8          1
 ───────────────────────────────────────────────────────────────────────────────
-Total                       43      9615     1698       354     7563       1085
+Total                       43     10120     1787       354     7979       1156
 ───────────────────────────────────────────────────────────────────────────────
-Estimated Cost to Develop (organic) $226,060
-Estimated Schedule Effort (organic) 7.82 months
-Estimated People Required (organic) 2.57
+Estimated Cost to Develop (organic) $239,133
+Estimated Schedule Effort (organic) 7.99 months
+Estimated People Required (organic) 2.66
 ───────────────────────────────────────────────────────────────────────────────
-Processed 208314 bytes, 0.208 megabytes (SI)
+Processed 217642 bytes, 0.218 megabytes (SI)
 ───────────────────────────────────────────────────────────────────────────────
 ```
 
