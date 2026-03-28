@@ -48,7 +48,7 @@ func (o *Order) Render(s *core.State) {
 
 			fd.headerInfo = fmt.Sprintf(
 				"%d.%s.%s", i, oi.Category.AsString(true), oi.Symbol,
-				)
+			)
 
 			fd.qtyInfo = fmt.Sprintf(
 				"S: %s (%s)",

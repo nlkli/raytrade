@@ -13,7 +13,7 @@ type CancelAllOrdersResult struct {
 }
 
 type OrderListResult struct {
-	Category       Category      `json:"category"`
+	Category       Category    `json:"category"`
 	NextPageCursor string      `json:"nextPageCursor"`
 	List           []OrderInfo `json:"list"`
 }
